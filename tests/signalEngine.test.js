@@ -6,8 +6,10 @@ const assert = require("node:assert/strict");
 const {
   ACTIONS,
   DEMOTION_MS,
+  TRACKED_ASSETS,
   applyAutoDemotion,
   confidencePercentile,
+  createDefaultSignal,
   createSignal,
   isThaiAsset
 } = require("../src/signalEngine");
@@ -55,4 +57,23 @@ test("auto-demote memory logic softens stale strong buy and sell states", () => 
 test("Thai asset routing follows THB suffix", () => {
   assert.equal(isThaiAsset("JPYTHB"), true);
   assert.equal(isThaiAsset("OANDA:XAUUSD"), false);
+});
+
+test("tracked asset universe matches the SavePulse alert list", () => {
+  assert.deepEqual(TRACKED_ASSETS, [
+    "USDTHB",
+    "JPYTHB",
+    "EURTHB",
+    "XAUTHB",
+    "BTCTHB",
+    "USDJPY",
+    "EURUSD",
+    "XAUUSD",
+    "BTCUSD"
+  ]);
+
+  const defaultSignal = createDefaultSignal("xauthb");
+  assert.equal(defaultSignal.symbol, "XAUTHB");
+  assert.equal(defaultSignal.action, "WAIT_ZONE");
+  assert.equal(defaultSignal.source, "default");
 });
