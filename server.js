@@ -151,6 +151,33 @@ function emailIsValid(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
 }
 
+function hasMasterSecret(req, body) {
+  return Boolean(WEBHOOK_SECRET && incomingSecret(req, body) === WEBHOOK_SECRET);
+}
+
+function checkoutUrlForPlan(plan, env = process.env) {
+  const planId = normalizePlan(plan);
+  if (planId === "free") {
+    return null;
+  }
+
+  return env[`CHECKOUT_${planId.toUpperCase()}_URL`] || null;
+}
+
+function checkoutPayload(plan) {
+  const planId = normalizePlan(plan);
+  const url = checkoutUrlForPlan(planId);
+
+  return {
+    plan: planId,
+    configured: Boolean(url),
+    url,
+    message: url
+      ? "Open this checkout URL to activate the requested plan."
+      : "Checkout URL is not configured yet. Add the plan payment link in Render."
+  };
+}
+
 function publicSubscriber(record) {
   return {
     id: record.id,
@@ -165,6 +192,45 @@ function publicSubscriber(record) {
     createdAt: record.createdAt,
     updatedAt: record.updatedAt
   };
+}
+
+function buildSubscriberRecord(email, body, existing, plan) {
+  const watchlistInput = body.watchlist ?? body.symbols ?? body.symbol ?? existing?.watchlist ?? [];
+  const watchlistResult = sanitizeWatchlist(watchlistInput, plan);
+  const channels = sanitizeChannels(body.channels ?? existing?.channels ?? ["email"], plan);
+  const planConfig = planFor(plan);
+
+  return {
+    record: {
+      id: existing?.id || crypto.randomUUID(),
+      email,
+      locale: body.locale === "th" ? "th" : body.locale === "en" ? "en" : existing?.locale || "en",
+      interest: String(body.interest || existing?.interest || "general").slice(0, 40),
+      plan,
+      watchlist: watchlistResult.watchlist,
+      channels,
+      preferences: {
+        dailyDigest: body.dailyDigest ?? existing?.preferences?.dailyDigest ?? true,
+        majorAlertsOnly: planConfig.majorAlertsOnly,
+        realTimeAlerts: planConfig.realTimeAlerts
+      },
+      createdAt: existing?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    watchlistResult
+  };
+}
+
+function saveSubscriberRecord(record) {
+  const existing = subscribers.find((subscriber) => subscriber.email === record.email);
+
+  if (existing) {
+    subscribers = subscribers.map((subscriber) => (subscriber.email === record.email ? record : subscriber));
+  } else {
+    subscribers.push(record);
+  }
+
+  saveJson(SUBSCRIBERS_FILE, subscribers);
 }
 
 function notificationCandidates() {
@@ -433,41 +499,72 @@ async function handleSubscribe(req, res) {
   }
 
   const existing = subscribers.find((subscriber) => subscriber.email === email);
-  const plan = normalizePlan(body.plan || existing?.plan || "free");
-  const watchlistInput = body.watchlist ?? body.symbols ?? body.symbol ?? existing?.watchlist ?? [];
-  const watchlistResult = sanitizeWatchlist(watchlistInput, plan);
-  const channels = sanitizeChannels(body.channels ?? existing?.channels ?? ["email"], plan);
-  const planConfig = planFor(plan);
-  const record = {
-    id: existing?.id || crypto.randomUUID(),
-    email,
-    locale: body.locale === "th" ? "th" : body.locale === "en" ? "en" : existing?.locale || "en",
-    interest: String(body.interest || existing?.interest || "general").slice(0, 40),
-    plan,
-    watchlist: watchlistResult.watchlist,
-    channels,
-    preferences: {
-      dailyDigest: body.dailyDigest ?? existing?.preferences?.dailyDigest ?? true,
-      majorAlertsOnly: planConfig.majorAlertsOnly,
-      realTimeAlerts: planConfig.realTimeAlerts
-    },
-    createdAt: existing?.createdAt || new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
+  const existingPlan = normalizePlan(existing?.plan || "free");
+  const requestedPlan = body.plan === undefined ? existingPlan : normalizePlan(body.plan);
+  const isPlanChange = requestedPlan !== existingPlan;
+  const canSetRequestedPlan = requestedPlan === "free" || !isPlanChange || hasMasterSecret(req, body);
+  const plan = canSetRequestedPlan ? requestedPlan : existingPlan;
+  const upgradeRequired = requestedPlan !== plan && requestedPlan !== "free";
+  const { record, watchlistResult } = buildSubscriberRecord(email, body, existing, plan);
 
-  if (existing) {
-    subscribers = subscribers.map((subscriber) => (subscriber.email === email ? record : subscriber));
-  } else {
-    subscribers.push(record);
-  }
-
-  saveJson(SUBSCRIBERS_FILE, subscribers);
+  saveSubscriberRecord(record);
 
   sendJson(res, 201, {
     subscribed: true,
     subscriber: publicSubscriber(record),
+    requestedPlan,
+    upgradeRequired,
+    checkout: upgradeRequired ? checkoutPayload(requestedPlan) : null,
     rejectedWatchlist: watchlistResult.rejected,
     quota: quotaSnapshot()
+  });
+}
+
+async function handleBillingCheckout(req, res) {
+  const body = await parseBody(req);
+  const email = String(body.email || "").trim().toLowerCase();
+  const plan = normalizePlan(body.plan);
+
+  if (plan === "free") {
+    sendJson(res, 422, { error: "paid_plan_required" });
+    return;
+  }
+
+  if (!emailIsValid(email)) {
+    sendJson(res, 422, { error: "valid_email_required" });
+    return;
+  }
+
+  sendJson(res, 200, {
+    email,
+    checkout: checkoutPayload(plan)
+  });
+}
+
+async function handleAdminSubscriberPlan(req, res) {
+  const body = await parseBody(req);
+
+  if (!hasMasterSecret(req, body)) {
+    sendJson(res, 401, { error: "unauthorized_admin_update" });
+    return;
+  }
+
+  const email = String(body.email || "").trim().toLowerCase();
+  if (!emailIsValid(email)) {
+    sendJson(res, 422, { error: "valid_email_required" });
+    return;
+  }
+
+  const existing = subscribers.find((subscriber) => subscriber.email === email);
+  const plan = normalizePlan(body.plan || existing?.plan || "free");
+  const { record, watchlistResult } = buildSubscriberRecord(email, body, existing, plan);
+
+  saveSubscriberRecord(record);
+
+  sendJson(res, 200, {
+    updated: true,
+    subscriber: publicSubscriber(record),
+    rejectedWatchlist: watchlistResult.rejected
   });
 }
 
@@ -636,6 +733,16 @@ async function handleRequest(req, res) {
 
     if (req.method === "POST" && url.pathname === "/api/v1/subscribe") {
       await handleSubscribe(req, res);
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/v1/billing/checkout") {
+      await handleBillingCheckout(req, res);
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/v1/admin/subscribers/plan") {
+      await handleAdminSubscriberPlan(req, res);
       return;
     }
 
