@@ -6,7 +6,7 @@ const http = require("node:http");
 const path = require("node:path");
 const { URL } = require("node:url");
 
-const { applyAutoDemotion, createSignal } = require("./src/signalEngine");
+const { TRACKED_ASSETS, applyAutoDemotion, createDefaultSignal, createSignal } = require("./src/signalEngine");
 const { broadcastStrongBuy } = require("./src/emailDispatcher");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -111,9 +111,20 @@ function quotaSnapshot() {
 }
 
 function listAssets() {
-  return Object.values(signalsBySymbol)
+  const signals = {
+    ...Object.fromEntries(TRACKED_ASSETS.map((symbol) => [symbol, createDefaultSignal(symbol)])),
+    ...signalsBySymbol
+  };
+
+  const order = new Map(TRACKED_ASSETS.map((symbol, index) => [symbol, index]));
+
+  return Object.values(signals)
     .map(publicSignal)
-    .sort((a, b) => a.meta.severity - b.meta.severity || a.symbol.localeCompare(b.symbol));
+    .sort((a, b) => {
+      const aOrder = order.has(a.symbol) ? order.get(a.symbol) : Number.MAX_SAFE_INTEGER;
+      const bOrder = order.has(b.symbol) ? order.get(b.symbol) : Number.MAX_SAFE_INTEGER;
+      return aOrder - bOrder || a.symbol.localeCompare(b.symbol);
+    });
 }
 
 function emailIsValid(email) {
