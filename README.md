@@ -4,7 +4,7 @@ Decision intelligence for everyday savers. SavePulse turns TradingView daily sig
 
 ## What is included
 
-- `server.js`: Render-ready Node API with TradingView webhook ingestion, persisted local memory, auto-demotion after 24 hours, subscriber capture, and static dashboard hosting.
+- `server.js`: Render-ready Node API with TradingView webhook ingestion, persisted local memory, five-business-day buy-window demotion, subscriber capture, and static dashboard hosting.
 - `src/signalEngine.js`: Pure decision-state logic, including the percentile formula `P = (Current - P10) / (P90 - P10)`.
 - `src/emailDispatcher.js`: Nodemailer-compatible VIP broadcast engine for fresh `STRONG_BUY` events.
 - `public/index.html`: Bilingual TH/EN dashboard with Decision Light orb, radar list, visitor counter, quota bar, and opportunity-cost calculator.
@@ -79,7 +79,13 @@ Supported actions:
 - `WAIT_ZONE`: neutral patience zone.
 - `SELL_ZONE`: peak regret risk zone.
 
-`STRONG_BUY` automatically becomes `BUY_ZONE` after 24 hours without a fresh alert. `SELL_ZONE` automatically becomes `WAIT_ZONE` after 24 hours.
+Buy signals are treated as a five-business-day decision window using Bangkok time:
+
+- Business day 1 remains `STRONG_BUY`.
+- Business days 2-5 soften to `BUY_ZONE`.
+- Business day 6 onward becomes `WAIT_ZONE` with the Thai status `รอก่อน ยังไม่ควรซื้อตอนนี้`, even if TradingView has not sent a sell alert.
+
+Business days count Monday-Friday. `SELL_ZONE` still automatically becomes `WAIT_ZONE` after 24 hours without a fresh alert.
 
 ## Tracked assets
 
