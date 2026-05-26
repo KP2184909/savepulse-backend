@@ -13,6 +13,25 @@ const ACTIONS = Object.freeze({
   SELL_ZONE: "SELL_ZONE"
 });
 
+const ACTION_ALIASES = Object.freeze({
+  BUY: ACTIONS.STRONG_BUY,
+  LONG: ACTIONS.STRONG_BUY,
+  STRONGBUY: ACTIONS.STRONG_BUY,
+  BUY_SIGNAL: ACTIONS.STRONG_BUY,
+  SUPERTREND_BUY: ACTIONS.STRONG_BUY,
+  SUPER_TREND_BUY: ACTIONS.STRONG_BUY,
+  SELL: ACTIONS.SELL_ZONE,
+  SHORT: ACTIONS.SELL_ZONE,
+  EXITSELL: ACTIONS.SELL_ZONE,
+  EXIT_SELL: ACTIONS.SELL_ZONE,
+  SELL_SIGNAL: ACTIONS.SELL_ZONE,
+  SUPERTREND_SELL: ACTIONS.SELL_ZONE,
+  SUPER_TREND_SELL: ACTIONS.SELL_ZONE,
+  WAIT: ACTIONS.WAIT_ZONE,
+  HOLD: ACTIONS.WAIT_ZONE,
+  NEUTRAL: ACTIONS.WAIT_ZONE
+});
+
 const TRACKED_ASSETS = Object.freeze([
   "USDTHB",
   "JPYTHB",
@@ -89,13 +108,12 @@ const ACTION_META = Object.freeze({
 });
 
 const ENTRY_WINDOW_EXPIRED_META = Object.freeze({
-  tone: "amber",
-  severity: 3,
-  orbClass: "orb-amber",
+  ...ACTION_META.WAIT_ZONE,
   en: {
-    label: "Wait Now",
-    headline: "The 5-business-day entry window has expired",
-    guidance: "Even if the indicator remains in buy mode, SavePulse avoids chasing after the low-regret decision window closes."
+    label: "Entry Window Expired",
+    headline: "Wait now, do not chase",
+    guidance:
+      "The trend may still look positive, but the five-business-day low-regret window has passed."
   },
   th: {
     label: "รอก่อน ยังไม่ควรซื้อตอนนี้",
@@ -109,9 +127,12 @@ function normalizeSymbol(symbol) {
     throw new Error("symbol is required");
   }
 
-  const normalized = symbol.trim().toUpperCase();
-  if (!/^[A-Z0-9:_-]{3,24}$/.test(normalized)) {
-    throw new Error("symbol must be 3-24 chars and contain only A-Z, 0-9, :, _, or -");
+  const cleaned = symbol.trim().toUpperCase().replace(/\s+/g, "");
+  const withoutExchange = cleaned.includes(":") ? cleaned.split(":").at(-1) : cleaned;
+  const normalized = withoutExchange.replace(/[^A-Z0-9]/g, "");
+
+  if (!/^[A-Z0-9]{3,24}$/.test(normalized)) {
+    throw new Error("symbol must normalize to 3-24 alphanumeric chars");
   }
 
   return normalized;
@@ -122,8 +143,15 @@ function normalizeAction(action) {
     throw new Error("action is required");
   }
 
-  const normalized = action.trim().toUpperCase();
+  const normalized = action.trim().toUpperCase().replace(/[\s-]+/g, "_");
   if (!Object.prototype.hasOwnProperty.call(ACTIONS, normalized)) {
+    const compact = normalized.replace(/[^A-Z0-9]/g, "");
+    const alias = ACTION_ALIASES[normalized] || ACTION_ALIASES[compact];
+
+    if (alias) {
+      return alias;
+    }
+
     throw new Error(`unsupported action: ${action}`);
   }
 
@@ -172,31 +200,38 @@ function actionMeta(action) {
 }
 
 function bangkokDayStartMs(date) {
-  const time = date instanceof Date ? date.getTime() : new Date(date).getTime();
-  if (!Number.isFinite(time)) {
-    return null;
-  }
-
-  return Math.floor((time + BANGKOK_OFFSET_MS) / DAY_MS) * DAY_MS - BANGKOK_OFFSET_MS;
+  const shifted = new Date(date.getTime() + BANGKOK_OFFSET_MS);
+  return (
+    Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()) -
+    BANGKOK_OFFSET_MS
+  );
 }
 
 function isBangkokBusinessDay(dayStartMs) {
-  const bangkokMidnight = new Date(dayStartMs + BANGKOK_OFFSET_MS);
-  const day = bangkokMidnight.getUTCDay();
-  return day >= 1 && day <= 5;
+  const shifted = new Date(dayStartMs + BANGKOK_OFFSET_MS);
+  const day = shifted.getUTCDay();
+  return day !== 0 && day !== 6;
 }
 
-function businessDaysElapsed(start, end = new Date()) {
-  const startDay = bangkokDayStartMs(start);
-  const endDay = bangkokDayStartMs(end);
-
-  if (startDay === null || endDay === null || endDay < startDay) {
+function businessDaysElapsed(start, end) {
+  if (!(start instanceof Date) || !(end instanceof Date)) {
     return null;
   }
 
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) {
+    return null;
+  }
+
+  const startDayMs = bangkokDayStartMs(start);
+  const endDayMs = bangkokDayStartMs(end);
+
+  if (endDayMs < startDayMs) {
+    return 0;
+  }
+
   let count = 0;
-  for (let day = startDay; day <= endDay; day += DAY_MS) {
-    if (isBangkokBusinessDay(day)) {
+  for (let dayMs = startDayMs; dayMs <= endDayMs; dayMs += DAY_MS) {
+    if (isBangkokBusinessDay(dayMs)) {
       count += 1;
     }
   }
@@ -227,41 +262,49 @@ function applyAutoDemotion(signal, now = new Date()) {
   }
 
   const createdAt = new Date(signal.receivedAt || signal.createdAt || signal.timestamp);
-  const ageMs = Number.isFinite(createdAt.getTime()) ? now.getTime() - createdAt.getTime() : 0;
-  const expired = ageMs > DEMOTION_MS;
-  let effectiveAction = normalizeAction(signal.action);
-  let demotedFrom = null;
+  const hasValidCreatedAt = Number.isFinite(createdAt.getTime());
+  const ageMs = hasValidCreatedAt ? now.getTime() - createdAt.getTime() : 0;
+  const elapsedBusinessDays = hasValidCreatedAt ? businessDaysElapsed(createdAt, now) : null;
+  let expired = false;
   let decisionWindowExpired = false;
-  let businessDayAge = null;
+  const rawAction = normalizeAction(signal.action);
+  let effectiveAction = rawAction;
+  let demotedFrom = null;
 
-  if (effectiveAction === ACTIONS.STRONG_BUY) {
-    businessDayAge = businessDaysElapsed(createdAt, now);
-
-    if (businessDayAge > BUY_WINDOW_BUSINESS_DAYS) {
-      demotedFrom = ACTIONS.STRONG_BUY;
-      effectiveAction = ACTIONS.WAIT_ZONE;
-      decisionWindowExpired = true;
-    } else if (businessDayAge > STRONG_BUY_FRESH_BUSINESS_DAYS) {
-      demotedFrom = ACTIONS.STRONG_BUY;
-      effectiveAction = ACTIONS.BUY_ZONE;
-    }
+  if (
+    effectiveAction === ACTIONS.STRONG_BUY &&
+    elapsedBusinessDays !== null &&
+    elapsedBusinessDays > BUY_WINDOW_BUSINESS_DAYS
+  ) {
+    demotedFrom = ACTIONS.STRONG_BUY;
+    effectiveAction = ACTIONS.WAIT_ZONE;
+    expired = true;
+    decisionWindowExpired = true;
+  } else if (
+    effectiveAction === ACTIONS.STRONG_BUY &&
+    elapsedBusinessDays !== null &&
+    elapsedBusinessDays > STRONG_BUY_FRESH_BUSINESS_DAYS
+  ) {
+    demotedFrom = ACTIONS.STRONG_BUY;
+    effectiveAction = ACTIONS.BUY_ZONE;
   }
 
-  if (expired && effectiveAction === ACTIONS.SELL_ZONE) {
+  if (ageMs > DEMOTION_MS && effectiveAction === ACTIONS.SELL_ZONE) {
     demotedFrom = ACTIONS.SELL_ZONE;
     effectiveAction = ACTIONS.WAIT_ZONE;
+    expired = true;
   }
 
   return {
     ...signal,
-    rawAction: normalizeAction(signal.action),
+    rawAction,
     action: effectiveAction,
     meta: decisionWindowExpired ? ENTRY_WINDOW_EXPIRED_META : actionMeta(effectiveAction),
     demotedFrom,
     expired,
     decisionWindowExpired,
     buyWindowBusinessDays: BUY_WINDOW_BUSINESS_DAYS,
-    businessDaysElapsed: businessDayAge,
+    businessDaysElapsed: elapsedBusinessDays,
     ageHours: Math.max(0, Math.round((ageMs / (60 * 60 * 1000)) * 10) / 10)
   };
 }
@@ -294,6 +337,7 @@ function createSignal(payload, now = new Date()) {
 
 module.exports = {
   ACTIONS,
+  ACTION_ALIASES,
   ACTION_META,
   BUY_WINDOW_BUSINESS_DAYS,
   DEMOTION_MS,
