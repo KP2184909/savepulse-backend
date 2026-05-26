@@ -9,7 +9,8 @@ Decision intelligence for everyday savers. SavePulse turns TradingView daily sig
 - `src/plans.js`: Free, Plus, Pro, and Business entitlement model for watchlists, asset access, channels, and alert timing.
 - `src/emailDispatcher.js`: Nodemailer-compatible bilingual alert email renderer and dispatcher.
 - `public/index.html`: Bilingual TH/EN dashboard with Decision Light orb, radar list, visitor counter, quota bar, and opportunity-cost calculator.
-- `tests/signalEngine.test.js`: Node built-in tests for the mathematical and memory rules.
+- `tests/signalEngine.test.js`: Node built-in tests for the mathematical, memory, and TradingView-normalization rules.
+- `tests/plans.test.js`: Node built-in tests for the Free, Plus, Pro, and Business entitlement ladder.
 - `render.yaml`: Render web-service blueprint with production env placeholders.
 
 ## Local run
@@ -80,6 +81,8 @@ Supported actions:
 - `BUY_ZONE`: favorable value zone.
 - `WAIT_ZONE`: neutral patience zone.
 - `SELL_ZONE`: peak regret risk zone.
+
+Common TradingView names are accepted too. `BUY`, `SuperTrend Buy`, and `Long` map to `STRONG_BUY`; `SELL`, `SuperTrend Sell`, and `Exit Sell` map to `SELL_ZONE`; `HOLD`, `WAIT`, and `Neutral` map to `WAIT_ZONE`. Symbols with an exchange prefix such as `OANDA:USDTHB` are normalized to `USDTHB`.
 
 `STRONG_BUY` follows the SavePulse low-regret decision window:
 
