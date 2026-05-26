@@ -28,3 +28,9 @@ services:
         value: https://savepulse-backend.onrender.com
       - key: VIP_EMAILS
         sync: false
+      - key: CHECKOUT_PLUS_URL
+        sync: false
+      - key: CHECKOUT_PRO_URL
+        sync: false
+      - key: CHECKOUT_BUSINESS_URL
+        sync: false
