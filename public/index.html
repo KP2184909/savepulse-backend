@@ -248,7 +248,7 @@
               <p class="mt-2 text-2xl font-semibold" id="priceValue">--</p>
             </div>
             <div class="rounded-[8px] border border-slate-200 p-3">
-              <p class="text-xs font-semibold uppercase text-slate-500" data-i18n="ageLabel">Signal age</p>
+              <p class="text-xs font-semibold uppercase text-slate-500" data-i18n="ageLabel">Decision window</p>
               <p class="mt-2 text-2xl font-semibold" id="ageValue">--</p>
             </div>
           </div>
@@ -278,8 +278,8 @@
         th: { label: "โซนรออย่างมีวินัย", headline: "กำลังรอสัญญาณสด", guidance: "แดชบอร์ดพร้อมรับ webhook แรกจาก TradingView แล้ว" }
       };
       const translations = {
-        en: { title: "Decision Light", subtitle: "A regret-risk dashboard for everyday savers, gold collectors, and travel planners.", assetLabel: "Asset", budgetLabel: "Planned amount", peakLabel: "Peak regret buffer", savedLabel: "Potential regret avoided", vipTitle: "VIP daily alert queue", vipSubtitle: "Fresh safe-entry email alerts only.", joinButton: "Join", statsTitle: "Timing statistics", percentileLabel: "Percentile", visitorLabel: "Co-visitors", priceLabel: "Reference price", ageLabel: "Signal age", radarTitle: "Radar list", radarSubtitle: "Live regret-risk states", emptyRadar: "Waiting for live TradingView signals.", subscribed: "You are in the VIP alert queue.", subscribeError: "Please enter a valid email.", quotaLeft: "left", noSignal: "No signal" },
-        th: { title: "Decision Light", subtitle: "แดชบอร์ดลดความเสี่ยงเสียใจสำหรับคนออมทอง คนเก็บเงินเที่ยว และผู้ซื้อสินทรัพย์ทั่วไป", assetLabel: "สินทรัพย์", budgetLabel: "งบที่วางแผน", peakLabel: "ส่วนต่างเสี่ยงซื้อแพง", savedLabel: "มูลค่าความเสียใจที่อาจเลี่ยงได้", vipTitle: "คิวแจ้งเตือน VIP รายวัน", vipSubtitle: "ส่งเฉพาะสัญญาณโซนสะสมที่สดใหม่", joinButton: "เข้าคิว", statsTitle: "สถิติจังหวะเวลา", percentileLabel: "เปอร์เซ็นไทล์", visitorLabel: "ผู้ใช้ร่วมตอนนี้", priceLabel: "ราคาอ้างอิง", ageLabel: "อายุสัญญาณ", radarTitle: "รายการเรดาร์", radarSubtitle: "สถานะลดความเสี่ยงเสียใจแบบสด", emptyRadar: "กำลังรอสัญญาณสดจาก TradingView", subscribed: "คุณอยู่ในคิวแจ้งเตือน VIP แล้ว", subscribeError: "กรุณากรอกอีเมลให้ถูกต้อง", quotaLeft: "ที่นั่ง", noSignal: "ยังไม่มีสัญญาณ" }
+        en: { title: "Decision Light", subtitle: "A regret-risk dashboard for everyday savers, gold collectors, and travel planners.", assetLabel: "Asset", budgetLabel: "Planned amount", peakLabel: "Peak regret buffer", savedLabel: "Potential regret avoided", vipTitle: "VIP daily alert queue", vipSubtitle: "Fresh safe-entry email alerts only.", joinButton: "Join", statsTitle: "Timing statistics", percentileLabel: "Percentile", visitorLabel: "Co-visitors", priceLabel: "Reference price", ageLabel: "Decision window", radarTitle: "Radar list", radarSubtitle: "Live regret-risk states", emptyRadar: "Waiting for live TradingView signals.", subscribed: "You are in the VIP alert queue.", subscribeError: "Please enter a valid email.", quotaLeft: "left", noSignal: "No signal" },
+        th: { title: "Decision Light", subtitle: "แดชบอร์ดลดความเสี่ยงเสียใจสำหรับคนออมทอง คนเก็บเงินเที่ยว และผู้ซื้อสินทรัพย์ทั่วไป", assetLabel: "สินทรัพย์", budgetLabel: "งบที่วางแผน", peakLabel: "ส่วนต่างเสี่ยงซื้อแพง", savedLabel: "มูลค่าความเสียใจที่อาจเลี่ยงได้", vipTitle: "คิวแจ้งเตือน VIP รายวัน", vipSubtitle: "ส่งเฉพาะสัญญาณโซนสะสมที่สดใหม่", joinButton: "เข้าคิว", statsTitle: "สถิติจังหวะเวลา", percentileLabel: "เปอร์เซ็นไทล์", visitorLabel: "ผู้ใช้ร่วมตอนนี้", priceLabel: "ราคาอ้างอิง", ageLabel: "หน้าต่างตัดสินใจ", radarTitle: "รายการเรดาร์", radarSubtitle: "สถานะลดความเสี่ยงเสียใจแบบสด", emptyRadar: "กำลังรอสัญญาณสดจาก TradingView", subscribed: "คุณอยู่ในคิวแจ้งเตือน VIP แล้ว", subscribeError: "กรุณากรอกอีเมลให้ถูกต้อง", quotaLeft: "ที่นั่ง", noSignal: "ยังไม่มีสัญญาณ" }
       };
       const formatNumber = (value) => Number(value || 0).toLocaleString(state.lang === "th" ? "th-TH" : "en-US", { maximumFractionDigits: 2 });
       function currentAsset() { return state.assets.find((asset) => asset.symbol === state.selectedSymbol) || null; }
@@ -302,7 +302,15 @@
         document.getElementById("statusLabel").textContent = copy.label;
         document.getElementById("percentileValue").textContent = asset?.percentile ? `${asset.percentile.percent}%` : "--";
         document.getElementById("priceValue").textContent = asset?.price === null || asset?.price === undefined ? "--" : formatNumber(asset.price);
-        document.getElementById("ageValue").textContent = asset?.ageHours === undefined ? "--" : `${asset.ageHours}h`;
+        const businessDay = asset?.businessDaysElapsed;
+        const buyWindow = asset?.buyWindowBusinessDays || 5;
+        const windowText =
+          businessDay === null || businessDay === undefined
+            ? "--"
+            : asset.decisionWindowExpired
+              ? (state.lang === "th" ? "หมดเวลา" : "Expired")
+              : (state.lang === "th" ? `วันที่ ${Math.max(1, businessDay)}/${buyWindow}` : `Day ${Math.max(1, businessDay)}/${buyWindow}`);
+        document.getElementById("ageValue").textContent = windowText;
         document.getElementById("legalBoundary").textContent = state.lang === "th" ? "ข้อมูลนี้ใช้เพิ่มความมั่นใจในการตัดสินใจ ไม่ใช่คำแนะนำลงทุน สัญญาณเทรด หรือการรับประกันผลตอบแทน" : "Decision intelligence only. Not financial advice, trading instruction, or return guarantee.";
       }
       function renderAssets() {
