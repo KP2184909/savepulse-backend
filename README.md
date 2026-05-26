@@ -80,3 +80,17 @@ Supported actions:
 - `SELL_ZONE`: peak regret risk zone.
 
 `STRONG_BUY` automatically becomes `BUY_ZONE` after 24 hours without a fresh alert. `SELL_ZONE` automatically becomes `WAIT_ZONE` after 24 hours.
+
+## Tracked assets
+
+The dashboard radar list is seeded in this exact order:
+
+- `USDTHB`
+- `JPYTHB`
+- `EURTHB`
+- `XAUTHB`
+- `BTCTHB`
+- `USDJPY`
+- `EURUSD`
+- `XAUUSD`
+- `BTCUSD`
