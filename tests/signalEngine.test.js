@@ -31,8 +31,8 @@ test("confidencePercentile applies the SavePulse P formula and clamps display ou
 test("createSignal normalizes TradingView webhook payloads", () => {
   const signal = createSignal(
     {
-      symbol: "jpythb",
-      action: "strong_buy",
+      symbol: "OANDA:jpythb",
+      action: "SuperTrend Buy",
       price: "0.221",
       timeframe: "1d",
       p10: "0.2",
@@ -48,11 +48,29 @@ test("createSignal normalizes TradingView webhook payloads", () => {
 });
 
 test("business day counter follows Bangkok Monday-Friday calendar", () => {
-  const signalDay = new Date("2026-05-26T03:00:00.000Z"); // Tuesday, 10:00 Bangkok time.
+  assert.equal(
+    businessDaysElapsed(
+      new Date("2026-05-26T03:00:00.000Z"),
+      new Date("2026-05-26T12:00:00.000Z")
+    ),
+    1
+  );
 
-  assert.equal(businessDaysElapsed(signalDay, new Date("2026-05-26T14:00:00.000Z")), 1);
-  assert.equal(businessDaysElapsed(signalDay, new Date("2026-06-01T14:00:00.000Z")), 5);
-  assert.equal(businessDaysElapsed(signalDay, new Date("2026-06-02T14:00:00.000Z")), 6);
+  assert.equal(
+    businessDaysElapsed(
+      new Date("2026-05-26T03:00:00.000Z"),
+      new Date("2026-06-01T12:00:00.000Z")
+    ),
+    BUY_WINDOW_BUSINESS_DAYS
+  );
+
+  assert.equal(
+    businessDaysElapsed(
+      new Date("2026-05-26T03:00:00.000Z"),
+      new Date("2026-06-02T12:00:00.000Z")
+    ),
+    6
+  );
 });
 
 test("auto-demote memory logic limits buy entries to five business days", () => {
@@ -60,28 +78,28 @@ test("auto-demote memory logic limits buy entries to five business days", () => 
 
   const fresh = applyAutoDemotion(
     { symbol: "JPYTHB", action: "STRONG_BUY", receivedAt },
-    new Date("2026-05-26T14:00:00.000Z")
+    new Date("2026-05-26T12:00:00.000Z")
   );
   assert.equal(fresh.action, "STRONG_BUY");
   assert.equal(fresh.businessDaysElapsed, 1);
 
-  const dayFive = applyAutoDemotion(
+  const agedButOpen = applyAutoDemotion(
     { symbol: "JPYTHB", action: "STRONG_BUY", receivedAt },
-    new Date("2026-06-01T14:00:00.000Z")
+    new Date("2026-06-01T12:00:00.000Z")
   );
-  assert.equal(dayFive.action, "BUY_ZONE");
-  assert.equal(dayFive.businessDaysElapsed, BUY_WINDOW_BUSINESS_DAYS);
-  assert.equal(dayFive.decisionWindowExpired, false);
+  assert.equal(agedButOpen.action, "BUY_ZONE");
+  assert.equal(agedButOpen.businessDaysElapsed, 5);
+  assert.equal(agedButOpen.decisionWindowExpired, false);
 
-  const daySix = applyAutoDemotion(
+  const expired = applyAutoDemotion(
     { symbol: "JPYTHB", action: "STRONG_BUY", receivedAt },
-    new Date("2026-06-02T14:00:00.000Z")
+    new Date("2026-06-02T12:00:00.000Z")
   );
-  assert.equal(daySix.action, "WAIT_ZONE");
-  assert.equal(daySix.demotedFrom, "STRONG_BUY");
-  assert.equal(daySix.businessDaysElapsed, 6);
-  assert.equal(daySix.decisionWindowExpired, true);
-  assert.equal(daySix.meta.th.label, "รอก่อน ยังไม่ควรซื้อตอนนี้");
+  assert.equal(expired.action, "WAIT_ZONE");
+  assert.equal(expired.demotedFrom, "STRONG_BUY");
+  assert.equal(expired.businessDaysElapsed, 6);
+  assert.equal(expired.decisionWindowExpired, true);
+  assert.equal(expired.meta.th.label, "รอก่อน ยังไม่ควรซื้อตอนนี้");
 });
 
 test("auto-demote memory logic still softens stale sell states", () => {
@@ -94,6 +112,7 @@ test("auto-demote memory logic still softens stale sell states", () => {
 
 test("Thai asset routing follows THB suffix", () => {
   assert.equal(isThaiAsset("JPYTHB"), true);
+  assert.equal(isThaiAsset("OANDA:JPYTHB"), true);
   assert.equal(isThaiAsset("OANDA:XAUUSD"), false);
 });
 
@@ -114,4 +133,10 @@ test("tracked asset universe matches the SavePulse alert list", () => {
   assert.equal(defaultSignal.symbol, "XAUTHB");
   assert.equal(defaultSignal.action, "WAIT_ZONE");
   assert.equal(defaultSignal.source, "default");
+});
+
+test("common TradingView action aliases map to SavePulse states", () => {
+  assert.equal(createSignal({ symbol: "USDTHB", action: "BUY" }).action, ACTIONS.STRONG_BUY);
+  assert.equal(createSignal({ symbol: "USDTHB", action: "sell" }).action, ACTIONS.SELL_ZONE);
+  assert.equal(createSignal({ symbol: "USDTHB", action: "SuperTrend Sell" }).action, ACTIONS.SELL_ZONE);
 });
