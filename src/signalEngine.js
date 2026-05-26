@@ -9,6 +9,18 @@ const ACTIONS = Object.freeze({
   SELL_ZONE: "SELL_ZONE"
 });
 
+const TRACKED_ASSETS = Object.freeze([
+  "USDTHB",
+  "JPYTHB",
+  "EURTHB",
+  "XAUTHB",
+  "BTCTHB",
+  "USDJPY",
+  "EURUSD",
+  "XAUUSD",
+  "BTCUSD"
+]);
+
 const ACTION_META = Object.freeze({
   STRONG_BUY: {
     tone: "teal",
@@ -139,6 +151,23 @@ function actionMeta(action) {
   return ACTION_META[normalizeAction(action)];
 }
 
+function createDefaultSignal(symbol) {
+  const normalizedSymbol = normalizeSymbol(symbol);
+
+  return {
+    id: `${normalizedSymbol}-default`,
+    symbol: normalizedSymbol,
+    action: ACTIONS.WAIT_ZONE,
+    price: null,
+    timeframe: "1D",
+    p10: null,
+    p90: null,
+    percentile: null,
+    source: "default",
+    receivedAt: null
+  };
+}
+
 function applyAutoDemotion(signal, now = new Date()) {
   if (!signal) {
     return null;
@@ -201,9 +230,11 @@ module.exports = {
   ACTIONS,
   ACTION_META,
   DEMOTION_MS,
+  TRACKED_ASSETS,
   actionMeta,
   applyAutoDemotion,
   confidencePercentile,
+  createDefaultSignal,
   createSignal,
   isThaiAsset,
   normalizeAction,
