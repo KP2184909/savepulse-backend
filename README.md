@@ -49,6 +49,9 @@ FROM_EMAIL="SavePulse <your-sender-email@gmail.com>"
 PUBLIC_URL=https://savepulse-backend.onrender.com
 VIP_EMAILS=member1@example.com,member2@example.com
 DAILY_FREE_QUOTA=50
+CHECKOUT_PLUS_URL=https://your-payment-provider/plus
+CHECKOUT_PRO_URL=https://your-payment-provider/pro
+CHECKOUT_BUSINESS_URL=https://your-payment-provider/business
 ```
 
 Do not commit real SMTP passwords or webhook secrets.
@@ -120,6 +123,27 @@ curl -X POST http://localhost:3000/api/v1/subscribe \
 ```
 
 The API sanitizes the watchlist by plan. In the example above, `XAUUSD` is rejected for Plus because gold/BTC alerts unlock on Pro and Business.
+
+Public signups cannot self-upgrade into a paid plan. If a visitor requests `plus`, `pro`, or `business` without the master secret, the API keeps the subscriber on their existing plan or Free and returns a checkout payload. Payment providers can call the protected admin route after checkout:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/admin/subscribers/plan \
+  -H "content-type: application/json" \
+  -d '{
+    "secret_key": "$WEBHOOK_SECRET",
+    "email": "member@example.com",
+    "plan": "pro",
+    "watchlist": ["JPYTHB", "XAUTHB", "BTCUSD"]
+  }'
+```
+
+Frontends can request a payment link with:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/billing/checkout \
+  -H "content-type: application/json" \
+  -d '{ "email": "member@example.com", "plan": "plus" }'
+```
 
 ## Notification routing
 
