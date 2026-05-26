@@ -6,8 +6,23 @@ const http = require("node:http");
 const path = require("node:path");
 const { URL } = require("node:url");
 
-const { TRACKED_ASSETS, applyAutoDemotion, createDefaultSignal, createSignal } = require("./src/signalEngine");
-const { broadcastStrongBuy } = require("./src/emailDispatcher");
+const {
+  ACTIONS,
+  TRACKED_ASSETS,
+  applyAutoDemotion,
+  createDefaultSignal,
+  createSignal
+} = require("./src/signalEngine");
+const { recipientsFromEnv, sendSignalEmail } = require("./src/emailDispatcher");
+const {
+  deliveryDecisionForSignal,
+  normalizePlan,
+  planFor,
+  publicPlans,
+  sanitizeChannels,
+  sanitizeWatchlist,
+  subscriberEntitlements
+} = require("./src/plans");
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || (process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1");
@@ -15,6 +30,8 @@ const DATA_DIR = path.resolve(__dirname, process.env.DATA_DIR || "state");
 const PUBLIC_DIR = path.join(__dirname, "public");
 const SIGNALS_FILE = path.join(DATA_DIR, "signals.json");
 const SUBSCRIBERS_FILE = path.join(DATA_DIR, "subscribers.json");
+const NOTIFICATIONS_FILE = path.join(DATA_DIR, "notifications.json");
+const INVOICES_FILE = path.join(DATA_DIR, "invoices.json");
 const DAILY_FREE_QUOTA = Number(process.env.DAILY_FREE_QUOTA || 50);
 const WEBHOOK_SECRET =
   process.env.WEBHOOK_SECRET ||
@@ -24,6 +41,8 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 
 let signalsBySymbol = loadJson(SIGNALS_FILE, {});
 let subscribers = loadJson(SUBSCRIBERS_FILE, []);
+let notificationQueue = loadJson(NOTIFICATIONS_FILE, []);
+let invoices = loadJson(INVOICES_FILE, []);
 
 function loadJson(filePath, fallback) {
   try {
@@ -102,7 +121,8 @@ function publicSignal(signal) {
 }
 
 function quotaSnapshot() {
-  const used = Math.min(DAILY_FREE_QUOTA, subscribers.length);
+  const freeSubscribers = subscribers.filter((subscriber) => normalizePlan(subscriber.plan) === "free").length;
+  const used = Math.min(DAILY_FREE_QUOTA, freeSubscribers);
   return {
     limit: DAILY_FREE_QUOTA,
     used,
@@ -129,6 +149,223 @@ function listAssets() {
 
 function emailIsValid(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
+}
+
+function publicSubscriber(record) {
+  return {
+    id: record.id,
+    email: record.email,
+    locale: record.locale,
+    interest: record.interest,
+    plan: normalizePlan(record.plan),
+    watchlist: Array.isArray(record.watchlist) ? record.watchlist : [],
+    channels: Array.isArray(record.channels) ? record.channels : ["email"],
+    preferences: record.preferences || {},
+    entitlements: subscriberEntitlements(record),
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt
+  };
+}
+
+function notificationCandidates() {
+  const envSubscribers = recipientsFromEnv().map((email) => ({
+    id: `env-${email}`,
+    email,
+    locale: email.endsWith(".th") ? "th" : "en",
+    plan: "pro",
+    watchlist: [],
+    channels: ["email"],
+    source: "env"
+  }));
+
+  const seen = new Set();
+  return [...subscribers, ...envSubscribers].filter((subscriber) => {
+    const email = String(subscriber.email || "").trim().toLowerCase();
+
+    if (!email || seen.has(email)) {
+      return false;
+    }
+
+    seen.add(email);
+    return true;
+  });
+}
+
+function subscribersForSignal(signal) {
+  const eligible = [];
+  const skipped = {};
+
+  for (const subscriber of notificationCandidates()) {
+    const delivery = deliveryDecisionForSignal(subscriber, signal);
+
+    if (delivery.eligible) {
+      eligible.push({
+        ...subscriber,
+        plan: delivery.plan,
+        channels: delivery.channels,
+        delivery
+      });
+      continue;
+    }
+
+    skipped[delivery.reason] = (skipped[delivery.reason] || 0) + 1;
+  }
+
+  return { eligible, skipped };
+}
+
+function notifiableAction(action) {
+  return action === ACTIONS.STRONG_BUY || action === ACTIONS.SELL_ZONE;
+}
+
+function enqueueSignalNotifications(signal, effectiveSignal) {
+  if (!notifiableAction(signal.action)) {
+    return { queued: 0, skipped: true, reason: "action_not_notifiable" };
+  }
+
+  const { eligible, skipped } = subscribersForSignal(signal);
+  const now = new Date();
+  const jobs = eligible.map((subscriber) => {
+    const scheduledAt = new Date(now.getTime() + subscriber.delivery.delayMinutes * 60 * 1000);
+
+    return {
+      id: crypto.randomUUID(),
+      status: "pending",
+      type: "signal_alert",
+      createdAt: now.toISOString(),
+      scheduledFor: scheduledAt.toISOString(),
+      subscriber: publicSubscriber(subscriber),
+      delivery: {
+        plan: subscriber.delivery.plan,
+        channels: subscriber.delivery.channels,
+        delayMinutes: subscriber.delivery.delayMinutes
+      },
+      signal,
+      effectiveSignal
+    };
+  });
+
+  notificationQueue.push(...jobs);
+  saveJson(NOTIFICATIONS_FILE, notificationQueue);
+
+  return {
+    queued: jobs.length,
+    immediate: jobs.filter((job) => job.delivery.delayMinutes === 0).length,
+    delayed: jobs.filter((job) => job.delivery.delayMinutes > 0).length,
+    skippedByReason: skipped,
+    nextScheduledFor: jobs
+      .map((job) => job.scheduledFor)
+      .sort()
+      .at(0)
+  };
+}
+
+async function flushNotificationQueue(now = new Date()) {
+  const dueJobs = notificationQueue.filter((job) => {
+    return job.status === "pending" && new Date(job.scheduledFor).getTime() <= now.getTime();
+  });
+
+  if (dueJobs.length === 0) {
+    return { due: 0, sent: 0, failed: 0, skipped: 0 };
+  }
+
+  for (const job of dueJobs) {
+    try {
+      const result = await sendSignalEmail({
+        signal: job.signal,
+        effectiveSignal: job.effectiveSignal,
+        subscriber: job.subscriber
+      });
+
+      job.result = result;
+      job.finishedAt = new Date().toISOString();
+      job.status = result.ok ? "sent" : result.skipped ? "skipped" : "failed";
+    } catch (error) {
+      job.status = "failed";
+      job.finishedAt = new Date().toISOString();
+      job.result = { ok: false, error: error.message };
+    }
+  }
+
+  saveJson(NOTIFICATIONS_FILE, notificationQueue);
+
+  return {
+    due: dueJobs.length,
+    sent: dueJobs.filter((job) => job.status === "sent").length,
+    failed: dueJobs.filter((job) => job.status === "failed").length,
+    skipped: dueJobs.filter((job) => job.status === "skipped").length
+  };
+}
+
+async function dispatchSignalNotifications(signal, effectiveSignal) {
+  const queued = enqueueSignalNotifications(signal, effectiveSignal);
+
+  if (queued.skipped === true) {
+    return queued;
+  }
+
+  const flushed = await flushNotificationQueue();
+
+  return {
+    ...queued,
+    flushed
+  };
+}
+
+function publicNotificationSummary() {
+  const counts = notificationQueue.reduce(
+    (acc, job) => {
+      acc[job.status] = (acc[job.status] || 0) + 1;
+      return acc;
+    },
+    { pending: 0, sent: 0, failed: 0, skipped: 0 }
+  );
+
+  const nextPending = notificationQueue
+    .filter((job) => job.status === "pending")
+    .map((job) => job.scheduledFor)
+    .sort()
+    .at(0);
+
+  return {
+    counts,
+    nextPending: nextPending || null
+  };
+}
+
+function parseDateOnly(value) {
+  const raw = String(value || "").trim();
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T00:00:00+07:00`) : new Date(raw);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function invoiceSymbol(currency, targetCurrency) {
+  const base = String(currency || "").trim().toUpperCase();
+  const target = String(targetCurrency || "THB").trim().toUpperCase();
+  const direct = `${base}${target}`;
+  const reverse = `${target}${base}`;
+
+  if (TRACKED_ASSETS.includes(direct)) {
+    return direct;
+  }
+
+  if (TRACKED_ASSETS.includes(reverse)) {
+    return reverse;
+  }
+
+  return null;
+}
+
+function invoiceExposure(invoice) {
+  const signal = signalsBySymbol[invoice.symbol] || createDefaultSignal(invoice.symbol);
+  const dueDate = new Date(invoice.dueDate);
+  const daysUntilDue = Math.ceil((dueDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+
+  return {
+    symbol: invoice.symbol,
+    daysUntilDue,
+    signal: publicSignal(signal)
+  };
 }
 
 function contentTypeFor(filePath) {
@@ -176,20 +413,13 @@ async function handleWebhook(req, res) {
   saveJson(SIGNALS_FILE, signalsBySymbol);
 
   const effectiveSignal = publicSignal(signal);
-  let emailDispatch = { skipped: true, reason: "not_strong_buy" };
-
-  if (signal.action === "STRONG_BUY") {
-    emailDispatch = await broadcastStrongBuy({
-      signal,
-      effectiveSignal,
-      subscribers
-    });
-  }
+  const notificationDispatch = await dispatchSignalNotifications(signal, effectiveSignal);
 
   sendJson(res, 202, {
     accepted: true,
     signal: effectiveSignal,
-    emailDispatch
+    notificationDispatch,
+    emailDispatch: notificationDispatch
   });
 }
 
@@ -203,11 +433,24 @@ async function handleSubscribe(req, res) {
   }
 
   const existing = subscribers.find((subscriber) => subscriber.email === email);
+  const plan = normalizePlan(body.plan || existing?.plan || "free");
+  const watchlistInput = body.watchlist ?? body.symbols ?? body.symbol ?? existing?.watchlist ?? [];
+  const watchlistResult = sanitizeWatchlist(watchlistInput, plan);
+  const channels = sanitizeChannels(body.channels ?? existing?.channels ?? ["email"], plan);
+  const planConfig = planFor(plan);
   const record = {
     id: existing?.id || crypto.randomUUID(),
     email,
-    locale: body.locale === "th" ? "th" : "en",
-    interest: String(body.interest || "general").slice(0, 40),
+    locale: body.locale === "th" ? "th" : body.locale === "en" ? "en" : existing?.locale || "en",
+    interest: String(body.interest || existing?.interest || "general").slice(0, 40),
+    plan,
+    watchlist: watchlistResult.watchlist,
+    channels,
+    preferences: {
+      dailyDigest: body.dailyDigest ?? existing?.preferences?.dailyDigest ?? true,
+      majorAlertsOnly: planConfig.majorAlertsOnly,
+      realTimeAlerts: planConfig.realTimeAlerts
+    },
     createdAt: existing?.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -222,8 +465,115 @@ async function handleSubscribe(req, res) {
 
   sendJson(res, 201, {
     subscribed: true,
-    subscriber: { email: record.email, locale: record.locale, interest: record.interest },
+    subscriber: publicSubscriber(record),
+    rejectedWatchlist: watchlistResult.rejected,
     quota: quotaSnapshot()
+  });
+}
+
+async function handleBusinessInvoice(req, res) {
+  const body = await parseBody(req);
+  const email = String(body.email || "").trim().toLowerCase();
+
+  if (!emailIsValid(email)) {
+    sendJson(res, 422, { error: "valid_email_required" });
+    return;
+  }
+
+  const subscriber = subscribers.find((record) => record.email === email);
+  if (!subscriber || normalizePlan(subscriber.plan) !== "business") {
+    sendJson(res, 403, {
+      error: "business_plan_required",
+      upgradeRequired: true,
+      message: "Invoice tracking is available on the Business plan."
+    });
+    return;
+  }
+
+  const amount = Number(body.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    sendJson(res, 422, { error: "positive_amount_required" });
+    return;
+  }
+
+  const dueDate = parseDateOnly(body.dueDate);
+  if (!dueDate) {
+    sendJson(res, 422, { error: "valid_due_date_required" });
+    return;
+  }
+
+  const symbol = invoiceSymbol(body.currency, body.targetCurrency || "THB");
+  if (!symbol) {
+    sendJson(res, 422, {
+      error: "unsupported_invoice_currency_pair",
+      supportedAssets: TRACKED_ASSETS
+    });
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const record = {
+    id: crypto.randomUUID(),
+    subscriberId: subscriber.id,
+    email,
+    amount,
+    currency: String(body.currency || "").trim().toUpperCase(),
+    targetCurrency: String(body.targetCurrency || "THB").trim().toUpperCase(),
+    symbol,
+    dueDate: dueDate.toISOString(),
+    vendor: String(body.vendor || "").slice(0, 80),
+    note: String(body.note || "").slice(0, 240),
+    createdAt: now,
+    updatedAt: now
+  };
+
+  invoices.push(record);
+  saveJson(INVOICES_FILE, invoices);
+
+  sendJson(res, 201, {
+    created: true,
+    invoice: record,
+    exposure: invoiceExposure(record)
+  });
+}
+
+function handleListBusinessInvoices(url, res) {
+  const email = String(url.searchParams.get("email") || "").trim().toLowerCase();
+
+  if (!emailIsValid(email)) {
+    sendJson(res, 422, { error: "valid_email_required" });
+    return;
+  }
+
+  const subscriber = subscribers.find((record) => record.email === email);
+  if (!subscriber || normalizePlan(subscriber.plan) !== "business") {
+    sendJson(res, 403, {
+      error: "business_plan_required",
+      upgradeRequired: true
+    });
+    return;
+  }
+
+  const records = invoices.filter((invoice) => invoice.email === email);
+  sendJson(res, 200, {
+    invoices: records,
+    exposures: records.map(invoiceExposure),
+    generatedAt: new Date().toISOString()
+  });
+}
+
+async function handleNotificationFlush(req, res) {
+  const body = await parseBody(req);
+
+  if (!WEBHOOK_SECRET || incomingSecret(req, body) !== WEBHOOK_SECRET) {
+    sendJson(res, 401, { error: "unauthorized_notification_flush" });
+    return;
+  }
+
+  const flushed = await flushNotificationQueue();
+  sendJson(res, 200, {
+    flushed,
+    queue: publicNotificationSummary()
   });
 }
 
@@ -240,7 +590,16 @@ async function handleRequest(req, res) {
       sendJson(res, 200, {
         ok: true,
         name: "SavePulse Analytics Network",
-        now: new Date().toISOString()
+        now: new Date().toISOString(),
+        queue: publicNotificationSummary()
+      });
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/v1/plans") {
+      sendJson(res, 200, {
+        plans: publicPlans(),
+        generatedAt: new Date().toISOString()
       });
       return;
     }
@@ -249,6 +608,7 @@ async function handleRequest(req, res) {
       sendJson(res, 200, {
         assets: listAssets(),
         quota: quotaSnapshot(),
+        plans: publicPlans(),
         generatedAt: new Date().toISOString()
       });
       return;
@@ -261,6 +621,14 @@ async function handleRequest(req, res) {
       return;
     }
 
+    if (req.method === "GET" && url.pathname === "/api/v1/notifications/summary") {
+      sendJson(res, 200, {
+        queue: publicNotificationSummary(),
+        generatedAt: new Date().toISOString()
+      });
+      return;
+    }
+
     if (req.method === "POST" && url.pathname === "/api/v1/webhook/tradingview") {
       await handleWebhook(req, res);
       return;
@@ -268,6 +636,21 @@ async function handleRequest(req, res) {
 
     if (req.method === "POST" && url.pathname === "/api/v1/subscribe") {
       await handleSubscribe(req, res);
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/v1/notifications/flush") {
+      await handleNotificationFlush(req, res);
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/v1/business/invoices") {
+      await handleBusinessInvoice(req, res);
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/v1/business/invoices") {
+      handleListBusinessInvoices(url, res);
       return;
     }
 
@@ -283,6 +666,15 @@ async function handleRequest(req, res) {
 }
 
 const server = http.createServer(handleRequest);
+const notificationTimer = setInterval(() => {
+  flushNotificationQueue().catch((error) => {
+    console.warn(`Notification queue flush failed: ${error.message}`);
+  });
+}, 60 * 1000);
+
+if (typeof notificationTimer.unref === "function") {
+  notificationTimer.unref();
+}
 
 if (!WEBHOOK_SECRET) {
   console.warn("WEBHOOK_SECRET is not configured. TradingView webhook writes will be rejected.");
@@ -293,8 +685,11 @@ server.listen(PORT, HOST, () => {
 });
 
 module.exports = {
+  dispatchSignalNotifications,
+  flushNotificationQueue,
   handleRequest,
   listAssets,
+  publicNotificationSummary,
   quotaSnapshot,
   server
 };

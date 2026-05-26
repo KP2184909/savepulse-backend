@@ -24,5 +24,7 @@ services:
         sync: false
       - key: FROM_EMAIL
         sync: false
+      - key: PUBLIC_URL
+        value: https://savepulse-backend.onrender.com
       - key: VIP_EMAILS
         sync: false

@@ -4,9 +4,10 @@ Decision intelligence for everyday savers. SavePulse turns TradingView daily sig
 
 ## What is included
 
-- `server.js`: Render-ready Node API with TradingView webhook ingestion, persisted local memory, five-business-day buy-window demotion, subscriber capture, and static dashboard hosting.
+- `server.js`: Render-ready Node API with TradingView webhook ingestion, persisted local memory, five-business-day buy-window demotion, subscriber capture, plan-based notification routing, Business invoice tracking, and static dashboard hosting.
 - `src/signalEngine.js`: Pure decision-state logic, including the percentile formula `P = (Current - P10) / (P90 - P10)`.
-- `src/emailDispatcher.js`: Nodemailer-compatible VIP broadcast engine for fresh `STRONG_BUY` events.
+- `src/plans.js`: Free, Plus, Pro, and Business entitlement model for watchlists, asset access, channels, and alert timing.
+- `src/emailDispatcher.js`: Nodemailer-compatible bilingual alert email renderer and dispatcher.
 - `public/index.html`: Bilingual TH/EN dashboard with Decision Light orb, radar list, visitor counter, quota bar, and opportunity-cost calculator.
 - `tests/signalEngine.test.js`: Node built-in tests for the mathematical and memory rules.
 - `render.yaml`: Render web-service blueprint with production env placeholders.
@@ -44,6 +45,7 @@ SMTP_PORT=465
 SMTP_USER=your-sender-email@gmail.com
 SMTP_PASS=your-google-app-password
 FROM_EMAIL="SavePulse <your-sender-email@gmail.com>"
+PUBLIC_URL=https://savepulse-backend.onrender.com
 VIP_EMAILS=member1@example.com,member2@example.com
 DAILY_FREE_QUOTA=50
 ```
@@ -79,13 +81,86 @@ Supported actions:
 - `WAIT_ZONE`: neutral patience zone.
 - `SELL_ZONE`: peak regret risk zone.
 
-Buy signals are treated as a five-business-day decision window using Bangkok time:
+`STRONG_BUY` follows the SavePulse low-regret decision window:
 
-- Business day 1 remains `STRONG_BUY`.
-- Business days 2-5 soften to `BUY_ZONE`.
-- Business day 6 onward becomes `WAIT_ZONE` with the Thai status `รอก่อน ยังไม่ควรซื้อตอนนี้`, even if TradingView has not sent a sell alert.
+- Business day 1: remains `STRONG_BUY`.
+- Business days 2-5: softens to `BUY_ZONE`.
+- Business day 6 onward: becomes `WAIT_ZONE` with the Thai status "รอก่อน ยังไม่ควรซื้อตอนนี้", even if TradingView still shows Buy and no Sell alert has fired.
 
-Business days count Monday-Friday. `SELL_ZONE` still automatically becomes `WAIT_ZONE` after 24 hours without a fresh alert.
+Business days are counted Monday-Friday using Bangkok time. `SELL_ZONE` still automatically becomes `WAIT_ZONE` after 24 hours.
+
+## Plans and entitlements
+
+SavePulse now has a backend plan model for the Free-to-paid ladder:
+
+| Plan | Price | Primary audience | Backend rules |
+| --- | ---: | --- | --- |
+| Free | 0 THB / $0 | Lead capture and one exchange goal | 1 watchlist item, fiat only, email only, delayed major alerts |
+| Plus | 199 THB / $7 monthly | Travelers and currency savers | 5 watchlist items, fiat real-time alerts, timing window, personalized examples |
+| Pro | 499 THB / $19 monthly | Serious savers tracking currency, gold, and BTC | 20 watchlist items, all 9 assets, two-way opportunity/risk alerts |
+| Business | 1,990 THB / $49 monthly | SME import/export workflows | Team-scale watchlists, invoice exposure tracking, business reports |
+
+`GET /api/v1/plans` returns the public plan metadata used by pricing pages and sign-up flows.
+
+Subscribe or update a subscriber:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/subscribe \
+  -H "content-type: application/json" \
+  -d '{
+    "email": "member@example.com",
+    "locale": "en",
+    "plan": "plus",
+    "watchlist": ["USDTHB", "JPYTHB", "XAUUSD"],
+    "channels": ["email", "line"]
+  }'
+```
+
+The API sanitizes the watchlist by plan. In the example above, `XAUUSD` is rejected for Plus because gold/BTC alerts unlock on Pro and Business.
+
+## Notification routing
+
+TradingView webhooks now go through the entitlement layer before email:
+
+- `STRONG_BUY` can notify Free, Plus, Pro, and Business subscribers if the asset is allowed by their plan.
+- Free alerts are queued with a 180-minute delay to keep the paid real-time upgrade meaningful.
+- `SELL_ZONE` is treated as a risk alert and is only delivered to Pro and Business subscribers.
+- `BUY_ZONE` and `WAIT_ZONE` update the dashboard state but do not send alert emails.
+
+Queue status:
+
+```text
+GET /api/v1/notifications/summary
+```
+
+Manual protected flush, useful for Render maintenance checks:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/notifications/flush \
+  -H "content-type: application/json" \
+  -d '{ "secret_key": "$WEBHOOK_SECRET" }'
+```
+
+Real email delivery still requires `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, and `SMTP_PASS`. Without SMTP, jobs are recorded and marked skipped when due, which keeps webhook writes safe during setup.
+
+## Business invoice tracking
+
+Business subscribers can register invoice exposure:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/business/invoices \
+  -H "content-type: application/json" \
+  -d '{
+    "email": "ops@example.com",
+    "amount": 85000,
+    "currency": "USD",
+    "targetCurrency": "THB",
+    "dueDate": "2026-06-15",
+    "vendor": "Supplier invoice"
+  }'
+```
+
+The response includes the mapped SavePulse symbol, days until due, and the current decision state for that exposure. This is a prototype entitlement and exposure layer; payment checkout and account authentication still need to be connected before public paid launch.
 
 ## Tracked assets
 
