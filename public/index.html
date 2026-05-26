@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SavePulse Analytics Network</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #111827;
+        --muted: #64748b;
+        --panel: #ffffff;
+        --line: #dbe3ea;
+        --surface: #f5f7fb;
+        --teal: #14b8a6;
+        --amber: #f59e0b;
+        --rose: #e11d48;
+      }
+
+      body {
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(245, 247, 251, 0.96)),
+          radial-gradient(circle at top left, rgba(20, 184, 166, 0.16), transparent 34%),
+          radial-gradient(circle at bottom right, rgba(225, 29, 72, 0.10), transparent 32%),
+          var(--surface);
+        color: var(--ink);
+        letter-spacing: 0;
+      }
+
+      .hot-ticker {
+        overflow: hidden;
+        white-space: nowrap;
+      }
+
+      .hot-ticker-track {
+        animation: ticker 28s linear infinite;
+        display: inline-flex;
+        min-width: 200%;
+      }
+
+      @keyframes ticker {
+        from {
+          transform: translateX(0);
+        }
+        to {
+          transform: translateX(-50%);
+        }
+      }
+
+      .panel {
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: 0 20px 55px rgba(15, 23, 42, 0.08);
+      }
+
+      .signal-orb {
+        aspect-ratio: 1;
+        border-radius: 999px;
+        width: min(62vw, 300px);
+        position: relative;
+        transition: background 220ms ease, box-shadow 220ms ease, transform 220ms ease;
+      }
+
+      .signal-orb::before {
+        content: "";
+        position: absolute;
+        inset: 11%;
+        border-radius: inherit;
+        background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.9), transparent 22%);
+        mix-blend-mode: screen;
+      }
+
+      .signal-orb::after {
+        content: "";
+        position: absolute;
+        inset: 23%;
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        border-radius: inherit;
+      }
+
+      .orb-teal {
+        background: radial-gradient(circle at 34% 24%, #d8fff6 0, #50e3d0 24%, #14b8a6 52%, #0f766e 100%);
+        box-shadow: 0 0 34px rgba(20, 184, 166, 0.48), inset 0 -18px 36px rgba(15, 118, 110, 0.38);
+      }
+
+      .orb-amber {
+        background: radial-gradient(circle at 34% 24%, #fff7d6 0, #facc15 28%, #f59e0b 56%, #b45309 100%);
+        box-shadow: 0 0 34px rgba(245, 158, 11, 0.46), inset 0 -18px 36px rgba(180, 83, 9, 0.34);
+      }
+
+      .orb-rose {
+        background: radial-gradient(circle at 34% 24%, #ffe4ea 0, #fb7185 28%, #e11d48 56%, #9f1239 100%);
+        box-shadow: 0 0 34px rgba(225, 29, 72, 0.46), inset 0 -18px 36px rgba(159, 18, 57, 0.34);
+      }
+
+      .mini-orb {
+        aspect-ratio: 1;
+        border-radius: 999px;
+        width: 14px;
+        flex: 0 0 auto;
+      }
+
+      .segmented {
+        background: #edf2f7;
+        border: 1px solid #dbe3ea;
+        border-radius: 999px;
+        padding: 3px;
+      }
+
+      .segmented button {
+        border-radius: 999px;
+        min-width: 44px;
+        min-height: 34px;
+      }
+
+      .segmented button.active {
+        background: #111827;
+        color: #ffffff;
+      }
+
+      .radar-item {
+        border: 1px solid #dbe3ea;
+        border-radius: 8px;
+        min-height: 76px;
+        transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+      }
+
+      .radar-item.active {
+        border-color: #111827;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.10);
+      }
+
+      input,
+      select {
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen">
+    <div class="hot-ticker border-b border-slate-200 bg-slate-950 py-2 text-[13px] font-medium text-white">
+      <div class="hot-ticker-track gap-10 px-4" id="tickerTrack">
+        <span>SavePulse monitors regret-risk windows for gold, yen, travel money, and global assets.</span>
+        <span>No charts. No profit promises. Just clearer timing confidence.</span>
+        <span>Daily Supertrend states refresh through TradingView webhooks.</span>
+        <span>VIP safe-entry alerts are reserved for fresh low-regret windows.</span>
+      </div>
+    </div>
+
+    <main class="mx-auto grid w-full max-w-7xl gap-5 px-4 py-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:px-6">
+      <section class="panel p-4 sm:p-6">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p class="text-xs font-semibold uppercase text-teal-700">SavePulse Analytics Network</p>
+            <h1 class="mt-1 text-2xl font-semibold tracking-normal sm:text-3xl" data-i18n="title">Decision Light</h1>
+            <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600" data-i18n="subtitle">A regret-risk dashboard for everyday savers.</p>
+          </div>
+          <div class="segmented flex" aria-label="Language">
+            <button class="active px-3 text-sm font-semibold" data-lang="th">TH</button>
+            <button class="px-3 text-sm font-semibold" data-lang="en">EN</button>
+          </div>
+        </div>
+
+        <div class="mt-8 grid gap-6 xl:grid-cols-[minmax(260px,0.85fr)_minmax(280px,1fr)]">
+          <div class="flex flex-col items-center justify-center gap-5">
+            <div class="signal-orb orb-amber" id="signalOrb" aria-label="Decision Light"></div>
+            <div class="w-full text-center">
+              <p class="text-sm font-medium uppercase text-slate-500" id="selectedSymbol">JPYTHB</p>
+              <h2 class="mt-1 text-2xl font-semibold" id="decisionHeadline">Patience Zone</h2>
+              <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600" id="decisionGuidance">Waiting for the first live TradingView signal.</p>
+            </div>
+          </div>
+
+          <div class="grid content-start gap-4">
+            <div class="grid gap-3 sm:grid-cols-2">
+              <label class="block">
+                <span class="text-xs font-semibold uppercase text-slate-500" data-i18n="assetLabel">Asset</span>
+                <select id="assetSelect" class="mt-2 h-11 w-full border border-slate-300 bg-white px-3 text-sm font-semibold">
+                  <option value="JPYTHB">JPYTHB</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="text-xs font-semibold uppercase text-slate-500" data-i18n="budgetLabel">Planned amount</span>
+                <input id="budgetInput" type="number" min="0" value="50000" class="mt-2 h-11 w-full border border-slate-300 bg-white px-3 text-sm font-semibold" />
+              </label>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+              <label class="block">
+                <span class="text-xs font-semibold uppercase text-slate-500" data-i18n="peakLabel">Peak regret buffer</span>
+                <input id="peakInput" type="number" min="0" max="30" value="4" class="mt-2 h-11 w-full border border-slate-300 bg-white px-3 text-sm font-semibold" />
+              </label>
+              <div class="rounded-[8px] border border-slate-200 bg-slate-50 p-3">
+                <p class="text-xs font-semibold uppercase text-slate-500" data-i18n="savedLabel">Potential regret avoided</p>
+                <p class="mt-2 text-2xl font-semibold text-slate-950" id="opportunityValue">2,000</p>
+              </div>
+            </div>
+
+            <form id="subscribeForm" class="grid gap-3 rounded-[8px] border border-slate-200 bg-white p-3">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-sm font-semibold" data-i18n="vipTitle">VIP daily alert queue</p>
+                  <p class="text-xs text-slate-500" data-i18n="vipSubtitle">Fresh safe-entry email alerts only.</p>
+                </div>
+                <span class="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700" id="quotaText">50 left</span>
+              </div>
+              <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+                <div class="h-full rounded-full bg-teal-500" id="quotaBar" style="width: 100%"></div>
+              </div>
+              <div class="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <input id="emailInput" type="email" required placeholder="you@example.com" class="h-11 border border-slate-300 bg-white px-3 text-sm" />
+                <button class="inline-flex h-11 items-center justify-center gap-2 rounded-[8px] bg-slate-950 px-4 text-sm font-semibold text-white" type="submit">
+                  <i data-lucide="send" class="h-4 w-4"></i>
+                  <span data-i18n="joinButton">Join</span>
+                </button>
+              </div>
+              <p class="min-h-5 text-xs text-slate-500" id="subscribeMessage"></p>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <aside class="grid gap-5">
+        <section class="panel p-4 sm:p-5">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-xs font-semibold uppercase text-slate-500" data-i18n="statsTitle">Timing statistics</p>
+              <h2 class="mt-1 text-xl font-semibold" id="statusLabel">Neutral Patience Zone</h2>
+            </div>
+            <button id="refreshButton" class="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-slate-300 bg-white text-slate-700" aria-label="Refresh">
+              <i data-lucide="refresh-cw" class="h-4 w-4"></i>
+            </button>
+          </div>
+
+          <div class="mt-5 grid grid-cols-2 gap-3">
+            <div class="rounded-[8px] border border-slate-200 p-3">
+              <p class="text-xs font-semibold uppercase text-slate-500" data-i18n="percentileLabel">Percentile</p>
+              <p class="mt-2 text-2xl font-semibold" id="percentileValue">--</p>
+            </div>
+            <div class="rounded-[8px] border border-slate-200 p-3">
+              <p class="text-xs font-semibold uppercase text-slate-500" data-i18n="visitorLabel">Co-visitors</p>
+              <p class="mt-2 text-2xl font-semibold" id="visitorCount">86</p>
+            </div>
+            <div class="rounded-[8px] border border-slate-200 p-3">
+              <p class="text-xs font-semibold uppercase text-slate-500" data-i18n="priceLabel">Reference price</p>
+              <p class="mt-2 text-2xl font-semibold" id="priceValue">--</p>
+            </div>
+            <div class="rounded-[8px] border border-slate-200 p-3">
+              <p class="text-xs font-semibold uppercase text-slate-500" data-i18n="ageLabel">Signal age</p>
+              <p class="mt-2 text-2xl font-semibold" id="ageValue">--</p>
+            </div>
+          </div>
+
+          <p class="mt-4 text-xs leading-5 text-slate-500" id="legalBoundary">Decision intelligence only. Not financial advice, trading instruction, or return guarantee.</p>
+        </section>
+
+        <section class="panel p-4 sm:p-5">
+          <div class="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p class="text-xs font-semibold uppercase text-slate-500" data-i18n="radarTitle">Radar list</p>
+              <h2 class="mt-1 text-xl font-semibold" data-i18n="radarSubtitle">Live regret-risk states</h2>
+            </div>
+            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600" id="assetCount">0</span>
+          </div>
+          <div class="grid gap-3" id="radarList"></div>
+        </section>
+      </aside>
+    </main>
+
+    <script>
+      const state = { lang: "th", selectedSymbol: "JPYTHB", assets: [], quota: { limit: 50, remaining: 50, used: 0 } };
+      const fallbackMeta = {
+        tone: "amber",
+        orbClass: "orb-amber",
+        en: { label: "Neutral Patience Zone", headline: "Waiting for live signal", guidance: "The dashboard is ready for the first TradingView webhook." },
+        th: { label: "โซนรออย่างมีวินัย", headline: "กำลังรอสัญญาณสด", guidance: "แดชบอร์ดพร้อมรับ webhook แรกจาก TradingView แล้ว" }
+      };
+      const translations = {
+        en: { title: "Decision Light", subtitle: "A regret-risk dashboard for everyday savers, gold collectors, and travel planners.", assetLabel: "Asset", budgetLabel: "Planned amount", peakLabel: "Peak regret buffer", savedLabel: "Potential regret avoided", vipTitle: "VIP daily alert queue", vipSubtitle: "Fresh safe-entry email alerts only.", joinButton: "Join", statsTitle: "Timing statistics", percentileLabel: "Percentile", visitorLabel: "Co-visitors", priceLabel: "Reference price", ageLabel: "Signal age", radarTitle: "Radar list", radarSubtitle: "Live regret-risk states", emptyRadar: "Waiting for live TradingView signals.", subscribed: "You are in the VIP alert queue.", subscribeError: "Please enter a valid email.", quotaLeft: "left", noSignal: "No signal" },
+        th: { title: "Decision Light", subtitle: "แดชบอร์ดลดความเสี่ยงเสียใจสำหรับคนออมทอง คนเก็บเงินเที่ยว และผู้ซื้อสินทรัพย์ทั่วไป", assetLabel: "สินทรัพย์", budgetLabel: "งบที่วางแผน", peakLabel: "ส่วนต่างเสี่ยงซื้อแพง", savedLabel: "มูลค่าความเสียใจที่อาจเลี่ยงได้", vipTitle: "คิวแจ้งเตือน VIP รายวัน", vipSubtitle: "ส่งเฉพาะสัญญาณโซนสะสมที่สดใหม่", joinButton: "เข้าคิว", statsTitle: "สถิติจังหวะเวลา", percentileLabel: "เปอร์เซ็นไทล์", visitorLabel: "ผู้ใช้ร่วมตอนนี้", priceLabel: "ราคาอ้างอิง", ageLabel: "อายุสัญญาณ", radarTitle: "รายการเรดาร์", radarSubtitle: "สถานะลดความเสี่ยงเสียใจแบบสด", emptyRadar: "กำลังรอสัญญาณสดจาก TradingView", subscribed: "คุณอยู่ในคิวแจ้งเตือน VIP แล้ว", subscribeError: "กรุณากรอกอีเมลให้ถูกต้อง", quotaLeft: "ที่นั่ง", noSignal: "ยังไม่มีสัญญาณ" }
+      };
+      const formatNumber = (value) => Number(value || 0).toLocaleString(state.lang === "th" ? "th-TH" : "en-US", { maximumFractionDigits: 2 });
+      function currentAsset() { return state.assets.find((asset) => asset.symbol === state.selectedSymbol) || null; }
+      function setLanguage(lang) {
+        state.lang = lang;
+        document.documentElement.lang = lang;
+        document.querySelectorAll("[data-lang]").forEach((button) => button.classList.toggle("active", button.dataset.lang === lang));
+        document.querySelectorAll("[data-i18n]").forEach((element) => { element.textContent = translations[lang][element.dataset.i18n]; });
+        render();
+      }
+      function renderDecision() {
+        const asset = currentAsset();
+        const meta = asset?.meta || fallbackMeta;
+        const copy = meta[state.lang] || meta.en;
+        const orb = document.getElementById("signalOrb");
+        orb.className = `signal-orb ${meta.orbClass || "orb-amber"}`;
+        document.getElementById("selectedSymbol").textContent = asset?.symbol || state.selectedSymbol;
+        document.getElementById("decisionHeadline").textContent = copy.headline;
+        document.getElementById("decisionGuidance").textContent = copy.guidance;
+        document.getElementById("statusLabel").textContent = copy.label;
+        document.getElementById("percentileValue").textContent = asset?.percentile ? `${asset.percentile.percent}%` : "--";
+        document.getElementById("priceValue").textContent = asset?.price === null || asset?.price === undefined ? "--" : formatNumber(asset.price);
+        document.getElementById("ageValue").textContent = asset?.ageHours === undefined ? "--" : `${asset.ageHours}h`;
+        document.getElementById("legalBoundary").textContent = state.lang === "th" ? "ข้อมูลนี้ใช้เพิ่มความมั่นใจในการตัดสินใจ ไม่ใช่คำแนะนำลงทุน สัญญาณเทรด หรือการรับประกันผลตอบแทน" : "Decision intelligence only. Not financial advice, trading instruction, or return guarantee.";
+      }
+      function renderAssets() {
+        const select = document.getElementById("assetSelect");
+        const symbols = state.assets.length ? state.assets.map((asset) => asset.symbol) : [state.selectedSymbol];
+        select.innerHTML = symbols.map((symbol) => `<option value="${symbol}">${symbol}</option>`).join("");
+        select.value = state.selectedSymbol;
+        const list = document.getElementById("radarList");
+        document.getElementById("assetCount").textContent = `${state.assets.length}`;
+        if (!state.assets.length) {
+          list.innerHTML = `<div class="radar-item flex items-center justify-between bg-white p-4 text-sm text-slate-500">${translations[state.lang].emptyRadar}</div>`;
+          return;
+        }
+        list.innerHTML = state.assets.map((asset) => {
+          const copy = (asset.meta && (asset.meta[state.lang] || asset.meta.en)) || fallbackMeta[state.lang];
+          const active = asset.symbol === state.selectedSymbol ? "active" : "";
+          const orbClass = asset.meta?.orbClass || "orb-amber";
+          const price = asset.price === null || asset.price === undefined ? "--" : formatNumber(asset.price);
+          return `<button class="radar-item ${active} grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 bg-white p-3 text-left" data-symbol="${asset.symbol}"><span class="mini-orb ${orbClass}"></span><span class="min-w-0"><span class="block truncate text-sm font-semibold text-slate-950">${asset.symbol}</span><span class="block truncate text-xs text-slate-500">${copy.label}</span></span><span class="text-right text-xs font-semibold text-slate-500">${price}</span></button>`;
+        }).join("");
+        list.querySelectorAll("[data-symbol]").forEach((button) => {
+          button.addEventListener("click", () => { state.selectedSymbol = button.dataset.symbol; render(); });
+        });
+      }
+      function renderQuota() {
+        const remaining = state.quota.remaining ?? 50;
+        const limit = state.quota.limit || 50;
+        const percent = Math.max(0, Math.min(100, (remaining / limit) * 100));
+        document.getElementById("quotaText").textContent = `${remaining} ${translations[state.lang].quotaLeft}`;
+        document.getElementById("quotaBar").style.width = `${percent}%`;
+      }
+      function renderOpportunity() {
+        const budget = Number(document.getElementById("budgetInput").value || 0);
+        const buffer = Number(document.getElementById("peakInput").value || 0) / 100;
+        document.getElementById("opportunityValue").textContent = formatNumber(budget * buffer);
+      }
+      function render() { renderDecision(); renderAssets(); renderQuota(); renderOpportunity(); if (window.lucide) window.lucide.createIcons(); }
+      async function loadAssets() {
+        try {
+          const response = await fetch("/api/v1/assets");
+          const data = await response.json();
+          state.assets = Array.isArray(data.assets) ? data.assets : [];
+          state.quota = data.quota || state.quota;
+          if (state.assets.length && !state.assets.some((asset) => asset.symbol === state.selectedSymbol)) state.selectedSymbol = state.assets[0].symbol;
+        } catch (error) { state.assets = []; }
+        render();
+      }
+      function tickVisitors() {
+        const element = document.getElementById("visitorCount");
+        const current = Number(element.textContent || 86);
+        const next = Math.max(42, Math.min(132, current + Math.floor(Math.random() * 7) - 3));
+        element.textContent = next;
+      }
+      document.querySelectorAll("[data-lang]").forEach((button) => button.addEventListener("click", () => setLanguage(button.dataset.lang)));
+      document.getElementById("assetSelect").addEventListener("change", (event) => { state.selectedSymbol = event.target.value; render(); });
+      document.getElementById("budgetInput").addEventListener("input", renderOpportunity);
+      document.getElementById("peakInput").addEventListener("input", renderOpportunity);
+      document.getElementById("refreshButton").addEventListener("click", loadAssets);
+      document.getElementById("subscribeForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const email = document.getElementById("emailInput").value.trim();
+        const message = document.getElementById("subscribeMessage");
+        try {
+          const response = await fetch("/api/v1/subscribe", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, locale: state.lang, interest: state.selectedSymbol }) });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || "subscribe_failed");
+          state.quota = data.quota || state.quota;
+          message.textContent = translations[state.lang].subscribed;
+        } catch (error) { message.textContent = translations[state.lang].subscribeError; }
+        renderQuota();
+      });
+      setLanguage("th");
+      loadAssets();
+      setInterval(loadAssets, 60000);
+      setInterval(tickVisitors, 2200);
+    </script>
+  </body>
+</html>
