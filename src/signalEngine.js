@@ -1,6 +1,10 @@
 "use strict";
 
-const DEMOTION_MS = 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
+const DEMOTION_MS = DAY_MS;
+const STRONG_BUY_FRESH_BUSINESS_DAYS = 1;
+const BUY_WINDOW_BUSINESS_DAYS = 5;
 
 const ACTIONS = Object.freeze({
   STRONG_BUY: "STRONG_BUY",
@@ -84,6 +88,22 @@ const ACTION_META = Object.freeze({
   }
 });
 
+const ENTRY_WINDOW_EXPIRED_META = Object.freeze({
+  tone: "amber",
+  severity: 3,
+  orbClass: "orb-amber",
+  en: {
+    label: "Wait Now",
+    headline: "The 5-business-day entry window has expired",
+    guidance: "Even if the indicator remains in buy mode, SavePulse avoids chasing after the low-regret decision window closes."
+  },
+  th: {
+    label: "รอก่อน ยังไม่ควรซื้อตอนนี้",
+    headline: "หน้าต่างซื้อ 5 วันทำการจบแล้ว",
+    guidance: "แม้อินดิเคเตอร์อาจยังเป็น Buy แต่ช่วงตัดสินใจที่ลดความเสี่ยงเสียใจได้ผ่านไปแล้ว"
+  }
+});
+
 function normalizeSymbol(symbol) {
   if (typeof symbol !== "string") {
     throw new Error("symbol is required");
@@ -151,6 +171,39 @@ function actionMeta(action) {
   return ACTION_META[normalizeAction(action)];
 }
 
+function bangkokDayStartMs(date) {
+  const time = date instanceof Date ? date.getTime() : new Date(date).getTime();
+  if (!Number.isFinite(time)) {
+    return null;
+  }
+
+  return Math.floor((time + BANGKOK_OFFSET_MS) / DAY_MS) * DAY_MS - BANGKOK_OFFSET_MS;
+}
+
+function isBangkokBusinessDay(dayStartMs) {
+  const bangkokMidnight = new Date(dayStartMs + BANGKOK_OFFSET_MS);
+  const day = bangkokMidnight.getUTCDay();
+  return day >= 1 && day <= 5;
+}
+
+function businessDaysElapsed(start, end = new Date()) {
+  const startDay = bangkokDayStartMs(start);
+  const endDay = bangkokDayStartMs(end);
+
+  if (startDay === null || endDay === null || endDay < startDay) {
+    return null;
+  }
+
+  let count = 0;
+  for (let day = startDay; day <= endDay; day += DAY_MS) {
+    if (isBangkokBusinessDay(day)) {
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
 function createDefaultSignal(symbol) {
   const normalizedSymbol = normalizeSymbol(symbol);
 
@@ -178,10 +231,20 @@ function applyAutoDemotion(signal, now = new Date()) {
   const expired = ageMs > DEMOTION_MS;
   let effectiveAction = normalizeAction(signal.action);
   let demotedFrom = null;
+  let decisionWindowExpired = false;
+  let businessDayAge = null;
 
-  if (expired && effectiveAction === ACTIONS.STRONG_BUY) {
-    demotedFrom = ACTIONS.STRONG_BUY;
-    effectiveAction = ACTIONS.BUY_ZONE;
+  if (effectiveAction === ACTIONS.STRONG_BUY) {
+    businessDayAge = businessDaysElapsed(createdAt, now);
+
+    if (businessDayAge > BUY_WINDOW_BUSINESS_DAYS) {
+      demotedFrom = ACTIONS.STRONG_BUY;
+      effectiveAction = ACTIONS.WAIT_ZONE;
+      decisionWindowExpired = true;
+    } else if (businessDayAge > STRONG_BUY_FRESH_BUSINESS_DAYS) {
+      demotedFrom = ACTIONS.STRONG_BUY;
+      effectiveAction = ACTIONS.BUY_ZONE;
+    }
   }
 
   if (expired && effectiveAction === ACTIONS.SELL_ZONE) {
@@ -193,9 +256,12 @@ function applyAutoDemotion(signal, now = new Date()) {
     ...signal,
     rawAction: normalizeAction(signal.action),
     action: effectiveAction,
-    meta: actionMeta(effectiveAction),
+    meta: decisionWindowExpired ? ENTRY_WINDOW_EXPIRED_META : actionMeta(effectiveAction),
     demotedFrom,
     expired,
+    decisionWindowExpired,
+    buyWindowBusinessDays: BUY_WINDOW_BUSINESS_DAYS,
+    businessDaysElapsed: businessDayAge,
     ageHours: Math.max(0, Math.round((ageMs / (60 * 60 * 1000)) * 10) / 10)
   };
 }
@@ -229,10 +295,14 @@ function createSignal(payload, now = new Date()) {
 module.exports = {
   ACTIONS,
   ACTION_META,
+  BUY_WINDOW_BUSINESS_DAYS,
   DEMOTION_MS,
+  ENTRY_WINDOW_EXPIRED_META,
+  STRONG_BUY_FRESH_BUSINESS_DAYS,
   TRACKED_ASSETS,
   actionMeta,
   applyAutoDemotion,
+  businessDaysElapsed,
   confidencePercentile,
   createDefaultSignal,
   createSignal,
