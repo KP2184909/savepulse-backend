@@ -1,391 +1,49 @@
 <!doctype html>
 <html lang="th">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SavePulse Analytics Network</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <style>
-      :root {
-        color-scheme: light;
-        --ink: #111827;
-        --muted: #64748b;
-        --panel: #ffffff;
-        --line: #dbe3ea;
-        --surface: #f5f7fb;
-        --teal: #14b8a6;
-        --amber: #f59e0b;
-        --rose: #e11d48;
-      }
-
-      body {
-        background:
-          linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(245, 247, 251, 0.96)),
-          radial-gradient(circle at top left, rgba(20, 184, 166, 0.16), transparent 34%),
-          radial-gradient(circle at bottom right, rgba(225, 29, 72, 0.10), transparent 32%),
-          var(--surface);
-        color: var(--ink);
-        letter-spacing: 0;
-      }
-
-      .hot-ticker {
-        overflow: hidden;
-        white-space: nowrap;
-      }
-
-      .hot-ticker-track {
-        animation: ticker 28s linear infinite;
-        display: inline-flex;
-        min-width: 200%;
-      }
-
-      @keyframes ticker {
-        from {
-          transform: translateX(0);
-        }
-        to {
-          transform: translateX(-50%);
-        }
-      }
-
-      .panel {
-        background: rgba(255, 255, 255, 0.92);
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        box-shadow: 0 20px 55px rgba(15, 23, 42, 0.08);
-      }
-
-      .signal-orb {
-        aspect-ratio: 1;
-        border-radius: 999px;
-        width: min(62vw, 300px);
-        position: relative;
-        transition: background 220ms ease, box-shadow 220ms ease, transform 220ms ease;
-      }
-
-      .signal-orb::before {
-        content: "";
-        position: absolute;
-        inset: 11%;
-        border-radius: inherit;
-        background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.9), transparent 22%);
-        mix-blend-mode: screen;
-      }
-
-      .signal-orb::after {
-        content: "";
-        position: absolute;
-        inset: 23%;
-        border: 1px solid rgba(255, 255, 255, 0.6);
-        border-radius: inherit;
-      }
-
-      .orb-teal {
-        background: radial-gradient(circle at 34% 24%, #d8fff6 0, #50e3d0 24%, #14b8a6 52%, #0f766e 100%);
-        box-shadow: 0 0 34px rgba(20, 184, 166, 0.48), inset 0 -18px 36px rgba(15, 118, 110, 0.38);
-      }
-
-      .orb-amber {
-        background: radial-gradient(circle at 34% 24%, #fff7d6 0, #facc15 28%, #f59e0b 56%, #b45309 100%);
-        box-shadow: 0 0 34px rgba(245, 158, 11, 0.46), inset 0 -18px 36px rgba(180, 83, 9, 0.34);
-      }
-
-      .orb-rose {
-        background: radial-gradient(circle at 34% 24%, #ffe4ea 0, #fb7185 28%, #e11d48 56%, #9f1239 100%);
-        box-shadow: 0 0 34px rgba(225, 29, 72, 0.46), inset 0 -18px 36px rgba(159, 18, 57, 0.34);
-      }
-
-      .mini-orb {
-        aspect-ratio: 1;
-        border-radius: 999px;
-        width: 14px;
-        flex: 0 0 auto;
-      }
-
-      .segmented {
-        background: #edf2f7;
-        border: 1px solid #dbe3ea;
-        border-radius: 999px;
-        padding: 3px;
-      }
-
-      .segmented button {
-        border-radius: 999px;
-        min-width: 44px;
-        min-height: 34px;
-      }
-
-      .segmented button.active {
-        background: #111827;
-        color: #ffffff;
-      }
-
-      .radar-item {
-        border: 1px solid #dbe3ea;
-        border-radius: 8px;
-        min-height: 76px;
-        transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
-      }
-
-      .radar-item.active {
-        border-color: #111827;
-        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.10);
-      }
-
-      input,
-      select {
-        border-radius: 8px;
-      }
-    </style>
-  </head>
-  <body class="min-h-screen">
-    <div class="hot-ticker border-b border-slate-200 bg-slate-950 py-2 text-[13px] font-medium text-white">
-      <div class="hot-ticker-track gap-10 px-4" id="tickerTrack">
-        <span>SavePulse monitors regret-risk windows for gold, yen, travel money, and global assets.</span>
-        <span>No charts. No profit promises. Just clearer timing confidence.</span>
-        <span>Daily Supertrend states refresh through TradingView webhooks.</span>
-        <span>VIP safe-entry alerts are reserved for fresh low-regret windows.</span>
-      </div>
-    </div>
-
-    <main class="mx-auto grid w-full max-w-7xl gap-5 px-4 py-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:px-6">
-      <section class="panel p-4 sm:p-6">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p class="text-xs font-semibold uppercase text-teal-700">SavePulse Analytics Network</p>
-            <h1 class="mt-1 text-2xl font-semibold tracking-normal sm:text-3xl" data-i18n="title">Decision Light</h1>
-            <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600" data-i18n="subtitle">A regret-risk dashboard for everyday savers.</p>
-          </div>
-          <div class="segmented flex" aria-label="Language">
-            <button class="active px-3 text-sm font-semibold" data-lang="th">TH</button>
-            <button class="px-3 text-sm font-semibold" data-lang="en">EN</button>
-          </div>
-        </div>
-
-        <div class="mt-8 grid gap-6 xl:grid-cols-[minmax(260px,0.85fr)_minmax(280px,1fr)]">
-          <div class="flex flex-col items-center justify-center gap-5">
-            <div class="signal-orb orb-amber" id="signalOrb" aria-label="Decision Light"></div>
-            <div class="w-full text-center">
-              <p class="text-sm font-medium uppercase text-slate-500" id="selectedSymbol">JPYTHB</p>
-              <h2 class="mt-1 text-2xl font-semibold" id="decisionHeadline">Patience Zone</h2>
-              <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600" id="decisionGuidance">Waiting for the first live TradingView signal.</p>
-            </div>
-          </div>
-
-          <div class="grid content-start gap-4">
-            <div class="grid gap-3 sm:grid-cols-2">
-              <label class="block">
-                <span class="text-xs font-semibold uppercase text-slate-500" data-i18n="assetLabel">Asset</span>
-                <select id="assetSelect" class="mt-2 h-11 w-full border border-slate-300 bg-white px-3 text-sm font-semibold">
-                  <option value="JPYTHB">JPYTHB</option>
-                </select>
-              </label>
-              <label class="block">
-                <span class="text-xs font-semibold uppercase text-slate-500" data-i18n="budgetLabel">Planned amount</span>
-                <input id="budgetInput" type="number" min="0" value="50000" class="mt-2 h-11 w-full border border-slate-300 bg-white px-3 text-sm font-semibold" />
-              </label>
-            </div>
-
-            <div class="grid gap-3 sm:grid-cols-2">
-              <label class="block">
-                <span class="text-xs font-semibold uppercase text-slate-500" data-i18n="peakLabel">Peak regret buffer</span>
-                <input id="peakInput" type="number" min="0" max="30" value="4" class="mt-2 h-11 w-full border border-slate-300 bg-white px-3 text-sm font-semibold" />
-              </label>
-              <div class="rounded-[8px] border border-slate-200 bg-slate-50 p-3">
-                <p class="text-xs font-semibold uppercase text-slate-500" data-i18n="savedLabel">Potential regret avoided</p>
-                <p class="mt-2 text-2xl font-semibold text-slate-950" id="opportunityValue">2,000</p>
-              </div>
-            </div>
-
-            <form id="subscribeForm" class="grid gap-3 rounded-[8px] border border-slate-200 bg-white p-3">
-              <div class="flex items-center justify-between gap-3">
-                <div>
-                  <p class="text-sm font-semibold" data-i18n="vipTitle">VIP daily alert queue</p>
-                  <p class="text-xs text-slate-500" data-i18n="vipSubtitle">Fresh safe-entry email alerts only.</p>
-                </div>
-                <span class="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700" id="quotaText">50 left</span>
-              </div>
-              <div class="h-2 overflow-hidden rounded-full bg-slate-100">
-                <div class="h-full rounded-full bg-teal-500" id="quotaBar" style="width: 100%"></div>
-              </div>
-              <div class="grid gap-2 sm:grid-cols-[1fr_auto]">
-                <input id="emailInput" type="email" required placeholder="you@example.com" class="h-11 border border-slate-300 bg-white px-3 text-sm" />
-                <button class="inline-flex h-11 items-center justify-center gap-2 rounded-[8px] bg-slate-950 px-4 text-sm font-semibold text-white" type="submit">
-                  <i data-lucide="send" class="h-4 w-4"></i>
-                  <span data-i18n="joinButton">Join</span>
-                </button>
-              </div>
-              <p class="min-h-5 text-xs text-slate-500" id="subscribeMessage"></p>
-            </form>
-          </div>
-        </div>
-      </section>
-
-      <aside class="grid gap-5">
-        <section class="panel p-4 sm:p-5">
-          <div class="flex items-center justify-between gap-3">
-            <div>
-              <p class="text-xs font-semibold uppercase text-slate-500" data-i18n="statsTitle">Timing statistics</p>
-              <h2 class="mt-1 text-xl font-semibold" id="statusLabel">Neutral Patience Zone</h2>
-            </div>
-            <button id="refreshButton" class="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-slate-300 bg-white text-slate-700" aria-label="Refresh">
-              <i data-lucide="refresh-cw" class="h-4 w-4"></i>
-            </button>
-          </div>
-
-          <div class="mt-5 grid grid-cols-2 gap-3">
-            <div class="rounded-[8px] border border-slate-200 p-3">
-              <p class="text-xs font-semibold uppercase text-slate-500" data-i18n="percentileLabel">Percentile</p>
-              <p class="mt-2 text-2xl font-semibold" id="percentileValue">--</p>
-            </div>
-            <div class="rounded-[8px] border border-slate-200 p-3">
-              <p class="text-xs font-semibold uppercase text-slate-500" data-i18n="visitorLabel">Co-visitors</p>
-              <p class="mt-2 text-2xl font-semibold" id="visitorCount">86</p>
-            </div>
-            <div class="rounded-[8px] border border-slate-200 p-3">
-              <p class="text-xs font-semibold uppercase text-slate-500" data-i18n="priceLabel">Reference price</p>
-              <p class="mt-2 text-2xl font-semibold" id="priceValue">--</p>
-            </div>
-            <div class="rounded-[8px] border border-slate-200 p-3">
-              <p class="text-xs font-semibold uppercase text-slate-500" data-i18n="ageLabel">Decision window</p>
-              <p class="mt-2 text-2xl font-semibold" id="ageValue">--</p>
-            </div>
-          </div>
-
-          <p class="mt-4 text-xs leading-5 text-slate-500" id="legalBoundary">Decision intelligence only. Not financial advice, trading instruction, or return guarantee.</p>
-        </section>
-
-        <section class="panel p-4 sm:p-5">
-          <div class="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <p class="text-xs font-semibold uppercase text-slate-500" data-i18n="radarTitle">Radar list</p>
-              <h2 class="mt-1 text-xl font-semibold" data-i18n="radarSubtitle">Live regret-risk states</h2>
-            </div>
-            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600" id="assetCount">0</span>
-          </div>
-          <div class="grid gap-3" id="radarList"></div>
-        </section>
-      </aside>
-    </main>
-
-    <script>
-      const state = { lang: "th", selectedSymbol: "JPYTHB", assets: [], quota: { limit: 50, remaining: 50, used: 0 } };
-      const fallbackMeta = {
-        tone: "amber",
-        orbClass: "orb-amber",
-        en: { label: "Neutral Patience Zone", headline: "Waiting for live signal", guidance: "The dashboard is ready for the first TradingView webhook." },
-        th: { label: "โซนรออย่างมีวินัย", headline: "กำลังรอสัญญาณสด", guidance: "แดชบอร์ดพร้อมรับ webhook แรกจาก TradingView แล้ว" }
-      };
-      const translations = {
-        en: { title: "Decision Light", subtitle: "A regret-risk dashboard for everyday savers, gold collectors, and travel planners.", assetLabel: "Asset", budgetLabel: "Planned amount", peakLabel: "Peak regret buffer", savedLabel: "Potential regret avoided", vipTitle: "VIP daily alert queue", vipSubtitle: "Fresh safe-entry email alerts only.", joinButton: "Join", statsTitle: "Timing statistics", percentileLabel: "Percentile", visitorLabel: "Co-visitors", priceLabel: "Reference price", ageLabel: "Decision window", radarTitle: "Radar list", radarSubtitle: "Live regret-risk states", emptyRadar: "Waiting for live TradingView signals.", subscribed: "You are in the VIP alert queue.", subscribeError: "Please enter a valid email.", quotaLeft: "left", noSignal: "No signal" },
-        th: { title: "Decision Light", subtitle: "แดชบอร์ดลดความเสี่ยงเสียใจสำหรับคนออมทอง คนเก็บเงินเที่ยว และผู้ซื้อสินทรัพย์ทั่วไป", assetLabel: "สินทรัพย์", budgetLabel: "งบที่วางแผน", peakLabel: "ส่วนต่างเสี่ยงซื้อแพง", savedLabel: "มูลค่าความเสียใจที่อาจเลี่ยงได้", vipTitle: "คิวแจ้งเตือน VIP รายวัน", vipSubtitle: "ส่งเฉพาะสัญญาณโซนสะสมที่สดใหม่", joinButton: "เข้าคิว", statsTitle: "สถิติจังหวะเวลา", percentileLabel: "เปอร์เซ็นไทล์", visitorLabel: "ผู้ใช้ร่วมตอนนี้", priceLabel: "ราคาอ้างอิง", ageLabel: "หน้าต่างตัดสินใจ", radarTitle: "รายการเรดาร์", radarSubtitle: "สถานะลดความเสี่ยงเสียใจแบบสด", emptyRadar: "กำลังรอสัญญาณสดจาก TradingView", subscribed: "คุณอยู่ในคิวแจ้งเตือน VIP แล้ว", subscribeError: "กรุณากรอกอีเมลให้ถูกต้อง", quotaLeft: "ที่นั่ง", noSignal: "ยังไม่มีสัญญาณ" }
-      };
-      const formatNumber = (value) => Number(value || 0).toLocaleString(state.lang === "th" ? "th-TH" : "en-US", { maximumFractionDigits: 2 });
-      function currentAsset() { return state.assets.find((asset) => asset.symbol === state.selectedSymbol) || null; }
-      function setLanguage(lang) {
-        state.lang = lang;
-        document.documentElement.lang = lang;
-        document.querySelectorAll("[data-lang]").forEach((button) => button.classList.toggle("active", button.dataset.lang === lang));
-        document.querySelectorAll("[data-i18n]").forEach((element) => { element.textContent = translations[lang][element.dataset.i18n]; });
-        render();
-      }
-      function renderDecision() {
-        const asset = currentAsset();
-        const meta = asset?.meta || fallbackMeta;
-        const copy = meta[state.lang] || meta.en;
-        const orb = document.getElementById("signalOrb");
-        orb.className = `signal-orb ${meta.orbClass || "orb-amber"}`;
-        document.getElementById("selectedSymbol").textContent = asset?.symbol || state.selectedSymbol;
-        document.getElementById("decisionHeadline").textContent = copy.headline;
-        document.getElementById("decisionGuidance").textContent = copy.guidance;
-        document.getElementById("statusLabel").textContent = copy.label;
-        document.getElementById("percentileValue").textContent = asset?.percentile ? `${asset.percentile.percent}%` : "--";
-        document.getElementById("priceValue").textContent = asset?.price === null || asset?.price === undefined ? "--" : formatNumber(asset.price);
-        const businessDay = asset?.businessDaysElapsed;
-        const buyWindow = asset?.buyWindowBusinessDays || 5;
-        const windowText =
-          businessDay === null || businessDay === undefined
-            ? "--"
-            : asset.decisionWindowExpired
-              ? (state.lang === "th" ? "หมดเวลา" : "Expired")
-              : (state.lang === "th" ? `วันที่ ${Math.max(1, businessDay)}/${buyWindow}` : `Day ${Math.max(1, businessDay)}/${buyWindow}`);
-        document.getElementById("ageValue").textContent = windowText;
-        document.getElementById("legalBoundary").textContent = state.lang === "th" ? "ข้อมูลนี้ใช้เพิ่มความมั่นใจในการตัดสินใจ ไม่ใช่คำแนะนำลงทุน สัญญาณเทรด หรือการรับประกันผลตอบแทน" : "Decision intelligence only. Not financial advice, trading instruction, or return guarantee.";
-      }
-      function renderAssets() {
-        const select = document.getElementById("assetSelect");
-        const symbols = state.assets.length ? state.assets.map((asset) => asset.symbol) : [state.selectedSymbol];
-        select.innerHTML = symbols.map((symbol) => `<option value="${symbol}">${symbol}</option>`).join("");
-        select.value = state.selectedSymbol;
-        const list = document.getElementById("radarList");
-        document.getElementById("assetCount").textContent = `${state.assets.length}`;
-        if (!state.assets.length) {
-          list.innerHTML = `<div class="radar-item flex items-center justify-between bg-white p-4 text-sm text-slate-500">${translations[state.lang].emptyRadar}</div>`;
-          return;
-        }
-        list.innerHTML = state.assets.map((asset) => {
-          const copy = (asset.meta && (asset.meta[state.lang] || asset.meta.en)) || fallbackMeta[state.lang];
-          const active = asset.symbol === state.selectedSymbol ? "active" : "";
-          const orbClass = asset.meta?.orbClass || "orb-amber";
-          const price = asset.price === null || asset.price === undefined ? "--" : formatNumber(asset.price);
-          return `<button class="radar-item ${active} grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 bg-white p-3 text-left" data-symbol="${asset.symbol}"><span class="mini-orb ${orbClass}"></span><span class="min-w-0"><span class="block truncate text-sm font-semibold text-slate-950">${asset.symbol}</span><span class="block truncate text-xs text-slate-500">${copy.label}</span></span><span class="text-right text-xs font-semibold text-slate-500">${price}</span></button>`;
-        }).join("");
-        list.querySelectorAll("[data-symbol]").forEach((button) => {
-          button.addEventListener("click", () => { state.selectedSymbol = button.dataset.symbol; render(); });
-        });
-      }
-      function renderQuota() {
-        const remaining = state.quota.remaining ?? 50;
-        const limit = state.quota.limit || 50;
-        const percent = Math.max(0, Math.min(100, (remaining / limit) * 100));
-        document.getElementById("quotaText").textContent = `${remaining} ${translations[state.lang].quotaLeft}`;
-        document.getElementById("quotaBar").style.width = `${percent}%`;
-      }
-      function renderOpportunity() {
-        const budget = Number(document.getElementById("budgetInput").value || 0);
-        const buffer = Number(document.getElementById("peakInput").value || 0) / 100;
-        document.getElementById("opportunityValue").textContent = formatNumber(budget * buffer);
-      }
-      function render() { renderDecision(); renderAssets(); renderQuota(); renderOpportunity(); if (window.lucide) window.lucide.createIcons(); }
-      async function loadAssets() {
-        try {
-          const response = await fetch("/api/v1/assets");
-          const data = await response.json();
-          state.assets = Array.isArray(data.assets) ? data.assets : [];
-          state.quota = data.quota || state.quota;
-          if (state.assets.length && !state.assets.some((asset) => asset.symbol === state.selectedSymbol)) state.selectedSymbol = state.assets[0].symbol;
-        } catch (error) { state.assets = []; }
-        render();
-      }
-      function tickVisitors() {
-        const element = document.getElementById("visitorCount");
-        const current = Number(element.textContent || 86);
-        const next = Math.max(42, Math.min(132, current + Math.floor(Math.random() * 7) - 3));
-        element.textContent = next;
-      }
-      document.querySelectorAll("[data-lang]").forEach((button) => button.addEventListener("click", () => setLanguage(button.dataset.lang)));
-      document.getElementById("assetSelect").addEventListener("change", (event) => { state.selectedSymbol = event.target.value; render(); });
-      document.getElementById("budgetInput").addEventListener("input", renderOpportunity);
-      document.getElementById("peakInput").addEventListener("input", renderOpportunity);
-      document.getElementById("refreshButton").addEventListener("click", loadAssets);
-      document.getElementById("subscribeForm").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const email = document.getElementById("emailInput").value.trim();
-        const message = document.getElementById("subscribeMessage");
-        try {
-          const response = await fetch("/api/v1/subscribe", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, locale: state.lang, interest: state.selectedSymbol }) });
-          const data = await response.json();
-          if (!response.ok) throw new Error(data.error || "subscribe_failed");
-          state.quota = data.quota || state.quota;
-          message.textContent = translations[state.lang].subscribed;
-        } catch (error) { message.textContent = translations[state.lang].subscribeError; }
-        renderQuota();
-      });
-      setLanguage("th");
-      loadAssets();
-      setInterval(loadAssets, 60000);
-      setInterval(tickVisitors, 2200);
-    </script>
-  </body>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SavePulse - Check Before You Exchange</title>
+  <meta name="description" content="Check currency, gold, and bitcoin timing risk before you exchange." />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    :root{--ink:#0f172a;--muted:#64748b;--line:#dce8ec;--teal:#078f91;--teal2:#066d71;--green:#16a66a;--amber:#f59e0b;--rose:#e11d48;--bg:#f4fbfb;--card:#fff;--shadow:0 18px 50px rgba(15,23,42,.1)}
+    *{box-sizing:border-box}html,body{margin:0;overflow-x:hidden}body{min-height:100vh;background:linear-gradient(180deg,#fbfefe,#eef8f8 55%,#fff);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans Thai",sans-serif;letter-spacing:0}button,input,select{font:inherit}button{cursor:pointer}a{text-decoration:none;color:inherit}.wrap{width:min(1180px,calc(100% - 36px));margin:auto}.ticker{overflow:hidden;white-space:nowrap;background:#050816;color:#fff;font-size:13px}.ticker div{display:inline-flex;gap:54px;min-width:200%;padding:10px 0;animation:ticker 28s linear infinite}@keyframes ticker{to{transform:translateX(-50%)}}
+    header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.9);border-bottom:1px solid var(--line);backdrop-filter:blur(18px)}.nav{min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:16px}.brand{display:flex;align-items:center;gap:10px;color:var(--teal2);font-size:24px;font-weight:900}.mark{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--teal);color:white;box-shadow:0 10px 22px rgba(7,143,145,.25)}.links{display:flex;gap:28px;font-size:14px;font-weight:800}.actions{display:flex;gap:10px;align-items:center}.btn,.btn2,.iconbtn{min-height:42px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);font-weight:900;display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:0 15px}.btn2{background:var(--teal);border-color:var(--teal);color:white;box-shadow:0 14px 24px rgba(7,143,145,.2)}.iconbtn{display:none;width:42px;padding:0}
+    .hero{display:grid;grid-template-columns:1fr .92fr;gap:42px;align-items:start;padding:34px 0 18px}.kicker{display:inline-flex;align-items:center;gap:8px;color:var(--teal2);font-size:13px;font-weight:900;text-transform:uppercase}.dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px rgba(22,166,106,.12)}h1{margin:16px 0;font-size:clamp(42px,6vw,78px);line-height:1.02;letter-spacing:0;overflow-wrap:anywhere}h1 span{display:block;color:var(--teal)}.lead{max-width:590px;margin:0;color:#475569;font-size:19px;line-height:1.6;overflow-wrap:anywhere}.fomo{display:inline-flex;align-items:center;gap:9px;margin-top:22px;padding:10px 13px;border:1px solid #f5d28b;border-radius:8px;background:#fff8e7;color:#7c4a03;font-size:14px;font-weight:900}.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:min(520px,100%);margin-top:28px}.tile{min-height:106px;padding:16px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.78)}.tile strong{display:block;margin-top:12px;font-size:17px}
+    .card{border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.96);box-shadow:var(--shadow)}.pad{padding:20px}.title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}.title h2{margin:0;font-size:20px}.badge{display:inline-flex;align-items:center;gap:7px;padding:8px 10px;border-radius:999px;background:#eefafa;color:var(--teal2);font-size:12px;font-weight:900}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:grid;gap:8px}label{color:#475569;font-size:13px;font-weight:900}select,input{width:100%;min-height:56px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);padding:0 14px;font-size:16px;font-weight:900;outline:none}select:focus,input:focus{border-color:var(--teal);box-shadow:0 0 0 4px rgba(7,143,145,.1)}.full{width:100%;min-height:56px;margin-top:16px}.trust{display:flex;justify-content:space-between;gap:14px;padding-top:14px;color:var(--muted);font-size:12px;font-weight:800}.trust span{display:inline-flex;align-items:center;gap:6px}.pair{text-align:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}.pair strong{color:var(--teal)}
+    .decision{margin-top:16px}.decisionTop{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:18px;border-bottom:1px solid var(--line)}.status{display:flex;align-items:center;gap:18px}.statusIcon{display:grid;place-items:center;flex:0 0 auto;width:94px;height:94px;border-radius:50%;border:8px solid #ffd991;background:#fff9ee;color:var(--amber)}.statusIcon.good{border-color:#aee8d5;background:#effdf7;color:var(--green)}.statusIcon.risk{border-color:#ffc4cf;background:#fff3f6;color:var(--rose)}.statusText h2{margin:0 0 8px;font-size:31px;line-height:1.1}.statusText p{margin:0;color:#475569;line-height:1.5}.metric{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:12px;min-height:70px;border-bottom:1px solid var(--line)}.metric:last-child{border-bottom:0}.micon{display:grid;place-items:center;width:38px;height:38px;border:1px solid rgba(7,143,145,.28);border-radius:8px;color:var(--teal);background:#f0fbfb}.mval{font-size:20px;font-weight:900;text-align:right}.dots{display:inline-flex;gap:8px}.dots span{width:12px;height:12px;border-radius:50%;background:var(--teal)}.nudge{display:flex;gap:12px;margin-top:16px;padding:14px;border:1px solid #f5d28b;border-radius:8px;background:#fff8e7;color:#674002;font-size:14px;line-height:1.5;font-weight:900}
+    .sections{display:grid;grid-template-columns:.95fr 1.05fr;gap:22px;padding-top:22px}.history,.radar,.pricing{padding:22px}.calc{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:12px;align-items:center;margin-top:18px;padding:16px;border:1px solid var(--line);border-radius:8px;background:#fbfeff}.num{font-size:28px;font-weight:900}.small{color:var(--muted);font-size:12px;font-weight:900}.callout{display:flex;align-items:center;gap:10px;margin-top:14px;padding:12px;border-radius:8px;background:#e9fbf2;color:#08603d;font-weight:900}.radarList{display:grid;gap:10px;margin-top:16px}.asset{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;min-height:74px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:white}.assetMain{display:flex;align-items:center;gap:12px;min-width:0}.assetIcon{display:grid;place-items:center;flex:0 0 auto;width:42px;height:42px;border-radius:50%;background:#eefafa;font-size:21px}.assetTitle{overflow-wrap:anywhere;font-size:16px;font-weight:900}.assetSub{margin-top:3px;color:var(--muted);font-size:12px;font-weight:800}.pill{display:inline-flex;align-items:center;justify-content:center;min-width:106px;min-height:32px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:900;white-space:nowrap}.pill.good{background:#e6f8f0;color:#08734a}.pill.wait{background:#fff3d2;color:#925c00}.pill.risk{background:#fff0f3;color:#b0163d}
+    .alert{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center;margin:22px auto;padding:22px;background:#027982;color:white}.alert h2{margin:0 0 6px;font-size:28px}.alert p{margin:0;color:rgba(255,255,255,.86);line-height:1.55}.email{display:flex;gap:10px;min-width:min(440px,100%)}.email input{min-width:220px;border-color:rgba(255,255,255,.36)}.email .btn2{background:white;color:var(--teal2);border-color:white;box-shadow:none}.note{margin-top:10px;color:rgba(255,255,255,.88);font-size:13px;font-weight:900}.plans{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px}.plan{min-height:178px;padding:16px;border:1px solid var(--line);border-radius:8px;background:white}.plan.hot{border-color:rgba(7,143,145,.36);box-shadow:0 12px 28px rgba(7,143,145,.12)}.plan h3{margin:0 0 8px}.price{margin-bottom:10px;color:var(--teal2);font-size:24px;font-weight:900}.plan p{margin:0;color:var(--muted);font-size:13px;line-height:1.45}.legal{padding:24px 0 42px;color:#64748b;font-size:12px;line-height:1.7}
+    @media(max-width:960px){.links{display:none}.iconbtn{display:grid}.hero,.sections,.alert{grid-template-columns:1fr}.plans{grid-template-columns:1fr 1fr}.email{width:100%}}@media(max-width:620px){.wrap{width:min(100% - 28px,1180px)}.ticker{font-size:12px}.nav{min-height:64px}.brand{font-size:23px}.actions .btn2{display:none}.hero{gap:18px;padding-top:22px}h1{font-size:32px;line-height:1.08}.lead{font-size:16px;word-break:break-all}.tiles,.grid2{grid-template-columns:1fr}.tile{min-height:88px;padding:12px}.title{align-items:flex-start;flex-direction:column}.trust{display:grid}.decisionTop{display:grid}.status{align-items:flex-start}.statusIcon{width:74px;height:74px;border-width:7px}.statusText h2{font-size:27px}.metric{grid-template-columns:40px 1fr}.mval{grid-column:2;text-align:left;font-size:18px}.calc{grid-template-columns:1fr}.op{display:none}.asset{grid-template-columns:1fr}.pill{width:max-content}.email{display:grid}.email input{min-width:0}.plans{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="ticker"><div><span data-i="ticker1">วันนี้มีคนกำลังเช็กเรทก่อนแลก 1,482 คน - อย่าให้เรทดีผ่านไปแบบไม่รู้ตัว</span><span data-i="ticker2">SavePulse ไม่ได้ทำนายกำไร แค่ช่วยให้คุณเห็นความเสี่ยงของจังหวะก่อนตัดสินใจ</span><span data-i="ticker1">วันนี้มีคนกำลังเช็กเรทก่อนแลก 1,482 คน - อย่าให้เรทดีผ่านไปแบบไม่รู้ตัว</span><span data-i="ticker2">SavePulse ไม่ได้ทำนายกำไร แค่ช่วยให้คุณเห็นความเสี่ยงของจังหวะก่อนตัดสินใจ</span></div></div>
+  <header><div class="wrap nav"><a class="brand" href="#top"><span class="mark"><i data-lucide="activity"></i></span><span>SavePulse</span></a><nav class="links"><a href="#how" data-i="navHow">วิธีใช้งาน</a><a href="#radar" data-i="navUse">สินทรัพย์ที่ดูได้</a><a href="#pricing" data-i="navPricing">แพ็กเกจ</a><a href="#legal" data-i="navSafety">ความปลอดภัย</a></nav><div class="actions"><button class="btn" id="lang"><i data-lucide="languages"></i><span id="langText">EN</span></button><a class="btn2" href="#alerts"><span data-i="navCta">รับแจ้งเตือนฟรี</span><i data-lucide="arrow-right"></i></a><button class="iconbtn" aria-label="Menu"><i data-lucide="menu"></i></button></div></div></header>
+  <main id="top" class="wrap">
+    <section class="hero">
+      <div><div class="kicker"><span class="dot"></span><span data-i="eyebrow">ผู้ช่วยเช็กความเสี่ยงก่อนแลกเงิน</span></div><h1 data-html="heroTitle">เช็กก่อนแลก <span>วันนี้เรทคุ้มไหม</span></h1><p class="lead" data-i="heroLead">ค่าเงินเปลี่ยนทุกวัน เช็กก่อนแลกช่วยลดความเสียดายทีหลัง</p><div class="fomo"><i data-lucide="bell-ring"></i><span data-i="fomo">คนที่เช็กก่อน มักไม่ต้องมาเสียดายทีหลัง</span></div><div class="tiles"><div class="tile"><i data-lucide="plane"></i><strong data-i="useTravel">ทริปต่างประเทศ</strong></div><div class="tile"><i data-lucide="receipt"></i><strong data-i="useInvoice">จ่ายบิลต่างประเทศ</strong></div><div class="tile"><i data-lucide="piggy-bank"></i><strong data-i="useSaver">ออมหลายสกุลเงิน</strong></div><div class="tile"><i data-lucide="coins"></i><strong data-i="useGold">เช็กทองและบิตคอยน์</strong></div></div></div>
+      <div><section class="card pad"><div class="title"><h2 data-i="calcTitle">วันนี้ควรทำอะไร?</h2><span class="badge"><i data-lucide="lock"></i><span data-i="private">ข้อมูลของคุณเป็นส่วนตัว</span></span></div><div class="grid2"><div class="field"><label for="from" data-i="from">คุณมี</label><select id="from"></select></div><div class="field"><label for="to" data-i="to">คุณต้องการ</label><select id="to"></select></div><div class="field"><label for="amount" data-i="amount">จำนวนเงิน</label><input id="amount" type="number" min="1" value="50000" inputmode="decimal"></div><div class="field"><label for="need" data-i="need">ต้องใช้เมื่อไหร่</label><select id="need"><option value="week" data-i="week">ภายในสัปดาห์นี้</option><option value="month" data-i="month">ภายในเดือนนี้</option><option value="flex" data-i="flex">รอจังหวะได้</option></select></div></div><button class="btn2 full" id="check"><span data-i="check">ดูคำแนะนำวันนี้</span><i data-lucide="arrow-right"></i></button><div class="trust"><span><i data-lucide="shield-check"></i><span data-i="noSignup">ดูสถานะพื้นฐานได้โดยไม่ต้องสมัคร</span></span><span><i data-lucide="timer"></i><span data-i="window">ใช้หน้าต่าง 5 วันทำการ</span></span></div><div class="pair"><span data-i="advanced">มุมมองเชิงเทคนิค:</span> <strong id="pair">JPYTHB</strong></div></section>
+      <section class="card pad decision"><div class="decisionTop"><div class="status"><div class="statusIcon" id="statusIcon"><i data-lucide="pause"></i></div><div class="statusText"><h2 id="headline">รอก่อนอีกนิด</h2><p id="copy">หลายคนแลกช้าไป แล้วต้องจ่ายแพงกว่าเดิม แต่ตอนนี้ยังควรเช็กจังหวะให้ชัดก่อน</p></div></div><span class="badge"><span class="dot"></span><span data-i="updated">อัปเดตล่าสุด</span></span></div><div><div class="metric"><span class="micon"><i data-lucide="chart-no-axes-combined"></i></span><span id="pctLabel">ถูกกว่าช่วง 90 วันที่ผ่านมา</span><span class="mval" id="pct">68%</span></div><div class="metric"><span class="micon"><i data-lucide="calendar-days"></i></span><span id="winLabel">ช่วงที่มักได้เรทดีกว่า</span><span class="mval" id="win">5 วันทำการ</span></div><div class="metric"><span class="micon"><i data-lucide="badge-check"></i></span><span id="confLabel">ความมั่นใจ</span><span class="mval"><span class="dots"><span></span><span></span><span></span><span></span></span></span></div></div><div class="nudge"><i data-lucide="lightbulb"></i><span id="nudge">ตั้งแจ้งเตือนไว้ก่อนเรทดีผ่านไป เพื่อไม่ต้องนั่งเฝ้ากราฟเองทุกวัน</span></div></section></div>
+    </section>
+    <section class="sections" id="how"><article class="card history"><div class="title"><h2 data-i="history">ตัวอย่างจากข้อมูลย้อนหลัง</h2><span class="badge"><i data-lucide="sparkles"></i><span data-i="example">ตัวอย่างเพื่อให้เห็นภาพ</span></span></div><p class="lead" style="font-size:16px" data-i="historyLead">ถ้าคุณวางแผนแลกเงินก่อนหน้า ส่วนต่างเล็ก ๆ อาจกลายเป็นค่าโรงแรมหรือมื้อพิเศษในทริปของคุณ</p><div class="calc"><div><div class="small" data-i="past">ถ้าเช็กก่อนหน้านี้</div><div class="num" id="past">4,600</div></div><div class="op">-</div><div><div class="small" data-i="today">ถ้าแลกวันนี้</div><div class="num" id="today">4,455</div></div><div class="op">=</div><div><div class="small" data-i="diff">ส่วนต่างโดยประมาณ</div><div class="num" id="diff" style="color:var(--green)">145</div></div></div><div class="callout"><i data-lucide="users-round"></i><span data-i="historyFomo">หลายคนรู้ตัวอีกที เรทดีผ่านไปแล้ว</span></div></article>
+    <article class="card radar" id="radar"><div class="title"><div><h2 data-i="radar">รายการที่ SavePulse เฝ้าให้</h2><p class="small" data-i="radarSub">แสดงเป็นภาษาคนทั่วไปก่อน ส่วนรหัสคู่เงินอยู่ด้านล่าง</p></div><span class="badge">9 <span data-i="items">รายการ</span></span></div><div class="radarList" id="radarList"></div></article></section>
+    <section class="card alert" id="alerts"><div><h2 data-i="alertTitle">รับแจ้งเตือนฟรีก่อนเรทดีผ่านไป</h2><p data-i="alertSub">Free tier จะได้ 1 รายการเฝ้าดู, สรุปรายสัปดาห์ และการเตือนเหตุการณ์ใหญ่แบบหน่วงเวลา เห็นคุณค่าก่อนอัปเกรดเป็น Plus หรือ Pro</p><div class="note" id="subNote" data-i="note">ไม่ใช่คำแนะนำการลงทุน และไม่มีการการันตีผลตอบแทน</div></div><form class="email" id="form"><input id="email" type="email" placeholder="you@email.com" required><button class="btn2" type="submit"><span data-i="join">รับการแจ้งเตือนฟรี</span><i data-lucide="arrow-right"></i></button></form></section>
+    <section class="card pricing" id="pricing"><div class="title"><div><h2 data-i="pricing">แพ็กเกจที่ออกแบบไว้</h2><p class="small" data-i="pricingSub">Free ให้รู้สึกว่า “เกือบพลาดแล้ว” ส่วน Paid ช่วยไม่ให้พลาดอีก</p></div></div><div class="plans" id="plans"></div></section>
+  </main>
+  <footer class="wrap legal" id="legal"><strong data-i="legalTitle">ประกาศสำคัญ:</strong> <span data-i="legal">SavePulse เป็นแดชบอร์ดข้อมูลเชิงสถิติและการจัดการความเสี่ยงด้านจังหวะเท่านั้น ไม่ใช่คำแนะนำการลงทุน ไม่ใช่คำสั่งซื้อขาย และไม่รับประกันผลลัพธ์ในอนาคต ผู้ใช้ต้องตัดสินใจด้วยตนเอง</span></footer>
+  <script>
+    const pairs=["USDTHB","JPYTHB","EURTHB","XAUTHB","BTCTHB","USDJPY","EURUSD","XAUUSD","BTCUSD"],demo={USDTHB:74,JPYTHB:68,EURTHB:55,XAUTHB:82,BTCTHB:47,USDJPY:71,EURUSD:63,XAUUSD:84,BTCUSD:58},cur={THB:["🇹🇭","เงินบาท","Thai Baht"],USD:["🇺🇸","เงินดอลลาร์สหรัฐ","US Dollars"],JPY:["🇯🇵","เงินเยน","Japanese Yen"],EUR:["🇪🇺","เงินยูโร","Euros"],XAU:["🥇","ทองคำ","Gold"],BTC:["₿","บิตคอยน์","Bitcoin"]},pm={USDTHB:["USD","THB"],JPYTHB:["THB","JPY"],EURTHB:["THB","EUR"],XAUTHB:["THB","XAU"],BTCTHB:["THB","BTC"],USDJPY:["USD","JPY"],EURUSD:["USD","EUR"],XAUUSD:["USD","XAU"],BTCUSD:["USD","BTC"]};
+    const dict={th:{ticker1:"วันนี้มีคนกำลังเช็กเรทก่อนแลก 1,482 คน - อย่าให้เรทดีผ่านไปแบบไม่รู้ตัว",ticker2:"SavePulse ไม่ได้ทำนายกำไร แค่ช่วยให้คุณเห็นความเสี่ยงของจังหวะก่อนตัดสินใจ",navHow:"วิธีใช้งาน",navUse:"สินทรัพย์ที่ดูได้",navPricing:"แพ็กเกจ",navSafety:"ความปลอดภัย",navCta:"รับแจ้งเตือนฟรี",eyebrow:"ผู้ช่วยเช็กความเสี่ยงก่อนแลกเงิน",heroTitle:"เช็กก่อนแลก <span>วันนี้เรทคุ้มไหม</span>",heroLead:"ค่าเงินเปลี่ยนทุกวัน เช็กก่อนแลกช่วยลดความเสียดายทีหลัง",fomo:"คนที่เช็กก่อน มักไม่ต้องมาเสียดายทีหลัง",useTravel:"ทริปต่างประเทศ",useInvoice:"จ่ายบิลต่างประเทศ",useSaver:"ออมหลายสกุลเงิน",useGold:"เช็กทองและบิตคอยน์",calcTitle:"วันนี้ควรทำอะไร?",private:"ข้อมูลของคุณเป็นส่วนตัว",from:"คุณมี",to:"คุณต้องการ",amount:"จำนวนเงิน",need:"ต้องใช้เมื่อไหร่",week:"ภายในสัปดาห์นี้",month:"ภายในเดือนนี้",flex:"รอจังหวะได้",check:"ดูคำแนะนำวันนี้",noSignup:"ดูสถานะพื้นฐานได้โดยไม่ต้องสมัคร",window:"ใช้หน้าต่าง 5 วันทำการ",advanced:"มุมมองเชิงเทคนิค:",updated:"อัปเดตล่าสุด",pct:"ถูกกว่าช่วง 90 วันที่ผ่านมา",better:"ช่วงที่มักได้เรทดีกว่า",conf:"ความมั่นใจ",win:"5 วันทำการ",history:"ตัวอย่างจากข้อมูลย้อนหลัง",example:"ตัวอย่างเพื่อให้เห็นภาพ",historyLead:"ถ้าคุณวางแผนแลกเงินก่อนหน้า ส่วนต่างเล็ก ๆ อาจกลายเป็นค่าโรงแรมหรือมื้อพิเศษในทริปของคุณ",past:"ถ้าเช็กก่อนหน้านี้",today:"ถ้าแลกวันนี้",diff:"ส่วนต่างโดยประมาณ",historyFomo:"หลายคนรู้ตัวอีกที เรทดีผ่านไปแล้ว",radar:"รายการที่ SavePulse เฝ้าให้",radarSub:"แสดงเป็นภาษาคนทั่วไปก่อน ส่วนรหัสคู่เงินอยู่ด้านล่าง",items:"รายการ",alertTitle:"รับแจ้งเตือนฟรีก่อนเรทดีผ่านไป",alertSub:"Free tier จะได้ 1 รายการเฝ้าดู, สรุปรายสัปดาห์ และการเตือนเหตุการณ์ใหญ่แบบหน่วงเวลา เห็นคุณค่าก่อนอัปเกรดเป็น Plus หรือ Pro",note:"ไม่ใช่คำแนะนำการลงทุน และไม่มีการการันตีผลตอบแทน",join:"รับการแจ้งเตือนฟรี",pricing:"แพ็กเกจที่ออกแบบไว้",pricingSub:"Free ให้รู้สึกว่า “เกือบพลาดแล้ว” ส่วน Paid ช่วยไม่ให้พลาดอีก",legalTitle:"ประกาศสำคัญ:",legal:"SavePulse เป็นแดชบอร์ดข้อมูลเชิงสถิติและการจัดการความเสี่ยงด้านจังหวะเท่านั้น ไม่ใช่คำแนะนำการลงทุน ไม่ใช่คำสั่งซื้อขาย และไม่รับประกันผลลัพธ์ในอนาคต ผู้ใช้ต้องตัดสินใจด้วยตนเอง",goodH:"เรทเริ่มน่าสนใจ",waitH:"รอก่อนอีกนิด",riskH:"เสี่ยงซื้อแพง",expiredH:"รอก่อน ยังไม่ควรซื้อตอนนี้",good:"สัญญาณล่าสุดอยู่ในช่วงที่ลดความเสี่ยงเสียใจได้ดีกว่าปกติ ถ้าวางแผนอยู่แล้วให้เช็กอย่างจริงจัง",wait:"หลายคนแลกช้าไป แล้วต้องจ่ายแพงกว่าเดิม แต่ตอนนี้ยังควรเช็กจังหวะให้ชัดก่อน",risk:"เรทอยู่ในโซนที่มีความเสี่ยงไล่ราคา อย่ารีบตัดสินใจด้วยอารมณ์ถ้ายังรอได้",expired:"หน้าต่าง 5 วันทำการหลังสัญญาณ Buy ผ่านไปแล้ว แม้อินดิเคเตอร์ยังไม่ขาย ระบบจะให้กลับมารอก่อน",nGood:"ตั้งแจ้งเตือนไว้เพื่อไม่พลาดช่วงที่สถานะยังน่าสนใจ",nWait:"ตั้งแจ้งเตือนไว้ก่อนเรทดีผ่านไป เพื่อไม่ต้องนั่งเฝ้ากราฟเองทุกวัน",nRisk:"ให้ระบบเตือนเมื่อความเสี่ยงเย็นลง จะช่วยลดการซื้อหรือแลกด้วยความกังวล",sGood:"น่าสนใจ",sWait:"รอก่อน",sRisk:"เสี่ยงแพง",ok:"สมัครเรียบร้อยแล้ว เราจะเฝ้า {symbol} ให้ใน Free tier",fail:"ยังสมัครไม่ได้ กรุณาตรวจอีเมลแล้วลองอีกครั้ง",plans:[["ฟรี","฿0","ดูสถานะวันนี้, Watchlist 1 รายการ, Weekly Pulse"],["Plus","฿199","แจ้งเตือนค่าเงินจริง, Watchlist 5 รายการ, ตัวอย่างตามจำนวนเงิน"],["Pro","฿499","เพิ่มทองและบิตคอยน์, สัญญาณสองทาง, replay ย้อนหลัง"],["Business","฿1,990","Invoice tracking, ทีมบัญชี, รายงานความเสี่ยงค่าเงิน"]]},en:{ticker1:"1,482 people are checking before they exchange today - do not let a better rate pass quietly",ticker2:"SavePulse does not promise profit. It helps you see timing risk before you decide.",navHow:"How it works",navUse:"Use cases",navPricing:"Pricing",navSafety:"Safety",navCta:"Join free alerts",eyebrow:"Rate risk assistant for everyday decisions",heroTitle:"Before you exchange, <span>check today’s rate risk.</span>",heroLead:"Rates move every day. A few days too early or too late can change your cost more than you think.",fomo:"People who check first usually have less regret later",useTravel:"Travel money",useInvoice:"Overseas invoices",useSaver:"Multi-currency savings",useGold:"Gold and bitcoin watch",calcTitle:"What should you do today?",private:"Your data is private",from:"You have",to:"You want",amount:"Amount",need:"When do you need it?",week:"This week",month:"This month",flex:"Flexible",check:"Check today’s decision",noSignup:"No sign-up needed for basic status",window:"Uses a 5-business-day window",advanced:"Advanced pair:",updated:"Updated just now",pct:"Cheaper than the last 90 days",better:"Typical better window",conf:"Confidence",win:"5 business days",history:"A simple historical example",example:"Illustrative only",historyLead:"Planning ahead can turn a small exchange-rate difference into a hotel night, a meal, or margin you keep.",past:"If checked earlier",today:"If exchanged today",diff:"Estimated difference",historyFomo:"Many people notice only after the better rate has passed",radar:"What SavePulse watches",radarSub:"Human language first, advanced pair codes second.",items:"items",alertTitle:"Get free alerts before a better rate moves away",alertSub:"Free includes one watchlist item, weekly pulse, and delayed major-event alerts so users feel the value before upgrading to Plus or Pro.",note:"Not investment advice and no return guarantee.",join:"Join free alerts",pricing:"Planned tiers",pricingSub:"Free makes users feel “I almost missed it.” Paid helps them avoid missing it again.",legalTitle:"Important notice:",legal:"SavePulse is a statistical timing-risk dashboard only. It is not investment advice, trading instruction, or a return guarantee. Users make their own decisions.",goodH:"The rate looks interesting",waitH:"Wait a little",riskH:"Expensive-zone risk",expiredH:"Wait now, do not chase",good:"The latest signal is inside a lower-regret window. If this was already planned, check the details seriously.",wait:"Many people exchange too late and pay more, but today still deserves patience and a clearer setup.",risk:"This looks like a chase-risk zone. Avoid emotional decisions if you have time to wait.",expired:"The 5-business-day buy window has passed. Even if the indicator still looks positive, SavePulse moves back to wait.",nGood:"Set an alert so you do not miss the window while it still looks interesting.",nWait:"Set an alert before a better rate passes so you do not need to watch charts every day.",nRisk:"Let the system notify you when risk cools down and decisions feel calmer.",sGood:"Good time",sWait:"Wait",sRisk:"Risky",ok:"Done. We will watch {symbol} for you on the Free tier.",fail:"Could not subscribe yet. Please check your email and try again.",plans:[["Free","$0","Today’s status, 1 watchlist item, Weekly Pulse"],["Plus","$7","Real-time currency alerts, 5 watchlist items, personalized examples"],["Pro","$19","Gold and bitcoin, two-way alerts, historical replay"],["Business","$49","Invoice tracking, accounting team alerts, FX risk reports"]]}};
+    let st={lang:"th",from:"THB",to:"JPY",pair:"JPYTHB",assets:[]};const $=id=>document.getElementById(id),tr=k=>(dict[st.lang][k]||dict.th[k]||k),name=c=>`${cur[c][0]} ${cur[c][st.lang==="th"?1:2]} (${c})`,resolve=(a,b)=>pairs.includes(a+b)?a+b:pairs.includes(b+a)?b+a:null,asset=s=>st.assets.find(x=>x.symbol===s),tone=a=>a?.decisionWindowExpired?"expired":["STRONG_BUY","BUY_ZONE"].includes(a?.action)?"good":a?.action==="SELL_ZONE"?"risk":"wait";
+    function icons(){if(window.lucide)lucide.createIcons({attrs:{"stroke-width":2.2,width:20,height:20}})}function opts(){["from","to"].forEach(id=>$(id).innerHTML=Object.keys(cur).map(c=>`<option value="${c}">${name(c)}</option>`).join(""));$("from").value=st.from;$("to").value=st.to}
+    function applyLang(){document.documentElement.lang=st.lang;$("langText").textContent=st.lang==="th"?"EN":"TH";document.querySelectorAll("[data-i]").forEach(n=>n.textContent=tr(n.dataset.i));document.querySelectorAll("[data-html]").forEach(n=>n.innerHTML=tr(n.dataset.html));opts();plans();radar();render();icons()}
+    function render(){st.pair=resolve(st.from,st.to)||st.pair;const a=asset(st.pair),tn=tone(a),pct=a?.percentile?.percent??demo[st.pair]??64,bd=a?.businessDaysElapsed;$("pair").textContent=st.pair;$("pctLabel").textContent=tr("pct");$("pct").textContent=pct+"%";$("winLabel").textContent=tr("better");$("win").textContent=bd?`${Math.min(5,bd)}/5`:tr("win");$("confLabel").textContent=tr("conf");const ic=$("statusIcon");ic.className="statusIcon";let icon="pause",h="waitH",c="wait",n="nWait";if(tn==="good"){ic.classList.add("good");icon="check";h="goodH";c="good";n="nGood"}else if(tn==="risk"){ic.classList.add("risk");icon="triangle-alert";h="riskH";c="risk";n="nRisk"}else if(tn==="expired"){icon="hourglass";h="expiredH";c="expired";n="nWait"}ic.innerHTML=`<i data-lucide="${icon}"></i>`;$("headline").textContent=tr(h);$("copy").textContent=tr(c);$("nudge").textContent=tr(n);history();icons()}
+    function history(){const amt=Number($("amount").value||50000),to=cur[(pm[st.pair]||pm.JPYTHB)[1]][2],sym=to==="Thai Baht"?"฿":to==="US Dollars"?"$":to==="Euros"?"€":"",base=Math.max(1200,amt*.092),diff=Math.max(28,Math.round(base*.031)),past=Math.round(base),today=Math.max(1,past-diff);$("past").textContent=sym+past.toLocaleString();$("today").textContent=sym+today.toLocaleString();$("diff").textContent=sym+diff.toLocaleString()}
+    function sentence(s){const p=pm[s],f=cur[p[0]][st.lang==="th"?1:2],to=cur[p[1]][st.lang==="th"?1:2];return st.lang==="th"?`ถือ${f} อยากแลกเป็น${to}`:`Holding ${f}, want ${to}`}function radar(){$("radarList").innerHTML=pairs.map(s=>{const a=asset(s),tn=tone(a),p=pm[s],key=tn==="good"?"sGood":tn==="risk"?"sRisk":"sWait";return `<article class="asset" data-s="${s}"><div class="assetMain"><span class="assetIcon">${cur[p[1]][0]}</span><div><div class="assetTitle">${sentence(s)}</div><div class="assetSub">${s} · ${a?.timeframe||"1D"}</div></div></div><span class="pill ${tn==="good"?"good":tn==="risk"?"risk":"wait"}">${tr(key)}</span></article>`}).join("");document.querySelectorAll(".asset").forEach(r=>r.onclick=()=>{const s=r.dataset.s;st.pair=s;st.from=pm[s][0];st.to=pm[s][1];$("from").value=st.from;$("to").value=st.to;render();scrollTo({top:0,behavior:"smooth"})})}
+    function plans(){$("plans").innerHTML=tr("plans").map((p,i)=>`<article class="plan ${i===1?"hot":""}"><h3>${p[0]}</h3><div class="price">${p[1]}</div><p>${p[2]}</p></article>`).join("")}
+    async function load(){try{const r=await fetch("/api/v1/assets"),j=await r.json();st.assets=j.assets||[]}catch(e){st.assets=[]}applyLang()}$("lang").onclick=()=>{st.lang=st.lang==="th"?"en":"th";applyLang()};["from","to"].forEach(id=>$(id).onchange=e=>{st[id]=e.target.value;render()});$("amount").oninput=render;$("need").onchange=render;$("check").onclick=render;$("form").onsubmit=async e=>{e.preventDefault();try{const r=await fetch("/api/v1/subscribe",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email:$("email").value.trim(),locale:st.lang,plan:"free",watchlist:[st.pair],interest:"free_alert"})});if(!r.ok)throw Error();$("subNote").textContent=tr("ok").replace("{symbol}",st.pair)}catch(err){$("subNote").textContent=tr("fail")}};opts();load();
+  </script>
+</body>
 </html>
