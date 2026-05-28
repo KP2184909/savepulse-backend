@@ -75,30 +75,40 @@ function sendText(res, statusCode, body, contentType = "text/plain; charset=utf-
   res.end(body);
 }
 
-function parseBody(req) {
+function readRawBody(req) {
   return new Promise((resolve, reject) => {
-    let body = "";
+    const chunks = [];
+    let bodyLength = 0;
+
     req.on("data", (chunk) => {
-      body += chunk;
-      if (body.length > 1024 * 1024) {
+      chunks.push(chunk);
+      bodyLength += chunk.length;
+
+      if (bodyLength > 1024 * 1024) {
         reject(new Error("request body too large"));
         req.destroy();
       }
     });
     req.on("end", () => {
-      if (!body) {
-        resolve({});
-        return;
-      }
-
-      try {
-        resolve(JSON.parse(body));
-      } catch (error) {
-        reject(new Error("invalid JSON body"));
-      }
+      resolve(Buffer.concat(chunks));
     });
     req.on("error", reject);
   });
+}
+
+async function parseBody(req) {
+  const bodyBuffer = await readRawBody(req);
+  const body = bodyBuffer.toString("utf8");
+
+  if (!body) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(body);
+  } catch (error) {
+    throw new Error("invalid JSON body");
+  }
 }
 
 function bearerToken(req) {
@@ -164,22 +174,151 @@ function checkoutUrlForPlan(plan, env = process.env) {
   return env[`CHECKOUT_${planId.toUpperCase()}_URL`] || null;
 }
 
-function checkoutPayload(plan) {
+function stripeSecretKey(env = process.env) {
+  return env.STRIPE_SECRET_KEY || env.STRIPE_API_KEY || "";
+}
+
+function stripeWebhookSecret(env = process.env) {
+  return env.STRIPE_WEBHOOK_SECRET || env.STRIPE_SIGNING_SECRET || "";
+}
+
+function appBaseUrl(env = process.env) {
+  return String(env.APP_BASE_URL || env.PUBLIC_URL || `http://${HOST}:${PORT}`).replace(/\/+$/, "");
+}
+
+function checkoutPriceIdForPlan(plan, env = process.env) {
   const planId = normalizePlan(plan);
-  const url = checkoutUrlForPlan(planId);
+  if (planId === "free") {
+    return "";
+  }
+
+  const key = planId.toUpperCase();
+  return (
+    env[`STRIPE_PRICE_${key}`] ||
+    env[`STRIPE_PRICE_${key}_MONTHLY`] ||
+    env[`STRIPE_${key}_PRICE_ID`] ||
+    ""
+  );
+}
+
+function checkoutRequirements(plan, env = process.env) {
+  const planId = normalizePlan(plan);
+  const missing = [];
+
+  if (!stripeSecretKey(env)) {
+    missing.push("STRIPE_SECRET_KEY");
+  }
+
+  if (!checkoutPriceIdForPlan(planId, env)) {
+    missing.push(`STRIPE_PRICE_${planId.toUpperCase()}`);
+  }
+
+  return missing;
+}
+
+async function createStripeCheckoutSession({ email, plan, locale = "en", watchlist = [] }, env = process.env) {
+  const planId = normalizePlan(plan);
+  const secretKey = stripeSecretKey(env);
+  const priceId = checkoutPriceIdForPlan(planId, env);
+
+  if (!secretKey || !priceId || planId === "free") {
+    return null;
+  }
+
+  const baseUrl = appBaseUrl(env);
+  const metadata = {
+    email,
+    plan: planId,
+    locale: locale === "th" ? "th" : "en",
+    watchlist: Array.isArray(watchlist) ? watchlist.join(",") : ""
+  };
+  const form = new URLSearchParams();
+
+  form.append("mode", "subscription");
+  form.append("customer_email", email);
+  form.append("client_reference_id", email);
+  form.append("line_items[0][price]", priceId);
+  form.append("line_items[0][quantity]", "1");
+  form.append("success_url", `${baseUrl}/?checkout=success&plan=${planId}&session_id={CHECKOUT_SESSION_ID}`);
+  form.append("cancel_url", `${baseUrl}/?checkout=cancelled&plan=${planId}`);
+  form.append("allow_promotion_codes", "true");
+
+  for (const [key, value] of Object.entries(metadata)) {
+    form.append(`metadata[${key}]`, value);
+    form.append(`subscription_data[metadata][${key}]`, value);
+  }
+
+  const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${secretKey}`,
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    body: form
+  });
+  const payload = await response.json();
+
+  if (!response.ok) {
+    throw new Error(payload.error?.message || "Stripe checkout session creation failed");
+  }
+
+  return {
+    id: payload.id,
+    url: payload.url
+  };
+}
+
+async function checkoutPayload(plan, options = {}, env = process.env) {
+  const planId = normalizePlan(plan);
+  const staticUrl = checkoutUrlForPlan(planId, env);
+
+  if (options.email && checkoutRequirements(planId, env).length === 0) {
+    try {
+      const session = await createStripeCheckoutSession({ ...options, plan: planId }, env);
+
+      if (session?.url) {
+        return {
+          plan: planId,
+          configured: true,
+          provider: "stripe",
+          url: session.url,
+          sessionId: session.id,
+          message: "Open this Stripe Checkout session to activate the requested plan."
+        };
+      }
+    } catch (error) {
+      return {
+        plan: planId,
+        configured: false,
+        provider: "stripe",
+        url: null,
+        message: error.message
+      };
+    }
+  }
+
+  if (staticUrl) {
+    return {
+      plan: planId,
+      configured: true,
+      provider: "payment_link",
+      url: staticUrl,
+      message: "Open this checkout URL to activate the requested plan."
+    };
+  }
 
   return {
     plan: planId,
-    configured: Boolean(url),
-    url,
-    message: url
-      ? "Open this checkout URL to activate the requested plan."
-      : "Checkout URL is not configured yet. Add the plan payment link in Render."
+    configured: false,
+    provider: "stripe",
+    url: null,
+    missing: checkoutRequirements(planId, env),
+    message: "Stripe Checkout is not configured yet. Add the Stripe secret key and plan price IDs in Render."
   };
 }
 
 function publicSubscriber(record) {
-  return {
+  const payload = {
     id: record.id,
     email: record.email,
     locale: record.locale,
@@ -192,6 +331,17 @@ function publicSubscriber(record) {
     createdAt: record.createdAt,
     updatedAt: record.updatedAt
   };
+
+  if (record.billing) {
+    payload.billing = {
+      provider: record.billing.provider,
+      status: record.billing.status,
+      plan: normalizePlan(record.billing.plan || record.plan),
+      updatedAt: record.billing.updatedAt
+    };
+  }
+
+  return payload;
 }
 
 function buildSubscriberRecord(email, body, existing, plan) {
@@ -231,6 +381,34 @@ function saveSubscriberRecord(record) {
   }
 
   saveJson(SUBSCRIBERS_FILE, subscribers);
+}
+
+function updateSubscriberPlanFromBilling(email, plan, billing = {}) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+
+  if (!emailIsValid(normalizedEmail)) {
+    return { updated: false, reason: "valid_email_required" };
+  }
+
+  const existing = subscribers.find((subscriber) => subscriber.email === normalizedEmail);
+  const planId = normalizePlan(plan);
+  const { record, watchlistResult } = buildSubscriberRecord(normalizedEmail, {}, existing, planId);
+
+  record.billing = {
+    ...(existing?.billing || {}),
+    provider: "stripe",
+    ...billing,
+    plan: planId,
+    updatedAt: new Date().toISOString()
+  };
+
+  saveSubscriberRecord(record);
+
+  return {
+    updated: true,
+    subscriber: publicSubscriber(record),
+    rejectedWatchlist: watchlistResult.rejected
+  };
 }
 
 function notificationCandidates() {
@@ -434,6 +612,153 @@ function invoiceExposure(invoice) {
   };
 }
 
+function parseStripeSignatureHeader(header) {
+  return String(header || "")
+    .split(",")
+    .map((part) => part.trim().split("="))
+    .reduce(
+      (acc, [key, value]) => {
+        if (!key || !value) {
+          return acc;
+        }
+
+        if (key === "v1") {
+          acc.v1.push(value);
+          return acc;
+        }
+
+        acc[key] = value;
+        return acc;
+      },
+      { v1: [] }
+    );
+}
+
+function verifyStripeWebhookSignature(rawBody, signatureHeader, secret, nowMs = Date.now(), toleranceSeconds = 300) {
+  if (!secret) {
+    throw new Error("stripe_webhook_secret_not_configured");
+  }
+
+  const parsed = parseStripeSignatureHeader(signatureHeader);
+  const timestamp = Number(parsed.t);
+
+  if (!Number.isFinite(timestamp) || parsed.v1.length === 0) {
+    throw new Error("invalid_stripe_signature_header");
+  }
+
+  if (toleranceSeconds !== null && Math.abs(nowMs / 1000 - timestamp) > toleranceSeconds) {
+    throw new Error("stripe_signature_timestamp_outside_tolerance");
+  }
+
+  const body = Buffer.isBuffer(rawBody) ? rawBody.toString("utf8") : String(rawBody || "");
+  const signedPayload = `${timestamp}.${body}`;
+  const expectedSignature = crypto.createHmac("sha256", secret).update(signedPayload).digest("hex");
+  const expectedBuffer = Buffer.from(expectedSignature, "hex");
+  const hasValidSignature = parsed.v1.some((signature) => {
+    const signatureBuffer = Buffer.from(signature, "hex");
+    return signatureBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(signatureBuffer, expectedBuffer);
+  });
+
+  if (!hasValidSignature) {
+    throw new Error("invalid_stripe_signature");
+  }
+
+  return true;
+}
+
+function planFromStripePriceId(priceId, env = process.env) {
+  const normalizedPrice = String(priceId || "").trim();
+
+  if (!normalizedPrice) {
+    return "free";
+  }
+
+  for (const plan of ["plus", "pro", "business"]) {
+    if (checkoutPriceIdForPlan(plan, env) === normalizedPrice) {
+      return plan;
+    }
+  }
+
+  return "free";
+}
+
+function stripeObjectEmail(object) {
+  return String(
+    object?.metadata?.email ||
+      object?.customer_details?.email ||
+      object?.customer_email ||
+      object?.client_reference_id ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function stripeSubscriptionPriceId(subscription) {
+  return subscription?.items?.data?.[0]?.price?.id || "";
+}
+
+function applyStripeCheckoutCompleted(session, env = process.env) {
+  const email = stripeObjectEmail(session);
+  const metadataPlan = normalizePlan(session?.metadata?.plan);
+  const plan = metadataPlan === "free" ? normalizePlan(session?.metadata?.requested_plan) : metadataPlan;
+
+  if (plan === "free") {
+    return { updated: false, reason: "paid_plan_missing" };
+  }
+
+  return updateSubscriberPlanFromBilling(email, plan, {
+    customerId: session.customer || null,
+    subscriptionId: session.subscription || null,
+    status: session.payment_status || session.status || "checkout_completed",
+    checkoutSessionId: session.id || null,
+    eventSource: "checkout.session.completed",
+    envMode: stripeSecretKey(env).startsWith("sk_live_") ? "live" : "test"
+  });
+}
+
+function applyStripeSubscriptionChanged(subscription, env = process.env) {
+  const email = stripeObjectEmail(subscription);
+  const plan = normalizePlan(subscription?.metadata?.plan || planFromStripePriceId(stripeSubscriptionPriceId(subscription), env));
+  const active = ["active", "trialing"].includes(String(subscription?.status || "").toLowerCase());
+
+  if (!email) {
+    return { updated: false, reason: "subscriber_email_missing" };
+  }
+
+  if (plan === "free" && active) {
+    return { updated: false, reason: "paid_plan_missing" };
+  }
+
+  return updateSubscriberPlanFromBilling(email, active ? plan : "free", {
+    customerId: subscription.customer || null,
+    subscriptionId: subscription.id || null,
+    status: subscription.status || "unknown",
+    currentPeriodEnd: subscription.current_period_end || null,
+    eventSource: "customer.subscription.changed",
+    envMode: stripeSecretKey(env).startsWith("sk_live_") ? "live" : "test"
+  });
+}
+
+function applyStripeEvent(event, env = process.env) {
+  const object = event?.data?.object || {};
+
+  switch (event?.type) {
+    case "checkout.session.completed":
+      return applyStripeCheckoutCompleted(object, env);
+    case "customer.subscription.created":
+    case "customer.subscription.updated":
+      return applyStripeSubscriptionChanged(object, env);
+    case "customer.subscription.deleted":
+      return applyStripeSubscriptionChanged({ ...object, status: "canceled" }, env);
+    case "invoice.payment_succeeded":
+    case "invoice.payment_failed":
+      return { updated: false, reason: "invoice_event_recorded_only" };
+    default:
+      return { updated: false, reason: "event_ignored" };
+  }
+}
+
 function contentTypeFor(filePath) {
   const extension = path.extname(filePath).toLowerCase();
   return (
@@ -514,7 +839,13 @@ async function handleSubscribe(req, res) {
     subscriber: publicSubscriber(record),
     requestedPlan,
     upgradeRequired,
-    checkout: upgradeRequired ? checkoutPayload(requestedPlan) : null,
+    checkout: upgradeRequired
+      ? await checkoutPayload(requestedPlan, {
+          email,
+          locale: record.locale,
+          watchlist: record.watchlist
+        })
+      : null,
     rejectedWatchlist: watchlistResult.rejected,
     quota: quotaSnapshot()
   });
@@ -537,7 +868,38 @@ async function handleBillingCheckout(req, res) {
 
   sendJson(res, 200, {
     email,
-    checkout: checkoutPayload(plan)
+    checkout: await checkoutPayload(plan, {
+      email,
+      locale: body.locale,
+      watchlist: body.watchlist
+    })
+  });
+}
+
+async function handleStripeWebhook(req, res) {
+  const rawBody = await readRawBody(req);
+
+  try {
+    verifyStripeWebhookSignature(rawBody, req.headers["stripe-signature"], stripeWebhookSecret());
+  } catch (error) {
+    sendJson(res, 400, { error: error.message });
+    return;
+  }
+
+  let event;
+  try {
+    event = JSON.parse(rawBody.toString("utf8"));
+  } catch (error) {
+    sendJson(res, 400, { error: "invalid_stripe_event_json" });
+    return;
+  }
+
+  const result = applyStripeEvent(event);
+
+  sendJson(res, 200, {
+    received: true,
+    eventType: event.type,
+    result
   });
 }
 
@@ -741,6 +1103,11 @@ async function handleRequest(req, res) {
       return;
     }
 
+    if (req.method === "POST" && url.pathname === "/api/v1/billing/webhook") {
+      await handleStripeWebhook(req, res);
+      return;
+    }
+
     if (req.method === "POST" && url.pathname === "/api/v1/admin/subscribers/plan") {
       await handleAdminSubscriberPlan(req, res);
       return;
@@ -792,11 +1159,16 @@ server.listen(PORT, HOST, () => {
 });
 
 module.exports = {
+  applyStripeEvent,
+  checkoutPayload,
+  checkoutPriceIdForPlan,
   dispatchSignalNotifications,
   flushNotificationQueue,
   handleRequest,
   listAssets,
   publicNotificationSummary,
   quotaSnapshot,
-  server
+  server,
+  updateSubscriberPlanFromBilling,
+  verifyStripeWebhookSignature
 };
