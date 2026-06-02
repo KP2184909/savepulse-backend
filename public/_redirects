@@ -1,2 +1,3 @@
+/email-preview/*  /email-preview/index.html                    200
 /api/*  https://savepulse-backend.onrender.com/api/:splat  200!
 /*      /index.html                                      200
