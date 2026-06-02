@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SavePulse Email Preview</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #0f172a;
+        --muted: #64748b;
+        --line: #d7eaed;
+        --teal: #0f766e;
+        --cyan: #0891b2;
+        --paper: #ffffff;
+        --wash: #eef8f9;
+        --amber: #fff7d6;
+        --amberText: #8a5a05;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Arial, "Helvetica Neue", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(15, 118, 110, .12), transparent 32rem),
+          linear-gradient(180deg, #f8ffff 0%, var(--wash) 100%);
+        color: var(--ink);
+      }
+
+      .shell {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 28px 0 56px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 22px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 900;
+        font-size: 20px;
+        color: var(--teal);
+      }
+
+      .mark {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        background: var(--teal);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-size: 18px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      button,
+      a.button {
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--ink);
+        border-radius: 12px;
+        padding: 10px 13px;
+        font-weight: 800;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      button.active,
+      a.button.primary {
+        background: var(--teal);
+        border-color: var(--teal);
+        color: #fff;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, .9fr) minmax(340px, 680px);
+        gap: 28px;
+        align-items: start;
+      }
+
+      .intro {
+        padding-top: 36px;
+      }
+
+      .intro .eyebrow {
+        color: var(--teal);
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      h1 {
+        margin: 10px 0 12px;
+        font-size: clamp(38px, 6vw, 72px);
+        line-height: .95;
+        letter-spacing: -.05em;
+      }
+
+      .intro p {
+        color: var(--muted);
+        font-size: 17px;
+        line-height: 1.65;
+        margin: 0 0 20px;
+      }
+
+      .planTabs {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 26px;
+      }
+
+      .planTabs a {
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, .76);
+        color: var(--ink);
+        border-radius: 14px;
+        padding: 14px;
+        text-decoration: none;
+        font-weight: 900;
+      }
+
+      .planTabs a span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        margin-top: 4px;
+      }
+
+      .planTabs a.active {
+        border-color: var(--teal);
+        box-shadow: 0 12px 28px rgba(15, 118, 110, .14);
+      }
+
+      .emailOuter {
+        background: rgba(255, 255, 255, .52);
+        border: 1px solid var(--line);
+        border-radius: 26px;
+        padding: 16px;
+        box-shadow: 0 22px 60px rgba(15, 118, 110, .13);
+      }
+
+      .email {
+        background: var(--paper);
+        border-radius: 22px;
+        overflow: hidden;
+        border: 1px solid #dcebed;
+      }
+
+      .emailHead {
+        background: linear-gradient(135deg, var(--teal), var(--cyan));
+        color: #fff;
+        padding: 28px 30px;
+      }
+
+      .emailMeta {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        font-size: 12px;
+        font-weight: 800;
+        opacity: .9;
+      }
+
+      .emailHead h2 {
+        margin: 24px 0 0;
+        font-size: clamp(28px, 4vw, 36px);
+        line-height: 1.1;
+        letter-spacing: -.04em;
+      }
+
+      .emailBody {
+        padding: 26px 30px 30px;
+      }
+
+      .fomo {
+        border: 1px solid #fde68a;
+        background: var(--amber);
+        color: var(--amberText);
+        border-radius: 16px;
+        padding: 15px 17px;
+        line-height: 1.62;
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .invoice {
+        margin-top: 18px;
+        border: 1px solid #cfe7ea;
+        background: #f7feff;
+        border-radius: 16px;
+        padding: 18px;
+      }
+
+      .invoice strong {
+        color: var(--teal);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+      }
+
+      .invoice h3 {
+        margin: 8px 0;
+        font-size: 20px;
+      }
+
+      .rows {
+        margin-top: 16px;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 52px minmax(0, 1fr) auto;
+        gap: 0;
+        padding: 14px 0;
+        border-bottom: 1px solid #e7eef0;
+        align-items: start;
+      }
+
+      .icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 999px;
+        background: #e8fbfa;
+        display: grid;
+        place-items: center;
+        font-size: 17px;
+        font-weight: 900;
+      }
+
+      .rowTitle {
+        font-size: 15px;
+        font-weight: 900;
+        line-height: 1.35;
+      }
+
+      .rowBody,
+      .rowSmall,
+      .upgrade,
+      .legal,
+      .foot {
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .rowBody {
+        font-size: 12px;
+        margin-top: 3px;
+      }
+
+      .rowSmall {
+        font-size: 11px;
+        margin-top: 7px;
+      }
+
+      .badge {
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 900;
+        padding: 8px 13px;
+        white-space: nowrap;
+      }
+
+      .teal {
+        background: #dff8ee;
+        color: #0f766e;
+      }
+
+      .amber {
+        background: #fef3c7;
+        color: #b45309;
+      }
+
+      .rose {
+        background: #ffe4e6;
+        color: #be123c;
+      }
+
+      .locked {
+        background: #e2e8f0;
+        color: #334155;
+      }
+
+      .cta {
+        display: inline-block;
+        margin-top: 24px;
+        background: var(--teal);
+        color: #fff;
+        text-decoration: none;
+        border-radius: 14px;
+        padding: 14px 20px;
+        font-weight: 900;
+      }
+
+      .upgrade {
+        font-size: 13px;
+        margin: 18px 0 0;
+      }
+
+      .legal {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 14px 16px;
+        font-size: 12px;
+        margin-top: 22px;
+      }
+
+      .foot {
+        font-size: 12px;
+        margin-top: 16px;
+      }
+
+      .foot a {
+        color: var(--teal);
+        font-weight: 900;
+      }
+
+      @media (max-width: 900px) {
+        .hero {
+          grid-template-columns: 1fr;
+        }
+
+        .intro {
+          padding-top: 8px;
+        }
+      }
+
+      @media (max-width: 540px) {
+        .shell {
+          width: min(100% - 18px, 1120px);
+          padding-top: 14px;
+        }
+
+        .topbar {
+          align-items: flex-start;
+        }
+
+        .brand {
+          font-size: 18px;
+        }
+
+        .planTabs {
+          grid-template-columns: 1fr;
+        }
+
+        .emailOuter {
+          padding: 8px;
+          border-radius: 20px;
+        }
+
+        .emailHead,
+        .emailBody {
+          padding: 22px 18px;
+        }
+
+        .row {
+          grid-template-columns: 46px minmax(0, 1fr);
+        }
+
+        .badge {
+          grid-column: 2;
+          justify-self: start;
+          margin-top: 9px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <div class="topbar">
+        <div class="brand"><span class="mark">~</span> SavePulse</div>
+        <div class="actions">
+          <button id="langBtn" type="button">EN</button>
+          <a class="button primary" href="/">Back home</a>
+        </div>
+      </div>
+
+      <section class="hero">
+        <div class="intro">
+          <div class="eyebrow" id="introEyebrow">อีเมลรายวันแบบพรีวิว</div>
+          <h1 id="introTitle">ดูก่อนส่งจริง</h1>
+          <p id="introCopy">หน้านี้เป็นตัวอย่างหน้าตาอีเมลรายวันของแต่ละแพ็กเกจ ยังไม่มีการส่งอีเมลจริงให้ลูกค้า</p>
+          <div class="planTabs" id="planTabs"></div>
+        </div>
+
+        <div class="emailOuter">
+          <article class="email">
+            <header class="emailHead">
+              <div class="emailMeta">
+                <div>
+                  <div style="font-size:22px;font-weight:900;">SavePulse</div>
+                  <div id="emailName" style="margin-top:4px;">Daily Pulse Lite</div>
+                </div>
+                <div id="updated">อัปเดตเช้านี้</div>
+              </div>
+              <div id="eyebrow" style="font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;opacity:.86;margin-top:28px;">ข้อสังเกตวันนี้</div>
+              <h2 id="headline">มีบางรายการเริ่มน่าจับตา</h2>
+            </header>
+            <div class="emailBody">
+              <div class="fomo" id="fomo"></div>
+              <div id="invoiceSlot"></div>
+              <div class="rows" id="rows"></div>
+              <p class="upgrade" id="upgrade"></p>
+              <a class="cta" id="cta" href="/">เปิดการ์ดวันนี้</a>
+              <div class="legal" id="legal"></div>
+              <p class="foot" id="foot"></p>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const plans = ["free", "plus", "pro", "business"];
+      const planNames = {
+        free: { th: ["Free", "Daily Pulse Lite"], en: ["Free", "Daily Pulse Lite"] },
+        plus: { th: ["Plus", "Daily Decision Card"], en: ["Plus", "Daily Decision Card"] },
+        pro: { th: ["Pro", "Full Timing Radar"], en: ["Pro", "Full Timing Radar"] },
+        business: { th: ["Business", "Invoice Risk Brief"], en: ["Business", "Invoice Risk Brief"] }
+      };
+      const copy = {
+        th: {
+          introEyebrow: "อีเมลรายวันแบบพรีวิว",
+          introTitle: "ดูก่อนส่งจริง",
+          introCopy: "หน้านี้เป็นตัวอย่างหน้าตาอีเมลรายวันของแต่ละแพ็กเกจ ยังไม่มีการส่งอีเมลจริงให้ลูกค้า",
+          updated: "อัปเดตเช้านี้",
+          cta: {
+            free: "ดูสถานะฟรีวันนี้",
+            plus: "เปิดการ์ดตัดสินใจ",
+            pro: "เปิด Full Radar",
+            business: "เปิด Invoice Dashboard"
+          },
+          legal: "SavePulse เป็นเครื่องมือช่วยประกอบการตัดสินใจจากข้อมูลอัตราแลกเปลี่ยนย้อนหลัง ไม่ใช่คำแนะนำการลงทุน ไม่ใช่คำสั่งซื้อขาย และไม่ใช่การยืนยันผลลัพธ์ในอนาคต ราคาจริง ค่าธรรมเนียม และส่วนต่างอาจแตกต่างตามผู้ให้บริการ",
+          foot: "ไม่ต้องการรับอีเมลรายวันแล้ว? <a href='#'>ยกเลิกรับอีเมล</a>",
+          plans: {
+            free: {
+              eyebrow: "ข้อสังเกตวันนี้แบบ Lite",
+              headline: "มีบางรายการเริ่มน่าจับตา แต่ข้อมูลเต็มยังล็อกไว้",
+              fomo: "หลายคนมาเช็กอีกทีตอนเรทขยับไปแล้ว การเห็นภาพรวมตั้งแต่เช้าช่วยให้ไม่ตัดสินใจแบบเดาสุ่ม",
+              upgrade: "ปลดล็อก Plus เพื่อดูหลายรายการขึ้นและรับการ์ดตัดสินใจแบบละเอียด"
+            },
+            plus: {
+              eyebrow: "การ์ดตัดสินใจประจำวัน",
+              headline: "รายการที่คุณเฝ้าอยู่มีสถานะอัปเดตแล้ว",
+              fomo: "จังหวะเรทที่ดูดีมักไม่รอคนที่ลืมเช็ก วันนี้เปิดดูไม่ถึงหนึ่งนาที แต่อาจช่วยให้คุณวางแผนดีขึ้น",
+              upgrade: "อัปเกรดเป็น Pro เพื่อเพิ่มทองคำ บิตคอยน์ และเรดาร์หลายสินทรัพย์"
+            },
+            pro: {
+              eyebrow: "Full Timing Radar",
+              headline: "ค่าเงิน ทองคำ และบิตคอยน์ถูกสรุปไว้ในหน้าเดียว",
+              fomo: "คนที่ดูเฉพาะราคา มักพลาดภาพของจังหวะ วันนี้เราสรุปโซนที่ควรจับตาและโซนที่ควรระวังให้แล้ว",
+              upgrade: "คุณอยู่ในแพ็กเกจ Pro แล้ว"
+            },
+            business: {
+              eyebrow: "Invoice Risk Brief",
+              headline: "ค่าเงินวันนี้ถูกแปลเป็นผลกระทบต่อต้นทุนธุรกิจ",
+              fomo: "สำหรับใบแจ้งหนี้ต่างประเทศ การขยับเพียงเล็กน้อยของค่าเงินอาจเปลี่ยนต้นทุนทั้งเดือนโดยที่ทีมไม่รู้ตัว",
+              upgrade: "คุณอยู่ในแพ็กเกจ Business แล้ว"
+            }
+          },
+          invoice: "<div class='invoice'><strong>ตัวอย่างใบแจ้งหนี้</strong><h3>ใบแจ้งหนี้ 50,000 ดอลลาร์ ที่ครบกำหนดใน 14 วัน</h3><p>ถ้าค่าเงินขยับ 1% ต้นทุนโดยประมาณจะเปลี่ยนราว 500 ดอลลาร์ ทีมจึงควรเห็นสถานะก่อนถึงวันชำระจริง</p></div>"
+        },
+        en: {
+          introEyebrow: "Daily email preview",
+          introTitle: "Preview before sending",
+          introCopy: "This page shows the daily email design for each plan. No real customer email is sent yet.",
+          updated: "Updated this morning",
+          cta: {
+            free: "Open today's free view",
+            plus: "Open decision card",
+            pro: "Open Full Radar",
+            business: "Open Invoice Dashboard"
+          },
+          legal: "SavePulse provides decision-support information based on historical exchange-rate data. It is not financial advice, investment advice, trading instruction, or a promise of future rates. Actual rates, fees, and spreads may vary by provider.",
+          foot: "No longer want daily emails? <a href='#'>Unsubscribe</a>",
+          plans: {
+            free: {
+              eyebrow: "Today's Lite Watch Note",
+              headline: "One item is worth watching, but the full view is still locked",
+              fomo: "Many people check again after the rate has already moved. A morning snapshot helps you avoid blind decisions.",
+              upgrade: "Unlock Plus for more watchlist items and a clearer daily decision card"
+            },
+            plus: {
+              eyebrow: "Daily Decision Card",
+              headline: "Your watchlist has fresh status updates",
+              fomo: "Better-looking rate windows rarely wait for people who forget to check. One minute today can improve your planning.",
+              upgrade: "Upgrade to Pro for gold, bitcoin, and a wider timing radar"
+            },
+            pro: {
+              eyebrow: "Full Timing Radar",
+              headline: "Currencies, gold, and bitcoin summarized in one view",
+              fomo: "People who only look at price often miss the timing context. Today's radar separates watch zones from caution zones.",
+              upgrade: "You are already on Pro"
+            },
+            business: {
+              eyebrow: "Invoice Risk Brief",
+              headline: "Today's currency moves translated into business cost exposure",
+              fomo: "For overseas invoices, a small currency move can quietly change the month's cost before the team notices.",
+              upgrade: "You are already on Business"
+            }
+          },
+          invoice: "<div class='invoice'><strong>Invoice example</strong><h3>USD 50,000 invoice due in 14 days</h3><p>A 1% currency move changes estimated cost by about USD 500, so the team should see status before the payment date.</p></div>"
+        }
+      };
+      const assets = {
+        th: {
+          USDTHB: ["$", "คนมีเงินดอลลาร์ อยากแลกกลับเป็นเงินบาท"],
+          JPYTHB: ["¥", "คนมีเงินบาท อยากแลกเป็นเงินเยน"],
+          EURTHB: ["€", "คนมีเงินบาท อยากแลกเป็นเงินยูโร"],
+          XAUTHB: ["Au", "คนมีเงินบาท อยากวางแผนทองคำ"],
+          BTCTHB: ["B", "คนมีเงินบาท อยากวางแผนบิตคอยน์"],
+          USDJPY: ["¥", "คนมีเงินดอลลาร์ อยากแลกเป็นเงินเยน"],
+          EURUSD: ["€", "คนมีเงินดอลลาร์ อยากแลกเป็นเงินยูโร"],
+          XAUUSD: ["Au", "คนมีเงินดอลลาร์ อยากวางแผนทองคำ"],
+          BTCUSD: ["B", "คนมีเงินดอลลาร์ อยากวางแผนบิตคอยน์"]
+        },
+        en: {
+          USDTHB: ["$", "Holding US dollars, want Thai baht"],
+          JPYTHB: ["¥", "Holding Thai baht, want Japanese yen"],
+          EURTHB: ["€", "Holding Thai baht, want euros"],
+          XAUTHB: ["Au", "Holding Thai baht, watching gold"],
+          BTCTHB: ["B", "Holding Thai baht, watching bitcoin"],
+          USDJPY: ["¥", "Holding US dollars, want Japanese yen"],
+          EURUSD: ["€", "Holding US dollars, want euros"],
+          XAUUSD: ["Au", "Holding US dollars, watching gold"],
+          BTCUSD: ["B", "Holding US dollars, watching bitcoin"]
+        }
+      };
+      const states = {
+        th: {
+          watch: ["teal", "เริ่มน่าสนใจ", "จังหวะที่ควรจับตา", "สถานะล่าสุดอยู่ในช่วงที่ลดความเสี่ยงเสียใจภายหลังได้ดีกว่าปกติ ถ้าวางแผนไว้อยู่แล้วให้เช็กการ์ดวันนี้"],
+          wait: ["amber", "รอก่อน", "ยังไม่รีบตัดสินใจ", "ยังไม่เห็นช่วงที่ชัดพอสำหรับการตัดสินใจแบบมั่นใจ ถ้าไม่รีบ การเฝ้าต่อยังมีประโยชน์"],
+          caution: ["rose", "ควรระวัง", "ค่อนข้างเสียเปรียบ", "สถานะวันนี้มีความเสี่ยงเสียใจภายหลังสูงขึ้น เหมาะกับการชะลออารมณ์และกลับไปดูแผนก่อนตัดสินใจ"],
+          locked: ["locked", "เฉพาะ Pro", "", "ปลดล็อกเพื่อดูสถานะเต็ม"]
+        },
+        en: {
+          watch: ["teal", "Worth watching", "Window worth checking", "The latest status is in a comparatively lower-regret area. If this was already in your plan, review today's card."],
+          wait: ["amber", "Wait", "No rush today", "There is no clear low-regret window yet. If timing is flexible, continued monitoring still helps."],
+          caution: ["rose", "Use caution", "Less favorable today", "Today's status carries higher regret risk. It is better used as a pause-and-review prompt."],
+          locked: ["locked", "Pro only", "", "Unlock to view full status"]
+        }
+      };
+      const statusMap = {
+        USDTHB: "wait",
+        JPYTHB: "watch",
+        EURTHB: "wait",
+        XAUTHB: "caution",
+        BTCTHB: "caution",
+        USDJPY: "wait",
+        EURUSD: "caution",
+        XAUUSD: "caution",
+        BTCUSD: "wait"
+      };
+      const prices = {
+        USDTHB: "32.62",
+        JPYTHB: "0.2029",
+        EURTHB: "37.92",
+        XAUTHB: "147,706",
+        BTCTHB: "2,499,918",
+        USDJPY: "159.2",
+        EURUSD: "1.16",
+        XAUUSD: "4,529",
+        BTCUSD: "76,670"
+      };
+
+      let lang = new URLSearchParams(location.search).get("lang") === "en" ? "en" : "th";
+      let plan = plans.includes(location.pathname.split("/").filter(Boolean).pop()) ? location.pathname.split("/").filter(Boolean).pop() : "free";
+
+      function visibleSymbols(currentPlan) {
+        if (currentPlan === "free") return ["JPYTHB"];
+        if (currentPlan === "plus") return ["USDTHB", "JPYTHB", "EURTHB", "USDJPY", "EURUSD"];
+        return ["USDTHB", "JPYTHB", "EURTHB", "USDJPY", "EURUSD", "XAUTHB", "BTCTHB", "XAUUSD", "BTCUSD"];
+      }
+
+      function lockedSymbols(currentPlan) {
+        if (currentPlan === "free") return ["USDTHB", "EURTHB", "XAUTHB"];
+        if (currentPlan === "plus") return ["XAUTHB", "BTCTHB", "XAUUSD", "BTCUSD"];
+        return [];
+      }
+
+      function row(symbol, locked = false) {
+        const label = assets[lang][symbol];
+        const state = states[lang][locked ? "locked" : statusMap[symbol]];
+        const extra = locked ? "" : `<div class="rowSmall">${lang === "th" ? "ราคาอ้างอิง" : "Reference"}: ${prices[symbol]} · ${lang === "th" ? "ดูบริบท 90 วันในแดชบอร์ด" : "Open the 90-day context in dashboard"}</div>`;
+        return `<div class="row">
+          <div class="icon">${label[0]}</div>
+          <div>
+            <div class="rowTitle">${label[1]}</div>
+            <div class="rowBody">${state[3]}</div>
+            ${extra}
+          </div>
+          <span class="badge ${state[0]}">${state[1]}</span>
+        </div>`;
+      }
+
+      function render() {
+        document.documentElement.lang = lang;
+        document.getElementById("langBtn").textContent = lang === "th" ? "EN" : "TH";
+        document.getElementById("introEyebrow").textContent = copy[lang].introEyebrow;
+        document.getElementById("introTitle").textContent = copy[lang].introTitle;
+        document.getElementById("introCopy").textContent = copy[lang].introCopy;
+        document.getElementById("updated").textContent = copy[lang].updated;
+        document.getElementById("emailName").textContent = `${planNames[plan][lang][1]} · ${planNames[plan][lang][0]}`;
+        document.getElementById("eyebrow").textContent = copy[lang].plans[plan].eyebrow;
+        document.getElementById("headline").textContent = copy[lang].plans[plan].headline;
+        document.getElementById("fomo").textContent = copy[lang].plans[plan].fomo;
+        document.getElementById("invoiceSlot").innerHTML = plan === "business" ? copy[lang].invoice : "";
+        document.getElementById("rows").innerHTML = [
+          ...visibleSymbols(plan).map((symbol) => row(symbol)),
+          ...lockedSymbols(plan).map((symbol) => row(symbol, true))
+        ].join("");
+        document.getElementById("upgrade").textContent = copy[lang].plans[plan].upgrade;
+        document.getElementById("cta").textContent = copy[lang].cta[plan];
+        document.getElementById("legal").textContent = copy[lang].legal;
+        document.getElementById("foot").innerHTML = copy[lang].foot;
+        document.getElementById("planTabs").innerHTML = plans.map((id) => {
+          const href = `/email-preview/${id}?lang=${lang}`;
+          return `<a class="${id === plan ? "active" : ""}" href="${href}">${planNames[id][lang][0]}<span>${planNames[id][lang][1]}</span></a>`;
+        }).join("");
+      }
+
+      document.getElementById("langBtn").addEventListener("click", () => {
+        lang = lang === "th" ? "en" : "th";
+        history.replaceState(null, "", `/email-preview/${plan}?lang=${lang}`);
+        render();
+      });
+      render();
+    </script>
+  </body>
+</html>
