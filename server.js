@@ -14,6 +14,7 @@ const {
   createSignal
 } = require("./src/signalEngine");
 const { recipientsFromEnv, sendSignalEmail } = require("./src/emailDispatcher");
+const { buildDailyDigestEmail, buildEmailPreviewIndex } = require("./src/dailyDigestEmail");
 const {
   deliveryDecisionForSignal,
   normalizePlan,
@@ -791,6 +792,32 @@ function serveStatic(req, res, pathname) {
   });
 }
 
+function handleEmailPreview(url, res) {
+  const parts = url.pathname.split("/").filter(Boolean);
+  const requestedPlan = parts[1];
+  const locale = url.searchParams.get("lang") === "en" ? "en" : "th";
+
+  if (!requestedPlan) {
+    sendText(res, 200, buildEmailPreviewIndex(locale), "text/html; charset=utf-8");
+    return;
+  }
+
+  const planId = normalizePlan(requestedPlan);
+  if (planId !== requestedPlan.toLowerCase()) {
+    sendText(res, 404, "Email preview plan not found");
+    return;
+  }
+
+  const template = buildDailyDigestEmail({
+    plan: planId,
+    locale,
+    signals: listAssets(),
+    dashboardUrl: appBaseUrl()
+  });
+
+  sendText(res, 200, template.html, "text/html; charset=utf-8");
+}
+
 async function handleWebhook(req, res) {
   const body = await parseBody(req);
 
@@ -1070,6 +1097,11 @@ async function handleRequest(req, res) {
         plans: publicPlans(),
         generatedAt: new Date().toISOString()
       });
+      return;
+    }
+
+    if (req.method === "GET" && (url.pathname === "/email-preview" || url.pathname.startsWith("/email-preview/"))) {
+      handleEmailPreview(url, res);
       return;
     }
 
