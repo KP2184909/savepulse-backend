@@ -1,6 +1,7 @@
 "use strict";
 
 const { isThaiAsset } = require("./signalEngine");
+const { buildDailyDigestEmail } = require("./dailyDigestEmail");
 
 const DEFAULT_DASHBOARD_URL = "https://savepulse-backend.onrender.com";
 
@@ -276,6 +277,41 @@ async function sendSignalEmail({ signal, effectiveSignal, subscriber, env = proc
   return { email, plan: subscriber?.plan || "free", ok: true, id: info.messageId };
 }
 
+async function sendDailyDigestEmail({ subscriber, signals = [], dashboardUrl, unsubscribeUrl, env = process.env }) {
+  const email = String(subscriber?.email || "").trim().toLowerCase();
+
+  if (!email) {
+    return { ok: false, skipped: true, reason: "no_recipient" };
+  }
+
+  if (!smtpConfigured(env)) {
+    return { email, ok: false, skipped: true, reason: "smtp_not_configured" };
+  }
+
+  const nodemailer = loadNodemailer();
+  if (!nodemailer) {
+    return { email, ok: false, skipped: true, reason: "nodemailer_not_installed" };
+  }
+
+  const template = buildDailyDigestEmail({
+    plan: subscriber?.plan || "free",
+    locale: subscriber?.locale || "th",
+    signals,
+    dashboardUrl,
+    unsubscribeUrl
+  });
+  const transport = createTransport(nodemailer, env);
+  const info = await transport.sendMail({
+    from: env.FROM_EMAIL || env.SMTP_USER,
+    to: email,
+    subject: template.subject,
+    text: template.text,
+    html: template.html
+  });
+
+  return { email, plan: template.plan, ok: true, id: info.messageId };
+}
+
 async function broadcastStrongBuy(args) {
   return broadcastSignal(args);
 }
@@ -286,6 +322,7 @@ module.exports = {
   buildEmail,
   recipientRecords,
   recipientsFromEnv,
+  sendDailyDigestEmail,
   sendSignalEmail,
   smtpConfigured,
   uniqueRecipients
