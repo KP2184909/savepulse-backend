@@ -3,8 +3,15 @@
 
 [[redirects]]
   from = "/email-preview/*"
-  to = "/email-preview/index.html"
+  to = "https://savepulse-backend.onrender.com/email-preview/:splat"
   status = 200
+  force = true
+
+[[redirects]]
+  from = "/email-preview"
+  to = "https://savepulse-backend.onrender.com/email-preview"
+  status = 200
+  force = true
 
 [[redirects]]
   from = "/api/*"
