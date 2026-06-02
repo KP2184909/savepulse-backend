@@ -56,7 +56,8 @@ test("plan previews reveal the right paid feature ladder", () => {
   assert.match(free, /เฉพาะ Pro/);
   assert.match(plus, /อัปเกรดเป็น Pro/);
   assert.match(pro, /ทองคำ และบิตคอยน์/);
-  assert.match(business, /ใบแจ้งหนี้ 50,000 ดอลลาร์/);
+  assert.match(business, /USD 148,250\.00/);
+  assert.match(business, /ใบแจ้งหนี้ที่น่าติดตาม/);
   assert.match(business, /ต้นทุนธุรกิจ/);
 });
 
