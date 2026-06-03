@@ -22,8 +22,163 @@ function loadNodemailer() {
   }
 }
 
-function smtpConfigured(env = process.env) {
+function smtpTransportConfigured(env = process.env) {
   return Boolean(env.SMTP_HOST && env.SMTP_PORT && env.SMTP_USER && env.SMTP_PASS);
+}
+
+function apiProviderForEnv(env = process.env) {
+  const requestedProvider = String(env.EMAIL_PROVIDER || "").trim().toLowerCase();
+  const providers = {
+    brevo: Boolean(env.BREVO_API_KEY || env.SENDINBLUE_API_KEY),
+    resend: Boolean(env.RESEND_API_KEY),
+    mailjet: Boolean(env.MAILJET_API_KEY && env.MAILJET_SECRET_KEY),
+    smtp: smtpTransportConfigured(env)
+  };
+
+  if (requestedProvider) {
+    return providers[requestedProvider] ? requestedProvider : "";
+  }
+
+  if (providers.brevo) return "brevo";
+  if (providers.resend) return "resend";
+  if (providers.mailjet) return "mailjet";
+  if (providers.smtp) return "smtp";
+  return "";
+}
+
+function smtpConfigured(env = process.env) {
+  return Boolean(apiProviderForEnv(env));
+}
+
+function parseFromAddress(fromValue, fallbackEmail = "") {
+  const raw = String(fromValue || fallbackEmail || "").trim();
+  const angleMatch = raw.match(/^(.*?)<([^>]+)>$/);
+
+  if (angleMatch) {
+    return {
+      name: angleMatch[1].trim().replace(/^"|"$/g, "") || "SavePulse",
+      email: angleMatch[2].trim()
+    };
+  }
+
+  return {
+    name: "SavePulse",
+    email: raw
+  };
+}
+
+function defaultFrom(env = process.env) {
+  return env.FROM_EMAIL || env.SMTP_USER || env.BREVO_FROM_EMAIL || env.RESEND_FROM_EMAIL || "SavePulse <alerts@savepulse.cloud>";
+}
+
+async function sendBrevoMail({ from, to, subject, text, html }, env = process.env) {
+  const sender = parseFromAddress(from, env.BREVO_FROM_EMAIL);
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "api-key": env.BREVO_API_KEY || env.SENDINBLUE_API_KEY,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      sender,
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      textContent: text
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload.message || payload.error || `Brevo email failed with ${response.status}`);
+  }
+
+  return { messageId: payload.messageId || payload.messageIds?.[0] || "" };
+}
+
+async function sendResendMail({ from, to, subject, text, html }, env = process.env) {
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${env.RESEND_API_KEY}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject,
+      html,
+      text
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload.message || payload.error?.message || `Resend email failed with ${response.status}`);
+  }
+
+  return { messageId: payload.id || "" };
+}
+
+async function sendMailjetMail({ from, to, subject, text, html }, env = process.env) {
+  const sender = parseFromAddress(from, env.MAILJET_FROM_EMAIL);
+  const auth = Buffer.from(`${env.MAILJET_API_KEY}:${env.MAILJET_SECRET_KEY}`).toString("base64");
+  const response = await fetch("https://api.mailjet.com/v3.1/send", {
+    method: "POST",
+    headers: {
+      authorization: `Basic ${auth}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      Messages: [
+        {
+          From: { Email: sender.email, Name: sender.name },
+          To: [{ Email: to }],
+          Subject: subject,
+          TextPart: text,
+          HTMLPart: html
+        }
+      ]
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload.ErrorMessage || payload.Messages?.[0]?.Errors?.[0]?.ErrorMessage || `Mailjet email failed with ${response.status}`);
+  }
+
+  return { messageId: payload.Messages?.[0]?.To?.[0]?.MessageID || "" };
+}
+
+async function sendProviderMail(message, env = process.env) {
+  const provider = apiProviderForEnv(env);
+  const from = message.from || defaultFrom(env);
+
+  if (!provider) {
+    return { skipped: true, reason: "smtp_not_configured" };
+  }
+
+  if (provider === "brevo") {
+    return { provider, ...(await sendBrevoMail({ ...message, from }, env)) };
+  }
+
+  if (provider === "resend") {
+    return { provider, ...(await sendResendMail({ ...message, from }, env)) };
+  }
+
+  if (provider === "mailjet") {
+    return { provider, ...(await sendMailjetMail({ ...message, from }, env)) };
+  }
+
+  const nodemailer = loadNodemailer();
+  if (!nodemailer) {
+    return { skipped: true, reason: "nodemailer_not_installed" };
+  }
+
+  const transport = createTransport(nodemailer, env);
+  const info = await transport.sendMail({ ...message, from });
+  return { provider, messageId: info.messageId || "" };
 }
 
 function recipientsFromEnv(env = process.env) {
@@ -203,27 +358,25 @@ async function broadcastSignal({ signal, effectiveSignal, subscribers = [], env 
     return { sent: 0, skipped: true, reason: "smtp_not_configured", recipients: recipients.length };
   }
 
-  const nodemailer = loadNodemailer();
-  if (!nodemailer) {
-    return { sent: 0, skipped: true, reason: "nodemailer_not_installed", recipients: recipients.length };
-  }
-
-  const transport = createTransport(nodemailer, env);
-
-  const from = env.FROM_EMAIL || env.SMTP_USER;
+  const from = defaultFrom(env);
   const results = [];
 
   for (const subscriber of recipients) {
     const template = buildEmail(signal, effectiveSignal, subscriber, env);
     try {
-      const info = await transport.sendMail({
+      const info = await sendProviderMail({
         from,
         to: subscriber.email,
         subject: template.subject,
         text: template.text,
         html: template.html
-      });
-      results.push({ email: subscriber.email, plan: subscriber.plan || "free", ok: true, id: info.messageId });
+      }, env);
+
+      if (info.skipped) {
+        results.push({ email: subscriber.email, plan: subscriber.plan || "free", ok: false, skipped: true, reason: info.reason });
+      } else {
+        results.push({ email: subscriber.email, plan: subscriber.plan || "free", ok: true, provider: info.provider, id: info.messageId });
+      }
     } catch (error) {
       results.push({ email: subscriber.email, plan: subscriber.plan || "free", ok: false, error: error.message });
     }
@@ -259,22 +412,20 @@ async function sendSignalEmail({ signal, effectiveSignal, subscriber, env = proc
     return { email, ok: false, skipped: true, reason: "smtp_not_configured" };
   }
 
-  const nodemailer = loadNodemailer();
-  if (!nodemailer) {
-    return { email, ok: false, skipped: true, reason: "nodemailer_not_installed" };
-  }
-
   const template = buildEmail(signal, effectiveSignal, subscriber, env);
-  const transport = createTransport(nodemailer, env);
-  const info = await transport.sendMail({
-    from: env.FROM_EMAIL || env.SMTP_USER,
+  const info = await sendProviderMail({
+    from: defaultFrom(env),
     to: email,
     subject: template.subject,
     text: template.text,
     html: template.html
-  });
+  }, env);
 
-  return { email, plan: subscriber?.plan || "free", ok: true, id: info.messageId };
+  if (info.skipped) {
+    return { email, ok: false, skipped: true, reason: info.reason };
+  }
+
+  return { email, plan: subscriber?.plan || "free", ok: true, provider: info.provider, id: info.messageId };
 }
 
 async function sendDailyDigestEmail({ subscriber, signals = [], dashboardUrl, unsubscribeUrl, env = process.env }) {
@@ -288,11 +439,6 @@ async function sendDailyDigestEmail({ subscriber, signals = [], dashboardUrl, un
     return { email, ok: false, skipped: true, reason: "smtp_not_configured" };
   }
 
-  const nodemailer = loadNodemailer();
-  if (!nodemailer) {
-    return { email, ok: false, skipped: true, reason: "nodemailer_not_installed" };
-  }
-
   const template = buildDailyDigestEmail({
     plan: subscriber?.plan || "free",
     locale: subscriber?.locale || "th",
@@ -300,16 +446,19 @@ async function sendDailyDigestEmail({ subscriber, signals = [], dashboardUrl, un
     dashboardUrl,
     unsubscribeUrl
   });
-  const transport = createTransport(nodemailer, env);
-  const info = await transport.sendMail({
-    from: env.FROM_EMAIL || env.SMTP_USER,
+  const info = await sendProviderMail({
+    from: defaultFrom(env),
     to: email,
     subject: template.subject,
     text: template.text,
     html: template.html
-  });
+  }, env);
 
-  return { email, plan: template.plan, ok: true, id: info.messageId };
+  if (info.skipped) {
+    return { email, ok: false, skipped: true, reason: info.reason };
+  }
+
+  return { email, plan: template.plan, ok: true, provider: info.provider, id: info.messageId };
 }
 
 async function broadcastStrongBuy(args) {
@@ -320,10 +469,12 @@ module.exports = {
   broadcastSignal,
   broadcastStrongBuy,
   buildEmail,
+  apiProviderForEnv,
   recipientRecords,
   recipientsFromEnv,
   sendDailyDigestEmail,
   sendSignalEmail,
+  sendProviderMail,
   smtpConfigured,
   uniqueRecipients
 };
