@@ -7,7 +7,7 @@ Decision intelligence for everyday savers. SavePulse turns TradingView daily sig
 - `server.js`: Render-ready Node API with TradingView webhook ingestion, persisted local memory, five-business-day buy-window demotion, subscriber capture, plan-based notification routing, Business invoice tracking, and static dashboard hosting.
 - `src/signalEngine.js`: Pure decision-state logic, including the percentile formula `P = (Current - P10) / (P90 - P10)`.
 - `src/plans.js`: Free, Plus, Pro, and Business entitlement model for watchlists, asset access, channels, and alert timing.
-- `src/emailDispatcher.js`: Nodemailer-compatible bilingual alert email renderer and dispatcher.
+- `src/emailDispatcher.js`: Bilingual alert email renderer and dispatcher. Supports free-tier API email providers such as Brevo/Resend/Mailjet, with SMTP as a fallback.
 - `public/index.html`: Bilingual TH/EN dashboard with Decision Light orb, radar list, visitor counter, quota bar, and opportunity-cost calculator.
 - `tests/signalEngine.test.js`: Node built-in tests for the mathematical, memory, and TradingView-normalization rules.
 - `tests/plans.test.js`: Node built-in tests for the Free, Plus, Pro, and Business entitlement ladder.
@@ -46,15 +46,48 @@ SMTP_PORT=465
 SMTP_USER=your-sender-email@gmail.com
 SMTP_PASS=your-google-app-password
 FROM_EMAIL="SavePulse <your-sender-email@gmail.com>"
+EMAIL_PROVIDER=brevo
+BREVO_API_KEY=your-brevo-api-key
 PUBLIC_URL=https://savepulse-backend.onrender.com
 VIP_EMAILS=member1@example.com,member2@example.com
 DAILY_FREE_QUOTA=50
+STRIPE_SECRET_KEY=sk_test_or_live_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+STRIPE_PRICE_PLUS=price_xxx
+STRIPE_PRICE_PRO=price_xxx
+STRIPE_PRICE_BUSINESS=price_xxx
+# Optional fallback if Stripe is not connected yet:
 CHECKOUT_PLUS_URL=https://your-payment-provider/plus
 CHECKOUT_PRO_URL=https://your-payment-provider/pro
 CHECKOUT_BUSINESS_URL=https://your-payment-provider/business
 ```
 
 Do not commit real SMTP passwords or webhook secrets.
+
+### Email delivery without paid infrastructure
+
+For beta, prefer an email API provider over Gmail SMTP on Render. Gmail SMTP can work locally but may time out from hosted infrastructure. The backend chooses providers in this order unless `EMAIL_PROVIDER` is set:
+
+1. `BREVO_API_KEY`
+2. `RESEND_API_KEY`
+3. `MAILJET_API_KEY` + `MAILJET_SECRET_KEY`
+4. SMTP variables
+
+Recommended beta setup:
+
+```bash
+EMAIL_PROVIDER=brevo
+BREVO_API_KEY=your-brevo-api-key
+FROM_EMAIL="SavePulse <alerts@savepulse.cloud>"
+```
+
+Keep `DAILY_DIGEST_ENABLED=false` until a real test email from Render succeeds. Then run a dry run first:
+
+```bash
+curl -X POST https://savepulse-backend.onrender.com/api/v1/daily-digest/send \
+  -H "content-type: application/json" \
+  -d '{"secret_key":"your-shared-tradingview-secret","dryRun":true}'
+```
 
 ## TradingView webhook
 
