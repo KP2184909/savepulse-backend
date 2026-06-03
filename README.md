@@ -62,7 +62,7 @@ CHECKOUT_PRO_URL=https://your-payment-provider/pro
 CHECKOUT_BUSINESS_URL=https://your-payment-provider/business
 ```
 
-Do not commit real SMTP passwords or webhook secrets.
+Do not commit real email API keys, SMTP passwords, Stripe keys, or webhook secrets.
 
 ### Email delivery without paid infrastructure
 
@@ -178,6 +178,25 @@ curl -X POST http://localhost:3000/api/v1/billing/checkout \
   -d '{ "email": "member@example.com", "plan": "plus" }'
 ```
 
+If `STRIPE_SECRET_KEY` and the plan price ID are configured, this endpoint creates a Stripe Checkout subscription session and returns its `url`. If Stripe is not configured yet, it falls back to `CHECKOUT_PLUS_URL`, `CHECKOUT_PRO_URL`, or `CHECKOUT_BUSINESS_URL` when those are present.
+
+Stripe webhook endpoint:
+
+```text
+POST https://savepulse-backend.onrender.com/api/v1/billing/webhook
+```
+
+Recommended Stripe events:
+
+- `checkout.session.completed`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `invoice.payment_succeeded`
+- `invoice.payment_failed`
+
+`checkout.session.completed` upgrades the subscriber to the paid plan from Stripe Checkout metadata. Subscription cancellation events downgrade the subscriber to Free when the email metadata is present.
+
 ## Notification routing
 
 TradingView webhooks now go through the entitlement layer before email:
@@ -201,7 +220,7 @@ curl -X POST http://localhost:3000/api/v1/notifications/flush \
   -d '{ "secret_key": "$WEBHOOK_SECRET" }'
 ```
 
-Real email delivery still requires `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, and `SMTP_PASS`. Without SMTP, jobs are recorded and marked skipped when due, which keeps webhook writes safe during setup.
+Real email delivery requires one configured provider: Brevo, Resend, Mailjet, or SMTP. Without a provider, jobs are recorded and marked skipped when due, which keeps webhook writes safe during setup.
 
 ## Business invoice tracking
 
@@ -220,7 +239,7 @@ curl -X POST http://localhost:3000/api/v1/business/invoices \
   }'
 ```
 
-The response includes the mapped SavePulse symbol, days until due, and the current decision state for that exposure. This is a prototype entitlement and exposure layer; payment checkout and account authentication still need to be connected before public paid launch.
+The response includes the mapped SavePulse symbol, days until due, and the current decision state for that exposure. This is a prototype entitlement and exposure layer; Stripe Checkout is wired for subscription activation, while account authentication still needs to be connected before public paid launch.
 
 ## Tracked assets
 
