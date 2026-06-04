@@ -2,10 +2,10 @@
   "name": "savepulse-backend",
   "version": "0.1.0",
   "description": "SavePulse Analytics Network decision intelligence backend and dashboard.",
-  "main": "serverRuntime.js",
+  "main": "bootstrap.js",
   "scripts": {
-    "start": "node serverRuntime.js",
-    "dev": "NODE_ENV=development node serverRuntime.js",
+    "start": "node bootstrap.js",
+    "dev": "NODE_ENV=development node bootstrap.js",
     "test": "node --test"
   },
   "engines": {
