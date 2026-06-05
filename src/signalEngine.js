@@ -340,6 +340,49 @@ function numericOrNull(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function textOrNull(value, maxLength = 500) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const text = String(value).trim();
+  if (!text) {
+    return null;
+  }
+
+  return text.slice(0, maxLength);
+}
+
+function dateIsoOrNull(value) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  let date;
+  if (typeof value === "number" || /^\d+$/.test(String(value).trim())) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return null;
+    }
+
+    date = new Date(numeric < 1_000_000_000_000 ? numeric * 1000 : numeric);
+  } else {
+    date = new Date(value);
+  }
+
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+
+function pineFieldsFromPayload(payload) {
+  return {
+    detail: textOrNull(payload.detail ?? payload.details ?? payload.note ?? payload.comment),
+    daysInWindow: numericOrNull(payload.days_in_window ?? payload.daysInWindow),
+    emaFast: numericOrNull(payload.ema_fast ?? payload.emaFast),
+    emaSlow: numericOrNull(payload.ema_slow ?? payload.emaSlow),
+    barTime: dateIsoOrNull(payload.bar_time ?? payload.barTime)
+  };
+}
+
 function confidencePercentile({ current, p10, p90 }) {
   const currentNumber = numericOrNull(current);
   const p10Number = numericOrNull(p10);
@@ -493,6 +536,7 @@ function createSignal(payload, now = new Date()) {
   const p10 = numericOrNull(payload.p10 ?? payload.P10);
   const p90 = numericOrNull(payload.p90 ?? payload.P90);
   const percentile = confidencePercentile({ current: price, p10, p90 });
+  const pine = pineFieldsFromPayload(payload);
 
   return {
     id: `${symbol}-${now.getTime()}`,
@@ -503,7 +547,8 @@ function createSignal(payload, now = new Date()) {
     p10,
     p90,
     percentile,
-    source: payload.source || "tradingview",
+    source: textOrNull(payload.source, 80) || "tradingview",
+    pine,
     receivedAt: now.toISOString()
   };
 }
@@ -533,5 +578,6 @@ module.exports = {
   normalizeCurrencyCode,
   normalizeSymbol,
   numericOrNull,
+  pineFieldsFromPayload,
   userFacingActionForDirection
 };

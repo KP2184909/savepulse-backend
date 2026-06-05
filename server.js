@@ -200,6 +200,61 @@ function listAssets() {
     });
 }
 
+function latestSignalSummary(signal) {
+  const effective = publicSignal(signal);
+  const pine = effective.pine || {};
+
+  return {
+    symbol: effective.symbol,
+    action: effective.action,
+    rawAction: effective.rawAction || effective.action,
+    label: {
+      th: effective.meta?.th?.label || null,
+      en: effective.meta?.en?.label || null
+    },
+    timeframe: effective.timeframe || "1D",
+    price: effective.price ?? null,
+    source: effective.source || null,
+    receivedAt: effective.receivedAt || null,
+    ageHours: effective.ageHours ?? null,
+    expired: Boolean(effective.expired),
+    decisionWindowExpired: Boolean(effective.decisionWindowExpired),
+    demotedFrom: effective.demotedFrom || null,
+    businessDaysElapsed: effective.businessDaysElapsed ?? null,
+    buyWindowBusinessDays: effective.buyWindowBusinessDays ?? null,
+    percentile: effective.percentile
+      ? {
+          percent: effective.percentile.percent ?? null
+        }
+      : null,
+    pine: {
+      detail: pine.detail || null,
+      daysInWindow: pine.daysInWindow ?? null,
+      emaFast: pine.emaFast ?? null,
+      emaSlow: pine.emaSlow ?? null,
+      barTime: pine.barTime || null
+    }
+  };
+}
+
+function latestSignalsSnapshot() {
+  const signals = listAssets().map(latestSignalSummary);
+
+  return {
+    ok: true,
+    generatedAt: new Date().toISOString(),
+    count: signals.length,
+    signals,
+    safety: {
+      secretsExposed: false,
+      rawPayloadExposed: false,
+      customerIdsExposed: false,
+      subscriptionIdsExposed: false,
+      supabaseKeysExposed: false
+    }
+  };
+}
+
 function emailIsValid(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
 }
@@ -1371,6 +1426,16 @@ async function handleRequest(req, res) {
       return;
     }
 
+    if (req.method === "GET" && url.pathname === "/api/v1/admin/latest-signals") {
+      if (!hasAdminSecret(req)) {
+        sendJson(res, 401, { error: "unauthorized_admin_latest_signals" });
+        return;
+      }
+
+      sendJson(res, 200, latestSignalsSnapshot());
+      return;
+    }
+
     if (req.method === "GET" && url.pathname === "/api/v1/admin/stripe-events") {
       if (!hasAdminSecret(req)) {
         sendJson(res, 401, { error: "unauthorized_admin_stripe_events" });
@@ -1459,6 +1524,7 @@ module.exports = {
   dispatchSignalNotifications,
   flushNotificationQueue,
   handleRequest,
+  latestSignalsSnapshot,
   listAssets,
   publicNotificationSummary,
   quotaSnapshot,

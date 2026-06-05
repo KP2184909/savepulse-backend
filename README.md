@@ -108,7 +108,12 @@ Message example:
   "price": {{close}},
   "timeframe": "1D",
   "p10": 0.20,
-  "p90": 0.30
+  "p90": 0.30,
+  "detail": "Daily close is inside the watch window",
+  "days_in_window": 2,
+  "ema_fast": 0.203,
+  "ema_slow": 0.201,
+  "bar_time": "{{time}}"
 }
 ```
 
@@ -120,6 +125,16 @@ Supported actions:
 - `SELL_ZONE`: peak regret risk zone.
 
 Common TradingView names are accepted too. `BUY`, `SuperTrend Buy`, and `Long` map to `STRONG_BUY`; `SELL`, `SuperTrend Sell`, and `Exit Sell` map to `SELL_ZONE`; `HOLD`, `WAIT`, and `Neutral` map to `WAIT_ZONE`. Symbols with an exchange prefix such as `OANDA:USDTHB` are normalized to `USDTHB`.
+
+Optional Pine fields are accepted and normalized into the stored signal `payload.pine` object:
+
+- `detail`: short internal explanation for the daily bar state.
+- `days_in_window`: numeric day count from the Pine script.
+- `ema_fast`: numeric fast EMA value.
+- `ema_slow`: numeric slow EMA value.
+- `bar_time`: bar timestamp. ISO strings, milliseconds, and seconds are accepted.
+
+The backend does not store the TradingView `secret_key` inside the signal object.
 
 `STRONG_BUY` follows the SavePulse low-regret decision window:
 
@@ -208,9 +223,46 @@ curl https://savepulse-backend.onrender.com/api/v1/admin/billing-readiness \
 
 curl "https://savepulse-backend.onrender.com/api/v1/admin/stripe-events?limit=10" \
   -H "x-savepulse-admin-key: $ADMIN_READINESS_KEY"
+
+curl "https://savepulse-backend.onrender.com/api/v1/admin/latest-signals" \
+  -H "x-savepulse-admin-key: $ADMIN_READINESS_KEY"
 ```
 
 These responses intentionally summarize readiness and recent Stripe processing without returning secrets, raw Stripe payloads, customer IDs, subscription IDs, or Supabase keys.
+
+## Checking TradingView alert delivery
+
+After a TradingView alert fires, check Supabase first:
+
+- Table: `public.signals`
+- One row per canonical symbol: `USDTHB`, `JPYTHB`, `EURTHB`, `XAUTHB`, `BTCTHB`, `USDJPY`, `EURUSD`, `XAUUSD`, `BTCUSD`
+- Key fields:
+  - `symbol`: confirms which alert updated.
+  - `action`: latest canonical backend state from TradingView.
+  - `timeframe`: should normally be `1D`.
+  - `price`: latest webhook price.
+  - `received_at`: when SavePulse accepted the webhook.
+  - `updated_at`: when the Supabase row was updated.
+  - `payload`: normalized signal details.
+  - `payload->'pine'`: optional Pine fields such as `detail`, `daysInWindow`, `emaFast`, `emaSlow`, and `barTime`.
+
+Safe admin snapshot for all 9 latest signals:
+
+```bash
+curl "https://savepulse-backend.onrender.com/api/v1/admin/latest-signals" \
+  -H "x-savepulse-admin-key: $ADMIN_READINESS_KEY"
+```
+
+If signals do not update, open Render Dashboard -> `savepulse-backend` -> Logs, then search around the time TradingView should have fired:
+
+- `POST /api/v1/webhook/tradingview` should appear when TradingView reaches Render.
+- `unauthorized_webhook` means the TradingView message secret does not match `WEBHOOK_SECRET`.
+- `invalid JSON body` means the TradingView alert message is not valid JSON.
+- `unsupported action` means the action text is not one of the supported names or aliases.
+- `symbol must normalize` or unsupported symbol errors usually mean the alert sent a malformed symbol.
+- `Supabase mirror sync failed for signals` means the local webhook write succeeded but Supabase mirroring failed; check `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+
+The admin snapshot is protected and intentionally avoids returning raw webhook payloads or secrets.
 
 ## Notification routing
 

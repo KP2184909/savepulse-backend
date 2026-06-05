@@ -20,6 +20,7 @@ const {
   billingReadinessSnapshot,
   checkoutPayload,
   checkoutPriceIdForPlan,
+  latestSignalsSnapshot,
   safeStripeEventSummary,
   server,
   verifyStripeWebhookSignature
@@ -160,6 +161,63 @@ test("status endpoint returns a default direction-aware signal before TradingVie
   assert.equal(payload.signal.source, "default");
   assert.equal(payload.userFacing.direction, "inverted");
   assert.equal(payload.userFacing.label.th, "ยังไม่ต้องรีบ");
+});
+
+test("admin latest signals endpoint is protected and shows normalized Pine fields", async () => {
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+  const unauthorized = await fetch(`${baseUrl}/api/v1/admin/latest-signals`);
+  assert.equal(unauthorized.status, 401);
+
+  const webhook = await fetch(`${baseUrl}/api/v1/webhook/tradingview`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      secret_key: "test-master-secret",
+      symbol: "JPYTHB",
+      action: "BUY_ZONE",
+      price: 0.2029,
+      timeframe: "1D",
+      detail: "Daily bar closed in the watch window.",
+      days_in_window: 2,
+      ema_fast: 0.203,
+      ema_slow: 0.201,
+      bar_time: "2026-06-05T00:00:00.000Z"
+    })
+  });
+  assert.equal(webhook.status, 202);
+
+  const authorized = await fetch(`${baseUrl}/api/v1/admin/latest-signals`, {
+    headers: { "x-savepulse-admin-key": "test-admin-readiness-key" }
+  });
+  const payload = await authorized.json();
+  const serialized = JSON.stringify(payload);
+  const jpythb = payload.signals.find((signal) => signal.symbol === "JPYTHB");
+
+  assert.equal(authorized.status, 200);
+  assert.equal(payload.count, 9);
+  assert.equal(payload.signals.length, 9);
+  assert.equal(jpythb.action, "BUY_ZONE");
+  assert.deepEqual(jpythb.pine, {
+    detail: "Daily bar closed in the watch window.",
+    daysInWindow: 2,
+    emaFast: 0.203,
+    emaSlow: 0.201,
+    barTime: "2026-06-05T00:00:00.000Z"
+  });
+  assert.equal(serialized.includes("test-master-secret"), false);
+  assert.equal(serialized.includes("test-admin-readiness-key"), false);
+});
+
+test("latest signals snapshot includes the full tracked universe", () => {
+  const snapshot = latestSignalsSnapshot();
+
+  assert.equal(snapshot.count, 9);
+  assert.deepEqual(
+    snapshot.signals.map((signal) => signal.symbol),
+    ["USDTHB", "JPYTHB", "EURTHB", "XAUTHB", "BTCTHB", "USDJPY", "EURUSD", "XAUUSD", "BTCUSD"]
+  );
+  assert.equal(JSON.stringify(snapshot).includes("test-master-secret"), false);
 });
 
 test("safe Stripe event summaries keep customer and subscription IDs hidden", () => {

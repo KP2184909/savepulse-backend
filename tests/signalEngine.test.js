@@ -48,6 +48,32 @@ test("createSignal normalizes TradingView webhook payloads", () => {
   assert.equal(signal.percentile.percent, 21);
 });
 
+test("createSignal preserves normalized optional Pine fields without storing webhook secrets", () => {
+  const signal = createSignal(
+    {
+      secret_key: "do-not-store-this-secret",
+      symbol: "JPYTHB",
+      action: "WAIT_ZONE",
+      detail: "Daily bar closed inside the decision window.",
+      days_in_window: "3",
+      ema_fast: "0.203",
+      ema_slow: "0.201",
+      bar_time: "2026-06-05T00:00:00.000Z"
+    },
+    new Date("2026-06-05T01:00:00.000Z")
+  );
+  const serialized = JSON.stringify(signal);
+
+  assert.deepEqual(signal.pine, {
+    detail: "Daily bar closed inside the decision window.",
+    daysInWindow: 3,
+    emaFast: 0.203,
+    emaSlow: 0.201,
+    barTime: "2026-06-05T00:00:00.000Z"
+  });
+  assert.equal(serialized.includes("do-not-store-this-secret"), false);
+});
+
 test("business day counter follows Bangkok Monday-Friday calendar", () => {
   assert.equal(
     businessDaysElapsed(
