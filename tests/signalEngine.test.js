@@ -13,7 +13,8 @@ const {
   confidencePercentile,
   createDefaultSignal,
   createSignal,
-  isThaiAsset
+  isThaiAsset,
+  userFacingActionForDirection
 } = require("../src/signalEngine");
 
 test("confidencePercentile applies the SavePulse P formula and clamps display output", () => {
@@ -139,4 +140,74 @@ test("common TradingView action aliases map to SavePulse states", () => {
   assert.equal(createSignal({ symbol: "USDTHB", action: "BUY" }).action, ACTIONS.STRONG_BUY);
   assert.equal(createSignal({ symbol: "USDTHB", action: "sell" }).action, ACTIONS.SELL_ZONE);
   assert.equal(createSignal({ symbol: "USDTHB", action: "SuperTrend Sell" }).action, ACTIONS.SELL_ZONE);
+});
+
+test("user-facing action uses canonical direction for base to quote", () => {
+  const result = userFacingActionForDirection({
+    symbol: "JPYTHB",
+    action: "BUY_ZONE",
+    userFromCurrency: "JPY",
+    userToCurrency: "THB"
+  });
+
+  assert.equal(result.action, ACTIONS.BUY_ZONE);
+  assert.equal(result.direction, "canonical");
+  assert.equal(result.inverted, false);
+  assert.equal(result.label.th, "เริ่มน่าจับตา");
+  assert.equal(
+    result.copy.th,
+    "ถ้าคุณถือ JPY อยู่ จังหวะนี้เริ่มค่อนข้างดีเมื่อเทียบกับ THB"
+  );
+});
+
+test("user-facing action inverts base-favorable signals for quote to base", () => {
+  const result = userFacingActionForDirection({
+    symbol: "JPYTHB",
+    action: "BUY_ZONE",
+    userFromCurrency: "THB",
+    userToCurrency: "JPY"
+  });
+
+  assert.equal(result.action, ACTIONS.SELL_ZONE);
+  assert.equal(result.direction, "inverted");
+  assert.equal(result.inverted, true);
+  assert.equal(result.label.th, "รอก่อน");
+  assert.equal(
+    result.copy.th,
+    "JPY เริ่มแพงขึ้นเมื่อเทียบกับ THB ถ้าคุณยังไม่รีบ อาจรอดูจังหวะที่ดีกว่านี้"
+  );
+});
+
+test("user-facing action keeps strong buy canonical and inverts it for reverse direction", () => {
+  const direct = userFacingActionForDirection({
+    symbol: "EURTHB",
+    action: "STRONG_BUY",
+    userFromCurrency: "EUR",
+    userToCurrency: "THB"
+  });
+  const reverse = userFacingActionForDirection({
+    symbol: "EURTHB",
+    action: "STRONG_BUY",
+    userFromCurrency: "THB",
+    userToCurrency: "EUR"
+  });
+
+  assert.equal(direct.action, ACTIONS.STRONG_BUY);
+  assert.equal(direct.label.en, "Good time to exchange");
+  assert.equal(reverse.action, ACTIONS.SELL_ZONE);
+  assert.equal(reverse.direction, "inverted");
+  assert.equal(reverse.label.en, "Wait for now");
+});
+
+test("user-facing action keeps wait neutral when direction is inverted", () => {
+  const result = userFacingActionForDirection({
+    symbol: "USDJPY",
+    action: "WAIT_ZONE",
+    userFromCurrency: "JPY",
+    userToCurrency: "USD"
+  });
+
+  assert.equal(result.action, ACTIONS.WAIT_ZONE);
+  assert.equal(result.direction, "inverted");
+  assert.equal(result.label.th, "ยังไม่ต้องรีบ");
 });

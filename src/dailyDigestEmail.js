@@ -1,6 +1,13 @@
 "use strict";
 
-const { ACTIONS, TRACKED_ASSETS, applyAutoDemotion, createDefaultSignal } = require("./signalEngine");
+const {
+  ACTIONS,
+  TRACKED_ASSETS,
+  applyAutoDemotion,
+  createDefaultSignal,
+  marketForSymbol,
+  userFacingActionForDirection
+} = require("./signalEngine");
 const { ADVANCED_ASSETS, FIAT_ASSETS, normalizePlan, planFor } = require("./plans");
 
 const DEFAULT_APP_URL = "https://savepulse.cloud";
@@ -23,15 +30,15 @@ const BRAND = Object.freeze({
 });
 
 const ASSET_LABELS = Object.freeze({
-  USDTHB: { icon: "$", th: "ดอลลาร์สหรัฐ → บาทไทย", en: "US dollars → Thai baht", group: "fx" },
-  JPYTHB: { icon: "¥", th: "บาทไทย → เยนญี่ปุ่น", en: "Thai baht → Japanese yen", group: "fx" },
-  EURTHB: { icon: "€", th: "บาทไทย → ยูโร", en: "Thai baht → Euros", group: "fx" },
-  XAUTHB: { icon: "Au", th: "บาทไทย → ทองคำ", en: "Thai baht → Gold", group: "gold" },
-  BTCTHB: { icon: "B", th: "บาทไทย → บิตคอยน์", en: "Thai baht → Bitcoin", group: "bitcoin" },
-  USDJPY: { icon: "¥", th: "ดอลลาร์สหรัฐ → เยนญี่ปุ่น", en: "US dollars → Japanese yen", group: "fx" },
-  EURUSD: { icon: "€", th: "ดอลลาร์สหรัฐ → ยูโร", en: "US dollars → Euros", group: "fx" },
-  XAUUSD: { icon: "Au", th: "ดอลลาร์สหรัฐ → ทองคำ", en: "US dollars → Gold", group: "gold" },
-  BTCUSD: { icon: "B", th: "ดอลลาร์สหรัฐ → บิตคอยน์", en: "US dollars → Bitcoin", group: "bitcoin" }
+  USDTHB: { icon: "$", th: "ดอลลาร์สหรัฐ → บาทไทย", en: "US dollars → Thai baht", group: "fx", from: "USD", to: "THB" },
+  JPYTHB: { icon: "¥", th: "บาทไทย → เยนญี่ปุ่น", en: "Thai baht → Japanese yen", group: "fx", from: "THB", to: "JPY" },
+  EURTHB: { icon: "€", th: "บาทไทย → ยูโร", en: "Thai baht → Euros", group: "fx", from: "THB", to: "EUR" },
+  XAUTHB: { icon: "Au", th: "บาทไทย → ทองคำ", en: "Thai baht → Gold", group: "gold", from: "THB", to: "XAU" },
+  BTCTHB: { icon: "B", th: "บาทไทย → บิตคอยน์", en: "Thai baht → Bitcoin", group: "bitcoin", from: "THB", to: "BTC" },
+  USDJPY: { icon: "¥", th: "ดอลลาร์สหรัฐ → เยนญี่ปุ่น", en: "US dollars → Japanese yen", group: "fx", from: "USD", to: "JPY" },
+  EURUSD: { icon: "€", th: "ดอลลาร์สหรัฐ → ยูโร", en: "US dollars → Euros", group: "fx", from: "USD", to: "EUR" },
+  XAUUSD: { icon: "Au", th: "ดอลลาร์สหรัฐ → ทองคำ", en: "US dollars → Gold", group: "gold", from: "USD", to: "XAU" },
+  BTCUSD: { icon: "B", th: "ดอลลาร์สหรัฐ → บิตคอยน์", en: "US dollars → Bitcoin", group: "bitcoin", from: "USD", to: "BTC" }
 });
 
 const PLAN_COPY = Object.freeze({
@@ -148,10 +155,13 @@ function textFromHtml(html) {
 
 function labelForSymbol(symbol, locale = "th") {
   const label = ASSET_LABELS[symbol] || { icon: "?", th: "รายการที่ SavePulse เฝ้าให้", en: "SavePulse watch item", group: "fx" };
+  const market = marketForSymbol(symbol) || {};
   return {
     icon: label.icon,
     name: label[localeKey(locale)],
-    group: label.group
+    group: label.group,
+    from: label.from || market.base,
+    to: label.to || market.quote
   };
 }
 
@@ -204,17 +214,29 @@ function symbolsForPlan(plan) {
   return TRACKED_ASSETS;
 }
 
-function decisionForSignal(signal, locale = "th") {
+function directionAwareDecision(signal, locale = "th", direction = {}) {
   const effective = applyAutoDemotion(signal) || createDefaultSignal("USDTHB");
-  const action = effective.action;
-  const thai = localeKey(locale) === "th";
+  const language = localeKey(locale);
+  const thai = language === "th";
+  const label = labelForSymbol(effective.symbol, language);
+  const resolved = userFacingActionForDirection({
+    symbol: effective.symbol,
+    action: effective.action,
+    userFromCurrency: direction.from || label.from,
+    userToCurrency: direction.to || label.to
+  });
+  const action = resolved.action;
+  const title = resolved.label?.[language] || (thai ? "ยังไม่ต้องรีบ" : "Not urgent yet");
+  const short = resolved.copy?.[language] || (thai
+    ? "เรทยังไม่ได้ดีหรือแย่ชัดเจน"
+    : "The rate is not clearly favorable or unfavorable yet");
 
   if (action === ACTIONS.STRONG_BUY || action === ACTIONS.BUY_ZONE) {
     return {
       tone: "teal",
-      badge: thai ? "น่าจับตา" : "Worth watching",
-      title: thai ? "น่าสนใจ" : "Worth reviewing",
-      short: thai ? "ตอนนี้เริ่มดูน่าสนใจ" : "This now looks interesting",
+      badge: title,
+      title,
+      short,
       body: thai
         ? "ข้อมูลล่าสุดอยู่ในช่วงที่ลดความเสี่ยงเสียใจภายหลังได้ดีกว่าปกติ ถ้าวางแผนไว้แล้วให้เช็กการ์ดวันนี้"
         : "The latest data is in a lower-regret area. If this is already part of your plan, open today's card."
@@ -224,9 +246,9 @@ function decisionForSignal(signal, locale = "th") {
   if (action === ACTIONS.SELL_ZONE) {
     return {
       tone: "rose",
-      badge: thai ? "เสียเปรียบ" : "Less favorable",
-      title: thai ? "รอก่อน" : "Wait",
-      short: thai ? "วันนี้ค่อนข้างเสียเปรียบ" : "Today is less favorable",
+      badge: title,
+      title,
+      short,
       body: thai
         ? "สถานะวันนี้มีความเสี่ยงเสียใจภายหลังสูงขึ้น เหมาะกับการชะลออารมณ์และกลับไปดูแผนก่อนตัดสินใจ"
         : "Today's status carries higher regret risk. Use it as a pause-and-review prompt."
@@ -235,13 +257,17 @@ function decisionForSignal(signal, locale = "th") {
 
   return {
     tone: "amber",
-    badge: thai ? "รอก่อน" : "Wait",
-    title: thai ? "ยังไม่ต้องรีบ" : "No rush",
-    short: thai ? "เรทยังไม่ได้ดีหรือแย่ชัดเจน" : "The rate is not clearly favorable yet",
+    badge: title,
+    title,
+    short,
     body: thai
       ? "ยังไม่เห็นช่วงที่ชัดพอสำหรับการตัดสินใจแบบมั่นใจ ถ้าไม่รีบ การเฝ้าต่อยังมีประโยชน์"
       : "There is no clear low-regret window yet. If timing is flexible, continued monitoring still helps."
   };
+}
+
+function decisionForSignal(signal, locale = "th", direction = {}) {
+  return directionAwareDecision(signal, locale, direction);
 }
 
 function toneColor(tone) {
@@ -634,6 +660,8 @@ module.exports = {
   BANNED_EMAIL_WORDS_TH,
   buildDailyDigestEmail,
   buildEmailPreviewIndex,
+  decisionForSignal,
   disclaimer,
+  labelForSymbol,
   sampleSignals
 };

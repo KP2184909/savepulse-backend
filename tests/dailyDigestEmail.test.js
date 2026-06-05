@@ -9,8 +9,11 @@ const {
   BANNED_EMAIL_WORDS_TH,
   buildDailyDigestEmail,
   buildEmailPreviewIndex,
+  decisionForSignal,
+  labelForSymbol,
   sampleSignals
 } = require("../src/dailyDigestEmail");
+const { ACTIONS } = require("../src/signalEngine");
 
 const PLANS = ["free", "plus", "pro", "business"];
 
@@ -67,4 +70,62 @@ test("email preview index and Netlify route are available", () => {
 
   assert.match(html, /SavePulse Email Preview/);
   assert.match(redirects, /\/email-preview\/\*/);
+});
+
+test("daily digest labels include the user-facing JPYTHB direction", () => {
+  const label = labelForSymbol("JPYTHB", "th");
+
+  assert.equal(label.from, "THB");
+  assert.equal(label.to, "JPY");
+  assert.equal(label.name, "บาทไทย → เยนญี่ปุ่น");
+});
+
+test("daily digest direction-aware copy keeps JPYTHB favorable for JPY to THB", () => {
+  const decision = decisionForSignal(
+    {
+      symbol: "JPYTHB",
+      action: ACTIONS.BUY_ZONE,
+      receivedAt: new Date().toISOString()
+    },
+    "th",
+    { from: "JPY", to: "THB" }
+  );
+
+  assert.equal(decision.title, "เริ่มน่าจับตา");
+  assert.match(decision.short, /ถ้าคุณถือ JPY อยู่/);
+});
+
+test("daily digest direction-aware copy inverts JPYTHB for THB to JPY", () => {
+  const decision = decisionForSignal(
+    {
+      symbol: "JPYTHB",
+      action: ACTIONS.BUY_ZONE,
+      receivedAt: new Date().toISOString()
+    },
+    "th",
+    { from: "THB", to: "JPY" }
+  );
+
+  assert.equal(decision.title, "รอก่อน");
+  assert.match(decision.short, /JPY เริ่มแพงขึ้นเมื่อเทียบกับ THB/);
+});
+
+test("plus daily digest uses user-facing direction for JPYTHB row", () => {
+  const template = buildDailyDigestEmail({
+    plan: "plus",
+    locale: "th",
+    signals: [
+      {
+        symbol: "JPYTHB",
+        action: ACTIONS.BUY_ZONE,
+        percentile: { percent: 21 },
+        receivedAt: new Date().toISOString()
+      }
+    ]
+  });
+
+  assert.match(template.text, /บาทไทย → เยนญี่ปุ่น/);
+  assert.match(template.text, /รอก่อน/);
+  assert.match(template.text, /JPY เริ่มแพงขึ้นเมื่อเทียบกับ THB/);
+  assert.doesNotMatch(template.text, /BUY_ZONE|SELL_ZONE|STRONG_BUY|WAIT_ZONE/);
 });

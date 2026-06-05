@@ -11,7 +11,8 @@ const {
   TRACKED_ASSETS,
   applyAutoDemotion,
   createDefaultSignal,
-  createSignal
+  createSignal,
+  userFacingActionForDirection
 } = require("./src/signalEngine");
 const { recipientsFromEnv, sendSignalEmail } = require("./src/emailDispatcher");
 const { buildDailyDigestEmail, buildEmailPreviewIndex } = require("./src/dailyDigestEmail");
@@ -150,6 +151,25 @@ function publicSignal(signal) {
     ...effective,
     legalBoundary:
       "Decision intelligence only. Not financial advice, trading instruction, or return guarantee."
+  };
+}
+
+function userFacingSignal(signal, userFromCurrency, userToCurrency) {
+  const resolved = userFacingActionForDirection({
+    symbol: signal.symbol,
+    action: signal.action,
+    userFromCurrency,
+    userToCurrency
+  });
+
+  return {
+    supported: resolved.supported,
+    direction: resolved.direction,
+    inverted: resolved.inverted,
+    base: resolved.base,
+    quote: resolved.quote,
+    label: resolved.label,
+    copy: resolved.copy
   };
 }
 
@@ -1308,7 +1328,27 @@ async function handleRequest(req, res) {
     if (req.method === "GET" && url.pathname === "/api/v1/status") {
       const symbol = String(url.searchParams.get("symbol") || "").trim().toUpperCase();
       const signal = signalsBySymbol[symbol];
-      sendJson(res, signal ? 200 : 404, signal ? { signal: publicSignal(signal) } : { error: "symbol_not_found" });
+      if (!signal) {
+        sendJson(res, 404, { error: "symbol_not_found" });
+        return;
+      }
+
+      const userFromCurrency =
+        url.searchParams.get("from") ||
+        url.searchParams.get("user_from_currency") ||
+        url.searchParams.get("fromCurrency");
+      const userToCurrency =
+        url.searchParams.get("to") ||
+        url.searchParams.get("user_to_currency") ||
+        url.searchParams.get("toCurrency");
+      const responseSignal = publicSignal(signal);
+      const response = { signal: responseSignal };
+
+      if (userFromCurrency && userToCurrency) {
+        response.userFacing = userFacingSignal(responseSignal, userFromCurrency, userToCurrency);
+      }
+
+      sendJson(res, 200, response);
       return;
     }
 

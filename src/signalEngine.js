@@ -44,6 +44,55 @@ const TRACKED_ASSETS = Object.freeze([
   "BTCUSD"
 ]);
 
+const SYMBOL_MARKETS = Object.freeze({
+  USDTHB: { base: "USD", quote: "THB" },
+  JPYTHB: { base: "JPY", quote: "THB" },
+  EURTHB: { base: "EUR", quote: "THB" },
+  XAUTHB: { base: "XAU", quote: "THB" },
+  BTCTHB: { base: "BTC", quote: "THB" },
+  USDJPY: { base: "USD", quote: "JPY" },
+  EURUSD: { base: "EUR", quote: "USD" },
+  XAUUSD: { base: "XAU", quote: "USD" },
+  BTCUSD: { base: "BTC", quote: "USD" }
+});
+
+const CURRENCY_ALIASES = Object.freeze({
+  GOLD: "XAU",
+  XAU: "XAU",
+  BITCOIN: "BTC",
+  BTC: "BTC",
+  USD: "USD",
+  THB: "THB",
+  JPY: "JPY",
+  EUR: "EUR"
+});
+
+const INVERTED_ACTIONS = Object.freeze({
+  [ACTIONS.STRONG_BUY]: ACTIONS.SELL_ZONE,
+  [ACTIONS.BUY_ZONE]: ACTIONS.SELL_ZONE,
+  [ACTIONS.WAIT_ZONE]: ACTIONS.WAIT_ZONE,
+  [ACTIONS.SELL_ZONE]: ACTIONS.BUY_ZONE
+});
+
+const USER_FACING_ACTION_COPY = Object.freeze({
+  [ACTIONS.STRONG_BUY]: {
+    th: "แลกได้เลย",
+    en: "Good time to exchange"
+  },
+  [ACTIONS.BUY_ZONE]: {
+    th: "เริ่มน่าจับตา",
+    en: "Worth watching"
+  },
+  [ACTIONS.WAIT_ZONE]: {
+    th: "ยังไม่ต้องรีบ",
+    en: "Not urgent yet"
+  },
+  [ACTIONS.SELL_ZONE]: {
+    th: "รอก่อน",
+    en: "Wait for now"
+  }
+});
+
 const ACTION_META = Object.freeze({
   STRONG_BUY: {
     tone: "teal",
@@ -138,6 +187,19 @@ function normalizeSymbol(symbol) {
   return normalized;
 }
 
+function normalizeCurrencyCode(currency) {
+  if (typeof currency !== "string") {
+    return "";
+  }
+
+  const normalized = currency.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return CURRENCY_ALIASES[normalized] || normalized;
+}
+
+function marketForSymbol(symbol) {
+  return SYMBOL_MARKETS[normalizeSymbol(symbol)] || null;
+}
+
 function normalizeAction(action) {
   if (typeof action !== "string") {
     throw new Error("action is required");
@@ -156,6 +218,117 @@ function normalizeAction(action) {
   }
 
   return normalized;
+}
+
+function invertAction(action) {
+  return INVERTED_ACTIONS[normalizeAction(action)] || ACTIONS.WAIT_ZONE;
+}
+
+function directionCopy({ action, base, quote, direction }) {
+  if (direction === "canonical" && (action === ACTIONS.STRONG_BUY || action === ACTIONS.BUY_ZONE)) {
+    return {
+      th: `ถ้าคุณถือ ${base} อยู่ จังหวะนี้เริ่มค่อนข้างดีเมื่อเทียบกับ ${quote}`,
+      en: `If you hold ${base}, this timing is starting to look relatively favorable versus ${quote}.`
+    };
+  }
+
+  if (direction === "inverted" && action === ACTIONS.SELL_ZONE) {
+    return {
+      th: `${base} เริ่มแพงขึ้นเมื่อเทียบกับ ${quote} ถ้าคุณยังไม่รีบ อาจรอดูจังหวะที่ดีกว่านี้`,
+      en: `${base} is becoming more expensive versus ${quote}. If you are not in a hurry, waiting may reduce regret risk.`
+    };
+  }
+
+  if (action === ACTIONS.SELL_ZONE) {
+    return {
+      th: `ถ้าคุณยังไม่รีบ อาจรอดูจังหวะที่ดีกว่านี้ก่อนแลกจาก ${base} เป็น ${quote}`,
+      en: `If you are not in a hurry, consider waiting before exchanging ${base} into ${quote}.`
+    };
+  }
+
+  if (action === ACTIONS.WAIT_ZONE) {
+    return {
+      th: `เรท ${base} เทียบกับ ${quote} ยังไม่ได้ดีหรือแย่ชัดเจน`,
+      en: `${base} versus ${quote} is not clearly favorable or unfavorable yet.`
+    };
+  }
+
+  return {
+    th: `จังหวะ ${base} เทียบกับ ${quote} เริ่มน่าจับตา แต่ยังควรเช็กแผนของคุณก่อนตัดสินใจ`,
+    en: `${base} versus ${quote} is worth watching, but still check your own timing before deciding.`
+  };
+}
+
+function userFacingActionForDirection({
+  symbol,
+  action,
+  userFromCurrency,
+  userToCurrency
+}) {
+  const normalizedSymbol = normalizeSymbol(symbol);
+  const canonicalAction = normalizeAction(action);
+  const market = marketForSymbol(normalizedSymbol);
+  const userFrom = normalizeCurrencyCode(userFromCurrency);
+  const userTo = normalizeCurrencyCode(userToCurrency);
+
+  if (!market) {
+    const fallbackAction = ACTIONS.WAIT_ZONE;
+    return {
+      symbol: normalizedSymbol,
+      base: null,
+      quote: null,
+      canonicalAction,
+      action: fallbackAction,
+      direction: "unsupported",
+      supported: false,
+      inverted: false,
+      label: USER_FACING_ACTION_COPY[fallbackAction],
+      copy: {
+        th: "ยังไม่รองรับทิศทางนี้ใน SavePulse",
+        en: "This direction is not supported yet in SavePulse."
+      }
+    };
+  }
+
+  let direction = "unsupported";
+  let resolvedAction = ACTIONS.WAIT_ZONE;
+  let inverted = false;
+
+  if (userFrom === market.base && userTo === market.quote) {
+    direction = "canonical";
+    resolvedAction = canonicalAction;
+  } else if (userFrom === market.quote && userTo === market.base) {
+    direction = "inverted";
+    resolvedAction = invertAction(canonicalAction);
+    inverted = true;
+  }
+
+  const supported = direction !== "unsupported";
+  const label = USER_FACING_ACTION_COPY[resolvedAction] || USER_FACING_ACTION_COPY[ACTIONS.WAIT_ZONE];
+  const copy = supported
+    ? directionCopy({
+        action: resolvedAction,
+        base: market.base,
+        quote: market.quote,
+        direction
+      })
+    : {
+        th: "ยังไม่รองรับทิศทางนี้ใน SavePulse",
+        en: "This direction is not supported yet in SavePulse."
+      };
+
+  return {
+    symbol: normalizedSymbol,
+    base: market.base,
+    quote: market.quote,
+    canonicalAction,
+    action: resolvedAction,
+    direction,
+    supported,
+    inverted,
+    label,
+    copy
+  };
 }
 
 function numericOrNull(value) {
@@ -342,16 +515,23 @@ module.exports = {
   BUY_WINDOW_BUSINESS_DAYS,
   DEMOTION_MS,
   ENTRY_WINDOW_EXPIRED_META,
+  INVERTED_ACTIONS,
   STRONG_BUY_FRESH_BUSINESS_DAYS,
+  SYMBOL_MARKETS,
   TRACKED_ASSETS,
+  USER_FACING_ACTION_COPY,
   actionMeta,
   applyAutoDemotion,
   businessDaysElapsed,
   confidencePercentile,
   createDefaultSignal,
   createSignal,
+  invertAction,
   isThaiAsset,
+  marketForSymbol,
   normalizeAction,
+  normalizeCurrencyCode,
   normalizeSymbol,
-  numericOrNull
+  numericOrNull,
+  userFacingActionForDirection
 };
