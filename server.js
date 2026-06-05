@@ -1327,11 +1327,12 @@ async function handleRequest(req, res) {
 
     if (req.method === "GET" && url.pathname === "/api/v1/status") {
       const symbol = String(url.searchParams.get("symbol") || "").trim().toUpperCase();
-      const signal = signalsBySymbol[symbol];
-      if (!signal) {
-        sendJson(res, 404, { error: "symbol_not_found" });
+      if (!symbol) {
+        sendJson(res, 400, { error: "symbol_required" });
         return;
       }
+
+      const signal = signalsBySymbol[symbol] || createDefaultSignal(symbol);
 
       const userFromCurrency =
         url.searchParams.get("from") ||

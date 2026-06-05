@@ -148,6 +148,20 @@ test("admin billing readiness endpoint requires the separate admin key when conf
   assert.equal(serialized.includes("test-master-secret"), false);
 });
 
+test("status endpoint returns a default direction-aware signal before TradingView data arrives", async () => {
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+  const response = await fetch(`${baseUrl}/api/v1/status?symbol=JPYTHB&from=THB&to=JPY`);
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.signal.symbol, "JPYTHB");
+  assert.equal(payload.signal.action, "WAIT_ZONE");
+  assert.equal(payload.signal.source, "default");
+  assert.equal(payload.userFacing.direction, "inverted");
+  assert.equal(payload.userFacing.label.th, "ยังไม่ต้องรีบ");
+});
+
 test("safe Stripe event summaries keep customer and subscription IDs hidden", () => {
   const summary = safeStripeEventSummary(
     {
