@@ -41,6 +41,7 @@ Set these in Render before production use:
 NODE_ENV=production
 HOST=0.0.0.0
 WEBHOOK_SECRET=your-shared-tradingview-secret
+ADMIN_READINESS_KEY=your-separate-admin-readiness-key
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=465
 SMTP_USER=your-sender-email@gmail.com
@@ -196,6 +197,20 @@ Recommended Stripe events:
 - `invoice.payment_failed`
 
 `checkout.session.completed` upgrades the subscriber to the paid plan from Stripe Checkout metadata. Subscription cancellation events downgrade the subscriber to Free when the email metadata is present.
+
+## Billing readiness checks
+
+Admin billing checks are protected. Set `ADMIN_READINESS_KEY` in Render before public deploy, and keep it separate from the TradingView `WEBHOOK_SECRET`.
+
+```bash
+curl https://savepulse-backend.onrender.com/api/v1/admin/billing-readiness \
+  -H "x-savepulse-admin-key: $ADMIN_READINESS_KEY"
+
+curl "https://savepulse-backend.onrender.com/api/v1/admin/stripe-events?limit=10" \
+  -H "x-savepulse-admin-key: $ADMIN_READINESS_KEY"
+```
+
+These responses intentionally summarize readiness and recent Stripe processing without returning secrets, raw Stripe payloads, customer IDs, subscription IDs, or Supabase keys.
 
 ## Notification routing
 

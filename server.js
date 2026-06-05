@@ -15,6 +15,7 @@ const {
 } = require("./src/signalEngine");
 const { recipientsFromEnv, sendSignalEmail } = require("./src/emailDispatcher");
 const { buildDailyDigestEmail, buildEmailPreviewIndex } = require("./src/dailyDigestEmail");
+const { createSupabasePersistence } = require("./src/persistence");
 const {
   deliveryDecisionForSignal,
   normalizePlan,
@@ -37,6 +38,16 @@ const DAILY_FREE_QUOTA = Number(process.env.DAILY_FREE_QUOTA || 50);
 const WEBHOOK_SECRET =
   process.env.WEBHOOK_SECRET ||
   (process.env.NODE_ENV === "production" ? "" : "SAVEPULSE_MASTER_KEY_2026");
+const ADMIN_READINESS_KEY = process.env.ADMIN_READINESS_KEY || process.env.ADMIN_API_KEY || "";
+const STRIPE_REQUIRED_WEBHOOK_EVENTS = Object.freeze([
+  "checkout.session.completed",
+  "customer.subscription.created",
+  "customer.subscription.updated",
+  "customer.subscription.deleted",
+  "invoice.payment_succeeded",
+  "invoice.payment_failed"
+]);
+const RECENT_STRIPE_EVENT_LIMIT = 25;
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -44,6 +55,8 @@ let signalsBySymbol = loadJson(SIGNALS_FILE, {});
 let subscribers = loadJson(SUBSCRIBERS_FILE, []);
 let notificationQueue = loadJson(NOTIFICATIONS_FILE, []);
 let invoices = loadJson(INVOICES_FILE, []);
+const recentStripeEvents = [];
+const persistence = createSupabasePersistence();
 
 function loadJson(filePath, fallback) {
   try {
@@ -62,7 +75,7 @@ function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
     "access-control-allow-origin": "*",
     "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-headers": "content-type,authorization,x-savepulse-secret",
+    "access-control-allow-headers": "content-type,authorization,x-savepulse-secret,x-savepulse-admin-key,x-admin-key",
     "content-type": "application/json; charset=utf-8"
   });
   res.end(body);
@@ -122,6 +135,15 @@ function incomingSecret(req, body) {
   return body.secret_key || body.secretKey || req.headers["x-savepulse-secret"] || bearerToken(req);
 }
 
+function incomingAdminSecret(req) {
+  return (
+    req.headers["x-savepulse-admin-key"] ||
+    req.headers["x-admin-key"] ||
+    req.headers["x-savepulse-secret"] ||
+    bearerToken(req)
+  );
+}
+
 function publicSignal(signal) {
   const effective = applyAutoDemotion(signal);
   return {
@@ -164,6 +186,16 @@ function emailIsValid(email) {
 
 function hasMasterSecret(req, body) {
   return Boolean(WEBHOOK_SECRET && incomingSecret(req, body) === WEBHOOK_SECRET);
+}
+
+function hasAdminSecret(req) {
+  const incoming = incomingAdminSecret(req);
+
+  if (ADMIN_READINESS_KEY) {
+    return incoming === ADMIN_READINESS_KEY;
+  }
+
+  return Boolean(WEBHOOK_SECRET && incoming === WEBHOOK_SECRET);
 }
 
 function checkoutUrlForPlan(plan, env = process.env) {
@@ -215,6 +247,172 @@ function checkoutRequirements(plan, env = process.env) {
   }
 
   return missing;
+}
+
+function stripeKeyMode(key) {
+  const value = String(key || "");
+  if (value.startsWith("sk_live_")) {
+    return "live";
+  }
+
+  if (value.startsWith("sk_test_")) {
+    return "test";
+  }
+
+  return value ? "unknown" : "missing";
+}
+
+function supabaseEnvConfigured(env = process.env) {
+  return Boolean(
+    (env.SUPABASE_URL || env.SUPABASE_PROJECT_URL) &&
+      (env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SERVICE_KEY || env.SUPABASE_ANON_KEY)
+  );
+}
+
+function billingReadinessSnapshot(env = process.env) {
+  const baseUrl = appBaseUrl(env);
+  return {
+    ok: true,
+    generatedAt: new Date().toISOString(),
+    endpoints: {
+      stripeWebhook: `${baseUrl}/api/v1/billing/webhook`,
+      checkout: `${baseUrl}/api/v1/billing/checkout`
+    },
+    stripe: {
+      mode: stripeKeyMode(stripeSecretKey(env)),
+      secretKeyConfigured: Boolean(stripeSecretKey(env)),
+      webhookSecretConfigured: Boolean(stripeWebhookSecret(env)),
+      priceIdsConfigured: {
+        plus: Boolean(checkoutPriceIdForPlan("plus", env)),
+        pro: Boolean(checkoutPriceIdForPlan("pro", env)),
+        business: Boolean(checkoutPriceIdForPlan("business", env))
+      },
+      requiredWebhookEvents: [...STRIPE_REQUIRED_WEBHOOK_EVENTS]
+    },
+    supabase: {
+      configured: supabaseEnvConfigured(env),
+      persistenceEnabled: env === process.env ? persistence.enabled : supabaseEnvConfigured(env)
+    },
+    adminProtection: {
+      adminReadinessKeyConfigured: Boolean(env.ADMIN_READINESS_KEY || env.ADMIN_API_KEY),
+      protected: Boolean(env.ADMIN_READINESS_KEY || env.ADMIN_API_KEY || env.WEBHOOK_SECRET || WEBHOOK_SECRET)
+    },
+    safety: {
+      secretsExposed: false,
+      rawStripePayloadExposed: false
+    }
+  };
+}
+
+function sanitizeStripeEventResult(result = {}) {
+  const payload = {
+    updated: Boolean(result.updated),
+    reason: result.reason || null
+  };
+
+  if (result.subscriber) {
+    payload.subscriber = {
+      email: result.subscriber.email || null,
+      plan: normalizePlan(result.subscriber.plan),
+      billing: result.subscriber.billing
+        ? {
+            provider: result.subscriber.billing.provider || null,
+            status: result.subscriber.billing.status || null,
+            plan: normalizePlan(result.subscriber.billing.plan || result.subscriber.plan),
+            updatedAt: result.subscriber.billing.updatedAt || null
+          }
+        : null
+    };
+  }
+
+  return payload;
+}
+
+function safeStripeEventSummary(event = {}, result = {}, processedAt = new Date().toISOString()) {
+  const object = event?.data?.object || {};
+  return {
+    id: event.id || null,
+    type: event.type || null,
+    processedAt,
+    object: {
+      mode: object.mode || null,
+      status: object.status || null,
+      paymentStatus: object.payment_status || null,
+      hasEmail: Boolean(stripeObjectEmail(object)),
+      hasCustomer: Boolean(object.customer),
+      hasSubscription: Boolean(object.subscription || String(event.type || "").startsWith("customer.subscription."))
+    },
+    result: sanitizeStripeEventResult(result)
+  };
+}
+
+function rememberStripeEvent(event, result) {
+  const summary = safeStripeEventSummary(event, result);
+  recentStripeEvents.unshift(summary);
+  recentStripeEvents.splice(RECENT_STRIPE_EVENT_LIMIT);
+  return summary;
+}
+
+function persistStripeEvent(event, result) {
+  if (!persistence.enabled || typeof persistence.recordStripeEvent !== "function") {
+    return;
+  }
+
+  persistence.recordStripeEvent(event, sanitizeStripeEventResult(result)).catch((error) => {
+    console.warn(`Supabase Stripe event sync failed: ${error.message}`);
+  });
+}
+
+function safeStripeEventRow(row = {}) {
+  return {
+    id: row.id || null,
+    type: row.type || null,
+    processedAt: row.processed_at || null,
+    result: sanitizeStripeEventResult(row.result || {})
+  };
+}
+
+function boundedLimit(value, fallback = 10) {
+  return Math.min(RECENT_STRIPE_EVENT_LIMIT, Math.max(1, Math.floor(Number(value) || fallback)));
+}
+
+async function stripeEventsSnapshot(limit = 10) {
+  const count = boundedLimit(limit);
+  let remoteEvents = [];
+  let remoteError = null;
+
+  if (persistence.enabled && typeof persistence.listStripeEvents === "function") {
+    try {
+      remoteEvents = (await persistence.listStripeEvents(count)).map(safeStripeEventRow);
+    } catch (error) {
+      remoteError = "supabase_stripe_events_read_failed";
+    }
+  }
+
+  const seen = new Set();
+  const merged = [...remoteEvents, ...recentStripeEvents]
+    .filter((event) => {
+      const key = `${event.id || ""}:${event.type || ""}:${event.processedAt || ""}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    })
+    .slice(0, count);
+
+  return {
+    ok: true,
+    generatedAt: new Date().toISOString(),
+    source: remoteEvents.length ? "supabase" : "local_memory",
+    persistence: {
+      enabled: persistence.enabled,
+      table: persistence.tables?.stripeEvents || "stripe_events",
+      remoteError
+    },
+    events: merged,
+    localBuffered: recentStripeEvents.length
+  };
 }
 
 async function createStripeCheckoutSession({ email, plan, locale = "en", watchlist = [] }, env = process.env) {
@@ -922,11 +1120,13 @@ async function handleStripeWebhook(req, res) {
   }
 
   const result = applyStripeEvent(event);
+  rememberStripeEvent(event, result);
+  persistStripeEvent(event, result);
 
   sendJson(res, 200, {
     received: true,
     eventType: event.type,
-    result
+    result: sanitizeStripeEventResult(result)
   });
 }
 
@@ -1120,6 +1320,26 @@ async function handleRequest(req, res) {
       return;
     }
 
+    if (req.method === "GET" && url.pathname === "/api/v1/admin/billing-readiness") {
+      if (!hasAdminSecret(req)) {
+        sendJson(res, 401, { error: "unauthorized_admin_readiness" });
+        return;
+      }
+
+      sendJson(res, 200, billingReadinessSnapshot());
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/v1/admin/stripe-events") {
+      if (!hasAdminSecret(req)) {
+        sendJson(res, 401, { error: "unauthorized_admin_stripe_events" });
+        return;
+      }
+
+      sendJson(res, 200, await stripeEventsSnapshot(url.searchParams.get("limit")));
+      return;
+    }
+
     if (req.method === "POST" && url.pathname === "/api/v1/webhook/tradingview") {
       await handleWebhook(req, res);
       return;
@@ -1192,6 +1412,7 @@ server.listen(PORT, HOST, () => {
 
 module.exports = {
   applyStripeEvent,
+  billingReadinessSnapshot,
   checkoutPayload,
   checkoutPriceIdForPlan,
   dispatchSignalNotifications,
@@ -1200,7 +1421,9 @@ module.exports = {
   listAssets,
   publicNotificationSummary,
   quotaSnapshot,
+  safeStripeEventSummary,
   server,
+  stripeEventsSnapshot,
   updateSubscriberPlanFromBilling,
   verifyStripeWebhookSignature
 };

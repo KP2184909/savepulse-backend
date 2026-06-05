@@ -99,3 +99,33 @@ test("loadAll reconstructs backend state from Supabase rows", async () => {
   assert.equal(state.invoices[0].id, "invoice_1");
   assert.equal(state.schedulerState.dailyDigestDate, "2026-06-04");
 });
+
+test("listStripeEvents reads only safe Stripe event columns", async () => {
+  const calls = [];
+  const persistence = createSupabasePersistence({
+    env: {
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_SERVICE_ROLE_KEY: "service-key"
+    },
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return jsonResponse([
+        {
+          id: "evt_123",
+          type: "checkout.session.completed",
+          result: { updated: true },
+          processed_at: "2026-06-04T00:00:00.000Z"
+        }
+      ]);
+    }
+  });
+
+  const rows = await persistence.listStripeEvents(999);
+
+  assert.equal(rows.length, 1);
+  assert.equal(
+    calls[0].url,
+    "https://example.supabase.co/rest/v1/stripe_events?select=id,type,result,processed_at&order=processed_at.desc&limit=25"
+  );
+  assert.equal(calls[0].url.includes("payload"), false);
+});

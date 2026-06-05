@@ -246,8 +246,18 @@ function createSupabasePersistence({ env = process.env, fetchImpl = globalThis.f
     });
   }
 
+  async function listStripeEvents(limit = 10) {
+    const boundedLimit = Math.min(25, Math.max(1, Math.floor(Number(limit) || 10)));
+    const rows = await request(
+      `/rest/v1/${tables.stripeEvents}?select=id,type,result,processed_at&order=processed_at.desc&limit=${boundedLimit}`
+    );
+
+    return Array.isArray(rows) ? rows : [];
+  }
+
   return {
     enabled,
+    listStripeEvents,
     loadAll,
     recordStripeEvent,
     saveInvoices,
