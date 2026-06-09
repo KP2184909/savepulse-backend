@@ -75,11 +75,20 @@ function sendJson(res, statusCode, payload) {
   const body = JSON.stringify(payload, null, 2);
   res.writeHead(statusCode, {
     "access-control-allow-origin": "*",
-    "access-control-allow-methods": "GET,POST,OPTIONS",
+    "access-control-allow-methods": "GET,HEAD,POST,OPTIONS",
     "access-control-allow-headers": "content-type,authorization,x-savepulse-secret,x-savepulse-admin-key,x-admin-key",
     "content-type": "application/json; charset=utf-8"
   });
   res.end(body);
+}
+
+function sendEmpty(res, statusCode) {
+  res.writeHead(statusCode, {
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET,HEAD,POST,OPTIONS",
+    "access-control-allow-headers": "content-type,authorization,x-savepulse-secret,x-savepulse-admin-key,x-admin-key"
+  });
+  res.end();
 }
 
 function sendText(res, statusCode, body, contentType = "text/plain; charset=utf-8") {
@@ -1357,6 +1366,11 @@ async function handleRequest(req, res) {
   }
 
   try {
+    if (req.method === "HEAD" && url.pathname === "/api/v1/health") {
+      sendEmpty(res, 200);
+      return;
+    }
+
     if (req.method === "GET" && url.pathname === "/api/v1/health") {
       sendJson(res, 200, {
         ok: true,

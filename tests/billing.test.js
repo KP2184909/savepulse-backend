@@ -149,6 +149,16 @@ test("admin billing readiness endpoint requires the separate admin key when conf
   assert.equal(serialized.includes("test-master-secret"), false);
 });
 
+test("health endpoint supports HEAD for uptime monitors", async () => {
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+  const response = await fetch(`${baseUrl}/api/v1/health`, { method: "HEAD" });
+  const body = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.equal(body, "");
+});
+
 test("status endpoint returns a default direction-aware signal before TradingView data arrives", async () => {
   const baseUrl = `http://127.0.0.1:${server.address().port}`;
 
