@@ -90,6 +90,14 @@ function sendText(res, statusCode, body, contentType = "text/plain; charset=utf-
   res.end(body);
 }
 
+function runBackgroundTask(label, task) {
+  Promise.resolve()
+    .then(task)
+    .catch((error) => {
+      console.warn(`${label} failed: ${error.message}`);
+    });
+}
+
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -1104,13 +1112,15 @@ async function handleWebhook(req, res) {
   saveJson(SIGNALS_FILE, signalsBySymbol);
 
   const effectiveSignal = publicSignal(signal);
-  const notificationDispatch = await dispatchSignalNotifications(signal, effectiveSignal);
-
   sendJson(res, 202, {
     accepted: true,
     signal: effectiveSignal,
-    notificationDispatch,
-    emailDispatch: notificationDispatch
+    notificationDispatch: { status: "scheduled_background" },
+    emailDispatch: { status: "scheduled_background" }
+  });
+
+  runBackgroundTask(`TradingView notification dispatch for ${signal.symbol}`, async () => {
+    await dispatchSignalNotifications(signal, effectiveSignal);
   });
 }
 

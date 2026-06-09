@@ -186,6 +186,9 @@ test("admin latest signals endpoint is protected and shows normalized Pine field
     })
   });
   assert.equal(webhook.status, 202);
+  const webhookPayload = await webhook.json();
+  assert.equal(webhookPayload.notificationDispatch.status, "scheduled_background");
+  assert.equal(webhookPayload.emailDispatch.status, "scheduled_background");
 
   const authorized = await fetch(`${baseUrl}/api/v1/admin/latest-signals`, {
     headers: { "x-savepulse-admin-key": "test-admin-readiness-key" }
