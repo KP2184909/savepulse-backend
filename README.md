@@ -253,6 +253,14 @@ curl "https://savepulse-backend.onrender.com/api/v1/admin/latest-signals" \
   -H "x-savepulse-admin-key: $ADMIN_READINESS_KEY"
 ```
 
+Public production check without secrets:
+
+```bash
+npm run check:signals
+```
+
+This checks the public `/api/v1/status` endpoint for all 9 tracked symbols and prints the latest received time in Bangkok time. It intentionally does not require or print admin keys, webhook secrets, raw payloads, or customer data.
+
 If signals do not update, open Render Dashboard -> `savepulse-backend` -> Logs, then search around the time TradingView should have fired:
 
 - `POST /api/v1/webhook/tradingview` should appear when TradingView reaches Render.
