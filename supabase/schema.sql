@@ -55,6 +55,22 @@ create table if not exists public.scheduler_state (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.email_logs (
+  id text primary key,
+  subscriber_id text,
+  email text,
+  plan text,
+  template_type text,
+  status text not null default 'pending',
+  skipped_reason text,
+  error_message text,
+  provider_message_id text,
+  signal_snapshot_date text,
+  created_at timestamptz not null default now(),
+  sent_at timestamptz,
+  payload jsonb not null default '{}'::jsonb
+);
+
 create table if not exists public.stripe_events (
   id text primary key,
   type text,
@@ -68,9 +84,13 @@ alter table public.subscribers enable row level security;
 alter table public.notification_jobs enable row level security;
 alter table public.invoices enable row level security;
 alter table public.scheduler_state enable row level security;
+alter table public.email_logs enable row level security;
 alter table public.stripe_events enable row level security;
 
 create index if not exists subscribers_plan_idx on public.subscribers (plan);
 create index if not exists notification_jobs_status_scheduled_idx on public.notification_jobs (status, scheduled_for);
 create index if not exists invoices_email_idx on public.invoices (email);
+create index if not exists email_logs_snapshot_idx on public.email_logs (signal_snapshot_date);
+create index if not exists email_logs_subscriber_date_idx on public.email_logs (subscriber_id, signal_snapshot_date);
+create index if not exists email_logs_status_created_idx on public.email_logs (status, created_at desc);
 create index if not exists stripe_events_type_idx on public.stripe_events (type);

@@ -8,10 +8,26 @@ const { URL } = require("node:url");
 const baseServer = require("./server");
 const { sendDailyDigestEmail, smtpConfigured } = require("./src/emailDispatcher");
 const { normalizePlan } = require("./src/plans");
+const {
+  DEFAULT_DAILY_EMAIL_TIME,
+  DEFAULT_DAILY_EMAIL_TIMEZONE,
+  DEFAULT_SIGNAL_FRESHNESS_HOURS,
+  assessSignalReadiness,
+  createEmailLogEntry,
+  emailIsValid: schedulerEmailIsValid,
+  isDuplicateDailyEmail,
+  sanitizeEmailLogForAdmin,
+  signalsForSubscriber,
+  subscriberId,
+  subscriberSkipReason,
+  templateTypeForPlan,
+  truncateForAdmin
+} = require("./src/dailyEmailScheduler");
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "state");
 const SUBSCRIBERS_FILE = path.join(DATA_DIR, "subscribers.json");
 const SCHEDULER_STATE_FILE = path.join(DATA_DIR, "scheduler.json");
+const EMAIL_LOGS_FILE = path.join(DATA_DIR, "email_logs.json");
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || "";
 
 function loadJson(file, fallback) {
@@ -32,7 +48,8 @@ function sendJson(res, status, payload) {
     "content-type": "application/json; charset=utf-8",
     "access-control-allow-origin": "*",
     "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-headers": "content-type,authorization"
+    "access-control-allow-headers":
+      "content-type,authorization,x-savepulse-admin-key,x-admin-key,x-savepulse-secret,x-webhook-secret"
   });
   res.end(JSON.stringify(payload, null, 2));
 }
@@ -81,13 +98,36 @@ function appBaseUrl(env = process.env) {
 }
 
 function emailIsValid(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
+  return schedulerEmailIsValid(email);
 }
 
 function bearerToken(req) {
   const auth = String(req.headers.authorization || "");
   const match = auth.match(/^Bearer\s+(.+)$/i);
   return match ? match[1] : "";
+}
+
+function timingSafeEqualString(providedValue, expectedValue) {
+  const provided = String(providedValue || "");
+  const expected = String(expectedValue || "");
+
+  if (!provided || !expected || provided.length !== expected.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+}
+
+function adminSecret(env = process.env) {
+  return String(env.ADMIN_READINESS_KEY || env.ADMIN_TOKEN || env.ADMIN_API_KEY || "").trim();
+}
+
+function incomingAdminSecret(req) {
+  return req.headers["x-savepulse-admin-key"] || req.headers["x-admin-key"] || bearerToken(req);
+}
+
+function hasAdminSecret(req, env = process.env) {
+  return timingSafeEqualString(incomingAdminSecret(req), adminSecret(env));
 }
 
 function incomingSecret(req, body = {}) {
@@ -101,8 +141,7 @@ function incomingSecret(req, body = {}) {
 }
 
 function hasMasterSecret(req, body = {}) {
-  const provided = String(incomingSecret(req, body) || "");
-  return Boolean(WEBHOOK_SECRET && provided && crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(WEBHOOK_SECRET)));
+  return timingSafeEqualString(incomingSecret(req, body), WEBHOOK_SECRET);
 }
 
 function unsubscribeSecret(env = process.env) {
@@ -131,13 +170,7 @@ function unsubscribeUrlForSubscriber(subscriber, env = process.env) {
 
 function verifyUnsubscribeToken(email, token, env = process.env) {
   const expected = unsubscribeTokenForEmail(email, env);
-  const provided = String(token || "");
-
-  if (provided.length !== expected.length) {
-    return false;
-  }
-
-  return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+  return timingSafeEqualString(token, expected);
 }
 
 function loadSubscribers() {
@@ -148,61 +181,261 @@ function saveSubscribers(subscribers) {
   saveJson(SUBSCRIBERS_FILE, subscribers);
 }
 
-function dailyDigestRecipients(plan = "", email = "") {
+function loadEmailLogs() {
+  return loadJson(EMAIL_LOGS_FILE, []);
+}
+
+function saveEmailLogs(emailLogs) {
+  saveJson(EMAIL_LOGS_FILE, Array.isArray(emailLogs) ? emailLogs : []);
+}
+
+function appendEmailLog(log) {
+  const logs = loadEmailLogs();
+  logs.push(log);
+  saveEmailLogs(logs);
+  return log;
+}
+
+function updateEmailLog(id, patch = {}) {
+  const logs = loadEmailLogs();
+  const updated = logs.map((log) => (log.id === id ? { ...log, ...patch } : log));
+  saveEmailLogs(updated);
+  return updated.find((log) => log.id === id) || null;
+}
+
+function boundedLimit(value, max = 100, fallback = 25) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return Math.min(max, Math.floor(parsed));
+}
+
+function recentDailyEmailLogs(limit = 25) {
+  return loadEmailLogs()
+    .slice(-boundedLimit(limit))
+    .reverse()
+    .map(sanitizeEmailLogForAdmin);
+}
+
+function normalizeSubscriberRecord(subscriber = {}) {
+  return {
+    ...subscriber,
+    email: String(subscriber.email || "").trim().toLowerCase(),
+    plan: normalizePlan(subscriber.plan || "free")
+  };
+}
+
+function dailyDigestCandidates(plan = "", email = "") {
   const targetPlan = String(plan || "").trim().toLowerCase();
   const targetEmail = String(email || "").trim().toLowerCase();
   const subscribers = loadSubscribers();
 
   return subscribers
-    .map((subscriber) => ({
-      ...subscriber,
-      email: String(subscriber.email || "").trim().toLowerCase(),
-      plan: normalizePlan(subscriber.plan || "free")
-    }))
+    .map(normalizeSubscriberRecord)
     .filter((subscriber) => emailIsValid(subscriber.email))
-    .filter((subscriber) => subscriber.dailyDigest !== false)
     .filter((subscriber) => !targetPlan || subscriber.plan === normalizePlan(targetPlan))
     .filter((subscriber) => !targetEmail || subscriber.email === targetEmail);
 }
 
-async function sendDailyDigestBatch({ dryRun = false, plan = "", email = "" } = {}, env = process.env) {
-  const recipients = dailyDigestRecipients(plan, email);
-  const signals = baseServer.listAssets();
+function dailyDigestRecipients(plan = "", email = "") {
+  return dailyDigestCandidates(plan, email).filter((subscriber) => !subscriberSkipReason(subscriber));
+}
+
+function dailyEmailEnabled(env = process.env) {
+  const value = env.DAILY_EMAIL_ENABLED ?? env.DAILY_DIGEST_ENABLED;
+  return String(value || "").toLowerCase() === "true";
+}
+
+function dailyEmailTime(env = process.env) {
+  return env.DAILY_EMAIL_TIME || env.DAILY_DIGEST_TIME || DEFAULT_DAILY_EMAIL_TIME;
+}
+
+function dailyEmailTimeZone(env = process.env) {
+  return env.DAILY_EMAIL_TIMEZONE || env.DAILY_DIGEST_TIMEZONE || DEFAULT_DAILY_EMAIL_TIMEZONE;
+}
+
+function dailyEmailSignalMaxAgeHours(env = process.env) {
+  const raw = env.DAILY_EMAIL_SIGNAL_MAX_AGE_HOURS || env.DAILY_SIGNAL_MAX_AGE_HOURS;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_SIGNAL_FRESHNESS_HOURS;
+}
+
+function storedSignalsForDigest(signals) {
+  if (Array.isArray(signals)) {
+    return signals;
+  }
+
+  if (signals && typeof signals === "object") {
+    return Object.values(signals);
+  }
+
+  if (typeof baseServer.listStoredSignals === "function") {
+    const stored = baseServer.listStoredSignals();
+    return Array.isArray(stored) ? stored : Object.values(stored || {});
+  }
+
+  return baseServer.listAssets();
+}
+
+function safeReadinessSummary(readiness = {}) {
+  return {
+    ready: Boolean(readiness.ready),
+    requiredSymbols: readiness.requiredSymbols || [],
+    presentSymbols: readiness.presentSymbols || [],
+    missingSymbols: readiness.missingSymbols || [],
+    staleSymbols: readiness.staleSymbols || [],
+    signalSnapshotDate: readiness.signalSnapshotDate || "",
+    checkedAt: readiness.checkedAt || "",
+    maxAgeHours: readiness.maxAgeHours,
+    timeZone: readiness.timeZone
+  };
+}
+
+function providerMessageIdFrom(result = {}) {
+  return result.providerMessageId || result.provider_message_id || result.messageId || result.id || "";
+}
+
+function safeErrorMessage(error) {
+  return truncateForAdmin(error?.message || error || "", 180);
+}
+
+function dailyEmailConfigForAdmin(env = process.env) {
+  return {
+    enabled: dailyEmailEnabled(env),
+    sendTime: dailyEmailTime(env),
+    timeZone: dailyEmailTimeZone(env),
+    signalMaxAgeHours: dailyEmailSignalMaxAgeHours(env),
+    smtpConfigured: smtpConfigured(env)
+  };
+}
+
+function schedulerStateForAdmin() {
+  const state = loadJson(SCHEDULER_STATE_FILE, {});
+  return {
+    dailyEmailDate: state.dailyEmailDate || state.dailyDigestDate || "",
+    dailyEmailLastRunAt: state.dailyEmailLastRunAt || state.dailyDigestLastRunAt || "",
+    dailyEmailLastResult: state.dailyEmailLastResult || state.dailyDigestLastResult || null
+  };
+}
+
+async function sendDailyDigestBatch(
+  { dryRun = false, plan = "", email = "", signals, now = new Date(), sendEmail = sendDailyDigestEmail } = {},
+  env = process.env
+) {
+  const recipients = dailyDigestCandidates(plan, email);
+  const signalList = storedSignalsForDigest(signals);
+  const readiness = assessSignalReadiness(signalList, {
+    now,
+    timeZone: dailyEmailTimeZone(env),
+    maxAgeHours: dailyEmailSignalMaxAgeHours(env)
+  });
+  const signalReadiness = safeReadinessSummary(readiness);
+  const signalSnapshotDate = signalReadiness.signalSnapshotDate;
   const dashboardUrl = appBaseUrl(env);
   const smtpReady = smtpConfigured(env);
+  const existingLogs = loadEmailLogs();
   const results = [];
 
   for (const subscriber of recipients) {
+    const planId = normalizePlan(subscriber.plan || "free");
+    const templateType = templateTypeForPlan(planId);
     const unsubscribeUrl = unsubscribeUrlForSubscriber(subscriber, env);
+    const skipReason =
+      subscriberSkipReason(subscriber) ||
+      (!readiness.ready ? "incomplete_signals" : "") ||
+      (isDuplicateDailyEmail(existingLogs, subscriber, templateType, signalSnapshotDate) ? "duplicate_daily_email" : "");
 
     if (dryRun) {
       results.push({
         email: subscriber.email,
-        plan: subscriber.plan,
+        plan: planId,
+        templateType,
         locale: subscriber.locale || "th",
-        ok: true,
+        ok: !skipReason,
         dryRun: true
+      });
+      if (skipReason) {
+        results[results.length - 1].skipped = true;
+        results[results.length - 1].skippedReason = skipReason;
+      }
+      continue;
+    }
+
+    const emailLog = createEmailLogEntry({
+      subscriber,
+      plan: planId,
+      templateType,
+      status: skipReason ? "skipped" : "pending",
+      skippedReason: skipReason,
+      signalSnapshotDate,
+      now
+    });
+    appendEmailLog(emailLog);
+    existingLogs.push(emailLog);
+
+    if (skipReason) {
+      results.push({
+        email: subscriber.email,
+        plan: planId,
+        templateType,
+        ok: true,
+        skipped: true,
+        skippedReason: skipReason
       });
       continue;
     }
 
-    const result = await sendDailyDigestEmail({
-      subscriber,
-      signals,
-      dashboardUrl,
-      unsubscribeUrl,
-      env
-    });
+    try {
+      const result = await sendEmail({
+        subscriber,
+        signals: signalsForSubscriber(signalList, subscriber),
+        dashboardUrl,
+        unsubscribeUrl,
+        env
+      });
 
-    results.push(result);
+      const statusPatch = result.ok
+        ? {
+            status: "sent",
+            provider_message_id: providerMessageIdFrom(result),
+            sent_at: new Date().toISOString()
+          }
+        : {
+            status: result.skipped ? "skipped" : "failed",
+            skipped_reason: result.skippedReason || (result.skipped ? "provider_skipped" : ""),
+            error_message: result.error ? truncateForAdmin(result.error, 180) : "",
+            provider_message_id: providerMessageIdFrom(result),
+            sent_at: result.skipped ? "" : new Date().toISOString()
+          };
+      updateEmailLog(emailLog.id, statusPatch);
+      results.push({ ...result, plan: planId, templateType });
+    } catch (error) {
+      updateEmailLog(emailLog.id, {
+        status: "failed",
+        error_message: safeErrorMessage(error),
+        sent_at: new Date().toISOString()
+      });
+
+      results.push({
+        email: subscriber.email,
+        plan: planId,
+        templateType,
+        ok: false,
+        error: safeErrorMessage(error)
+      });
+    }
   }
 
   return {
     ok: dryRun || results.every((result) => result.ok || result.skipped),
     dryRun,
     smtpConfigured: smtpReady,
+    signalReadiness,
     recipients: recipients.length,
-    sent: results.filter((result) => result.ok && !result.dryRun).length,
+    sent: results.filter((result) => result.ok && !result.dryRun && !result.skipped).length,
     skipped: results.filter((result) => result.skipped).length,
     failed: results.filter((result) => result.ok === false && !result.skipped).length,
     byPlan: recipients.reduce((acc, subscriber) => {
@@ -213,11 +446,11 @@ async function sendDailyDigestBatch({ dryRun = false, plan = "", email = "" } = 
   };
 }
 
-function parseDigestTime(value = "08:00") {
-  const match = String(value || "08:00").match(/^(\d{1,2}):(\d{2})$/);
+function parseDigestTime(value = DEFAULT_DAILY_EMAIL_TIME) {
+  const match = String(value || DEFAULT_DAILY_EMAIL_TIME).match(/^(\d{1,2}):(\d{2})$/);
 
   if (!match) {
-    return { hour: 8, minute: 0 };
+    return { hour: 8, minute: 30 };
   }
 
   return {
@@ -226,9 +459,9 @@ function parseDigestTime(value = "08:00") {
   };
 }
 
-function bangkokDateParts(now = new Date()) {
+function datePartsForTimeZone(now = new Date(), timeZone = DEFAULT_DAILY_EMAIL_TIMEZONE) {
   const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Bangkok",
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -246,17 +479,21 @@ function bangkokDateParts(now = new Date()) {
   };
 }
 
+function bangkokDateParts(now = new Date()) {
+  return datePartsForTimeZone(now, "Asia/Bangkok");
+}
+
 function dailyDigestScheduleDue(now = new Date(), env = process.env, state = loadJson(SCHEDULER_STATE_FILE, {})) {
-  if (env.DAILY_DIGEST_ENABLED !== "true") {
+  if (!dailyEmailEnabled(env)) {
     return { due: false, reason: "disabled" };
   }
 
-  const scheduled = parseDigestTime(env.DAILY_DIGEST_TIME || "08:00");
-  const current = bangkokDateParts(now);
+  const scheduled = parseDigestTime(dailyEmailTime(env));
+  const current = datePartsForTimeZone(now, dailyEmailTimeZone(env));
   const currentMinutes = current.hour * 60 + current.minute;
   const scheduledMinutes = scheduled.hour * 60 + scheduled.minute;
 
-  if (state.dailyDigestDate === current.date) {
+  if (state.dailyEmailDate === current.date || state.dailyDigestDate === current.date) {
     return { due: false, reason: "already_processed_today", date: current.date };
   }
 
@@ -276,17 +513,22 @@ async function runScheduledDailyDigest(now = new Date(), env = process.env) {
   }
 
   const result = await sendDailyDigestBatch({ dryRun: false }, env);
+  const runResult = {
+    sent: result.sent,
+    skipped: result.skipped,
+    failed: result.failed,
+    recipients: result.recipients,
+    signalReadiness: result.signalReadiness
+  };
 
   saveJson(SCHEDULER_STATE_FILE, {
     ...state,
+    dailyEmailDate: schedule.date,
     dailyDigestDate: schedule.date,
+    dailyEmailLastRunAt: new Date().toISOString(),
     dailyDigestLastRunAt: new Date().toISOString(),
-    dailyDigestLastResult: {
-      sent: result.sent,
-      skipped: result.skipped,
-      failed: result.failed,
-      recipients: result.recipients
-    }
+    dailyEmailLastResult: runResult,
+    dailyDigestLastResult: runResult
   });
 
   return { ...schedule, result };
@@ -365,7 +607,7 @@ function handleUnsubscribe(url, res) {
 async function handleDailyDigestSend(req, res) {
   const body = await parseBody(req);
 
-  if (!hasMasterSecret(req, body)) {
+  if (!hasMasterSecret(req, body) && !hasAdminSecret(req)) {
     sendJson(res, 401, { error: "unauthorized" });
     return;
   }
@@ -374,7 +616,8 @@ async function handleDailyDigestSend(req, res) {
     {
       dryRun: body.dryRun !== false,
       plan: body.plan || "",
-      email: body.email || ""
+      email: body.email || "",
+      now: body.now ? new Date(body.now) : new Date()
     },
     process.env
   );
@@ -401,6 +644,54 @@ async function patchedHandleRequest(req, res) {
       return;
     }
 
+    if (req.method === "GET" && url.pathname === "/api/v1/admin/daily-email-logs") {
+      if (!hasAdminSecret(req)) {
+        sendJson(res, 401, { error: "unauthorized" });
+        return;
+      }
+
+      sendJson(res, 200, {
+        ok: true,
+        generatedAt: new Date().toISOString(),
+        config: dailyEmailConfigForAdmin(),
+        state: schedulerStateForAdmin(),
+        recentLogs: recentDailyEmailLogs(url.searchParams.get("limit")),
+        safety: {
+          secretsExposed: false,
+          rawPayloadExposed: false
+        }
+      });
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/v1/admin/daily-email-jobs") {
+      if (!hasAdminSecret(req)) {
+        sendJson(res, 401, { error: "unauthorized" });
+        return;
+      }
+
+      const signalList = storedSignalsForDigest();
+      const readiness = assessSignalReadiness(signalList, {
+        now: new Date(),
+        timeZone: dailyEmailTimeZone(),
+        maxAgeHours: dailyEmailSignalMaxAgeHours()
+      });
+
+      sendJson(res, 200, {
+        ok: true,
+        generatedAt: new Date().toISOString(),
+        config: dailyEmailConfigForAdmin(),
+        state: schedulerStateForAdmin(),
+        signalReadiness: safeReadinessSummary(readiness),
+        recentLogs: recentDailyEmailLogs(url.searchParams.get("limit")),
+        safety: {
+          secretsExposed: false,
+          rawPayloadExposed: false
+        }
+      });
+      return;
+    }
+
     await baseServer.handleRequest(req, res);
   } catch (error) {
     sendJson(res, 400, { error: error.message });
@@ -421,10 +712,20 @@ if (typeof dailyDigestTimer.unref === "function") {
 }
 
 module.exports = {
+  bangkokDateParts,
+  dailyDigestCandidates,
   dailyDigestRecipients,
   dailyDigestScheduleDue,
+  dailyEmailEnabled,
+  dailyEmailSignalMaxAgeHours,
+  dailyEmailTime,
+  dailyEmailTimeZone,
+  datePartsForTimeZone,
+  loadEmailLogs,
   patchedHandleRequest,
+  recentDailyEmailLogs,
   runScheduledDailyDigest,
+  saveEmailLogs,
   sendDailyDigestBatch,
   server: baseServer.server,
   unsubscribeTokenForEmail,

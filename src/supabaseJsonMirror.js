@@ -9,6 +9,7 @@ const STATE_FILES = {
   subscribers: "subscribers.json",
   notifications: "notifications.json",
   invoices: "invoices.json",
+  emailLogs: "email_logs.json",
   scheduler: "scheduler.json"
 };
 
@@ -37,6 +38,7 @@ function snapshotHasData(snapshot) {
       (snapshot?.subscribers || []).length ||
       (snapshot?.notificationQueue || []).length ||
       (snapshot?.invoices || []).length ||
+      (snapshot?.emailLogs || []).length ||
       Object.keys(snapshot?.schedulerState || {}).length
   );
 }
@@ -47,6 +49,7 @@ function loadLocalSnapshot(paths) {
     subscribers: readJson(paths.subscribers, []),
     notificationQueue: readJson(paths.notifications, []),
     invoices: readJson(paths.invoices, []),
+    emailLogs: readJson(paths.emailLogs, []),
     schedulerState: readJson(paths.scheduler, {})
   };
 }
@@ -57,6 +60,7 @@ async function seedSupabaseFromSnapshot(persistence, snapshot) {
     persistence.saveSubscribers(snapshot.subscribers || []),
     persistence.saveNotifications(snapshot.notificationQueue || []),
     persistence.saveInvoices(snapshot.invoices || []),
+    persistence.saveEmailLogs(snapshot.emailLogs || []),
     persistence.saveSchedulerState(snapshot.schedulerState || {})
   ]);
 }
@@ -75,6 +79,7 @@ async function hydrateJsonFilesFromSupabase({ dataDir, persistence = createSupab
     writeJson(paths.subscribers, remoteSnapshot.subscribers || []);
     writeJson(paths.notifications, remoteSnapshot.notificationQueue || []);
     writeJson(paths.invoices, remoteSnapshot.invoices || []);
+    writeJson(paths.emailLogs, remoteSnapshot.emailLogs || []);
     writeJson(paths.scheduler, remoteSnapshot.schedulerState || {});
     return { enabled: true, source: "supabase" };
   }
@@ -116,6 +121,9 @@ function saveMirroredState(persistence, kind, value) {
   }
   if (kind === "invoices") {
     return persistence.saveInvoices(Array.isArray(value) ? value : []);
+  }
+  if (kind === "emailLogs") {
+    return persistence.saveEmailLogs(Array.isArray(value) ? value : []);
   }
   if (kind === "scheduler") {
     return persistence.saveSchedulerState(value || {});

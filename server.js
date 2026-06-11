@@ -217,6 +217,19 @@ function listAssets() {
     });
 }
 
+function listStoredSignals() {
+  const order = new Map(TRACKED_ASSETS.map((symbol, index) => [symbol, index]));
+
+  return Object.values(signalsBySymbol)
+    .filter((signal) => TRACKED_ASSETS.includes(String(signal?.symbol || "").trim().toUpperCase()))
+    .map(publicSignal)
+    .sort((a, b) => {
+      const aOrder = order.has(a.symbol) ? order.get(a.symbol) : Number.MAX_SAFE_INTEGER;
+      const bOrder = order.has(b.symbol) ? order.get(b.symbol) : Number.MAX_SAFE_INTEGER;
+      return aOrder - bOrder || a.symbol.localeCompare(b.symbol);
+    });
+}
+
 function latestSignalSummary(signal) {
   const effective = publicSignal(signal);
   const pine = effective.pine || {};
@@ -1550,6 +1563,7 @@ module.exports = {
   handleRequest,
   latestSignalsSnapshot,
   listAssets,
+  listStoredSignals,
   publicNotificationSummary,
   quotaSnapshot,
   safeStripeEventSummary,

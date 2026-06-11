@@ -347,7 +347,7 @@ function miniChart(tone = "teal") {
 function renderFreeEmail({ locale, copy, signalMap, dashboardUrl, unsubscribeUrl, planName }) {
   const thai = localeKey(locale) === "th";
   const signal = signalMap.USDTHB || sampleSignals()[0];
-  const decision = decisionForSignal(signal, locale);
+  const decision = decisionForSignal(signal, locale, signal?.userDirection || {});
   const color = toneColor(decision.tone);
   const body = `
     ${cardStart(760)}
@@ -419,7 +419,7 @@ function renderFreeEmail({ locale, copy, signalMap, dashboardUrl, unsubscribeUrl
 
 function watchRow(symbol, signal, locale) {
   const label = labelForSymbol(symbol, locale);
-  const decision = decisionForSignal(signal, locale);
+  const decision = decisionForSignal(signal, locale, signal?.userDirection || {});
   const color = toneColor(decision.tone);
   const percent = percentFromSignal(signal);
   return `
@@ -474,9 +474,10 @@ function renderPlusEmail({ locale, copy, signalMap, dashboardUrl, unsubscribeUrl
 
 function groupCard(title, symbols, signalMap, locale) {
   const rows = symbols.map((symbol) => {
-    const decision = decisionForSignal(signalMap[symbol], locale);
+    const signal = signalMap[symbol];
+    const decision = decisionForSignal(signal, locale, signal?.userDirection || {});
     const color = toneColor(decision.tone);
-    return `<tr><td style="padding:10px 0;border-bottom:1px solid #edf2f4;font-size:13px;">${escapeHtml(labelForSymbol(symbol, locale).name)}</td><td align="center" style="padding:10px 0;border-bottom:1px solid #edf2f4;"><span style="background:${color.bg};color:${color.color};border-radius:8px;padding:6px 8px;font-weight:900;font-size:12px;">${escapeHtml(decision.title)}</span></td><td align="right" style="padding:10px 0;border-bottom:1px solid #edf2f4;font-weight:900;">${percentFromSignal(signalMap[symbol])}%</td></tr>`;
+    return `<tr><td style="padding:10px 0;border-bottom:1px solid #edf2f4;font-size:13px;">${escapeHtml(labelForSymbol(symbol, locale).name)}</td><td align="center" style="padding:10px 0;border-bottom:1px solid #edf2f4;"><span style="background:${color.bg};color:${color.color};border-radius:8px;padding:6px 8px;font-weight:900;font-size:12px;">${escapeHtml(decision.title)}</span></td><td align="right" style="padding:10px 0;border-bottom:1px solid #edf2f4;font-weight:900;">${percentFromSignal(signal)}%</td></tr>`;
   }).join("");
 
   return `<td valign="top" width="33.33%" style="padding:8px;">

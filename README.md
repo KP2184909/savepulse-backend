@@ -52,6 +52,10 @@ BREVO_API_KEY=your-brevo-api-key
 PUBLIC_URL=https://savepulse-backend.onrender.com
 VIP_EMAILS=member1@example.com,member2@example.com
 DAILY_FREE_QUOTA=50
+DAILY_EMAIL_ENABLED=false
+DAILY_EMAIL_TIME=08:30
+DAILY_EMAIL_TIMEZONE=Asia/Bangkok
+DAILY_EMAIL_SIGNAL_MAX_AGE_HOURS=36
 STRIPE_SECRET_KEY=sk_test_or_live_xxx
 STRIPE_WEBHOOK_SECRET=whsec_xxx
 STRIPE_PRICE_PLUS=price_xxx
@@ -82,13 +86,69 @@ BREVO_API_KEY=your-brevo-api-key
 FROM_EMAIL="SavePulse <alerts@savepulse.cloud>"
 ```
 
-Keep `DAILY_DIGEST_ENABLED=false` until a real test email from Render succeeds. Then run a dry run first:
+Keep `DAILY_EMAIL_ENABLED=false` until a real test email from Render succeeds. Then run a dry run first:
 
 ```bash
 curl -X POST https://savepulse-backend.onrender.com/api/v1/daily-digest/send \
   -H "content-type: application/json" \
   -d '{"secret_key":"your-shared-tradingview-secret","dryRun":true}'
 ```
+
+### Daily email scheduler
+
+The production scheduler wakes every five minutes and sends once per Bangkok calendar day after the configured send window. The default is 08:30 Asia/Bangkok, after the daily TradingView alerts are expected to arrive.
+
+```bash
+DAILY_EMAIL_ENABLED=false
+DAILY_EMAIL_TIME=08:30
+DAILY_EMAIL_TIMEZONE=Asia/Bangkok
+DAILY_EMAIL_SIGNAL_MAX_AGE_HOURS=36
+```
+
+Before sending normal daily emails, the backend requires fresh latest signals for all 9 tracked assets:
+
+```text
+USDTHB, JPYTHB, EURTHB, XAUTHB, BTCTHB, USDJPY, EURUSD, XAUUSD, BTCUSD
+```
+
+If any signal is missing or stale, each eligible recipient is logged as skipped with `skipped_reason=incomplete_signals`. Daily email logs are stored in `state/email_logs.json` and mirrored to `public.email_logs` when Supabase is configured. Logs use safe summary fields only and do not store secrets or raw webhook payloads.
+
+Plan templates:
+
+- Free: Daily Pulse Lite
+- Plus: Daily Decision Card
+- Pro: Full Timing Radar
+- Business: Invoice Risk Brief
+
+Admin debug endpoints are protected by `x-savepulse-admin-key`:
+
+```bash
+curl "https://savepulse-backend.onrender.com/api/v1/admin/daily-email-jobs" \
+  -H "x-savepulse-admin-key: $ADMIN_READINESS_KEY"
+
+curl "https://savepulse-backend.onrender.com/api/v1/admin/daily-email-logs?limit=25" \
+  -H "x-savepulse-admin-key: $ADMIN_READINESS_KEY"
+```
+
+Manual dry run:
+
+```bash
+curl -X POST https://savepulse-backend.onrender.com/api/v1/daily-digest/send \
+  -H "content-type: application/json" \
+  -H "x-savepulse-admin-key: $ADMIN_READINESS_KEY" \
+  -d '{"dryRun":true}'
+```
+
+Manual send after reviewing the dry run:
+
+```bash
+curl -X POST https://savepulse-backend.onrender.com/api/v1/daily-digest/send \
+  -H "content-type: application/json" \
+  -H "x-savepulse-admin-key: $ADMIN_READINESS_KEY" \
+  -d '{"dryRun":false}'
+```
+
+Responses intentionally avoid secrets, raw Stripe payloads, Supabase keys, customer IDs, and subscription IDs.
 
 ## TradingView webhook
 

@@ -6,7 +6,8 @@ const DEFAULT_TABLES = {
   notifications: "notification_jobs",
   invoices: "invoices",
   scheduler: "scheduler_state",
-  stripeEvents: "stripe_events"
+  stripeEvents: "stripe_events",
+  emailLogs: "email_logs"
 };
 
 function normalizeBaseUrl(value) {
@@ -116,16 +117,18 @@ function createSupabasePersistence({ env = process.env, fetchImpl = globalThis.f
         subscribers: null,
         notificationQueue: null,
         invoices: null,
-        schedulerState: null
+        schedulerState: null,
+        emailLogs: null
       };
     }
 
-    const [signalsBySymbol, subscriberRows, notificationRows, invoiceRows, schedulerState] = await Promise.all([
+    const [signalsBySymbol, subscriberRows, notificationRows, invoiceRows, schedulerState, emailLogRows] = await Promise.all([
       loadSignals(),
       loadRows(tables.subscribers, "email,payload"),
       loadRows(tables.notifications, "id,payload"),
       loadRows(tables.invoices, "id,payload"),
-      loadSchedulerState()
+      loadSchedulerState(),
+      loadRows(tables.emailLogs, "id,payload")
     ]);
 
     return {
@@ -133,7 +136,8 @@ function createSupabasePersistence({ env = process.env, fetchImpl = globalThis.f
       subscribers: payloadRows(subscriberRows),
       notificationQueue: payloadRows(notificationRows),
       invoices: payloadRows(invoiceRows),
-      schedulerState
+      schedulerState,
+      emailLogs: payloadRows(emailLogRows)
     };
   }
 
@@ -231,6 +235,28 @@ function createSupabasePersistence({ env = process.env, fetchImpl = globalThis.f
     });
   }
 
+  async function saveEmailLogs(emailLogs = []) {
+    const rows = emailLogs
+      .map((log) => ({
+        id: stringOrNull(log?.id),
+        subscriber_id: stringOrNull(log?.subscriber_id || log?.subscriberId),
+        email: stringOrNull(log?.email),
+        plan: stringOrNull(log?.plan),
+        template_type: stringOrNull(log?.template_type || log?.templateType),
+        status: stringOrNull(log?.status || "pending"),
+        skipped_reason: stringOrNull(log?.skipped_reason || log?.skippedReason),
+        error_message: stringOrNull(log?.error_message || log?.errorMessage),
+        provider_message_id: stringOrNull(log?.provider_message_id || log?.providerMessageId),
+        signal_snapshot_date: stringOrNull(log?.signal_snapshot_date || log?.signalSnapshotDate),
+        created_at: isoOrNull(log?.created_at || log?.createdAt) || new Date().toISOString(),
+        sent_at: isoOrNull(log?.sent_at || log?.sentAt),
+        payload: log
+      }))
+      .filter((row) => row.id);
+
+    return upsert(tables.emailLogs, rows);
+  }
+
   async function recordStripeEvent(event = {}, result = {}) {
     const id = stringOrNull(event.id);
     if (!id) {
@@ -255,11 +281,22 @@ function createSupabasePersistence({ env = process.env, fetchImpl = globalThis.f
     return Array.isArray(rows) ? rows : [];
   }
 
+  async function listEmailLogs(limit = 25) {
+    const boundedLimit = Math.min(100, Math.max(1, Math.floor(Number(limit) || 25)));
+    const rows = await request(
+      `/rest/v1/${tables.emailLogs}?select=id,subscriber_id,email,plan,template_type,status,skipped_reason,error_message,provider_message_id,signal_snapshot_date,created_at,sent_at&order=created_at.desc&limit=${boundedLimit}`
+    );
+
+    return Array.isArray(rows) ? rows : [];
+  }
+
   return {
     enabled,
+    listEmailLogs,
     listStripeEvents,
     loadAll,
     recordStripeEvent,
+    saveEmailLogs,
     saveInvoices,
     saveNotifications,
     saveSchedulerState,

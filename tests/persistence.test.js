@@ -81,6 +81,9 @@ test("loadAll reconstructs backend state from Supabase rows", async () => {
       if (url.includes("/notification_jobs?")) {
         return jsonResponse([{ id: "job_1", payload: { id: "job_1", status: "pending" } }]);
       }
+      if (url.includes("/email_logs?")) {
+        return jsonResponse([{ id: "email_log_1", payload: { id: "email_log_1", status: "sent" } }]);
+      }
       if (url.includes("/invoices?")) {
         return jsonResponse([{ id: "invoice_1", payload: { id: "invoice_1", email: "member@example.com" } }]);
       }
@@ -96,6 +99,7 @@ test("loadAll reconstructs backend state from Supabase rows", async () => {
   assert.equal(state.signalsBySymbol.JPYTHB.action, "BUY_ZONE");
   assert.equal(state.subscribers[0].plan, "pro");
   assert.equal(state.notificationQueue[0].id, "job_1");
+  assert.equal(state.emailLogs[0].status, "sent");
   assert.equal(state.invoices[0].id, "invoice_1");
   assert.equal(state.schedulerState.dailyDigestDate, "2026-06-04");
 });
