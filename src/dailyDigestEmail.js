@@ -112,9 +112,9 @@ const PLAN_COPY = Object.freeze({
     th: {
       name: "Business",
       emailName: "Invoice Risk Brief",
-      subject: "SavePulse Business | สรุปความเสี่ยงใบแจ้งหนี้วันนี้",
+      subject: "SavePulse Business | สรุปผลกระทบค่าเงินต่อใบแจ้งหนี้วันนี้",
       headline: "ต้นทุนใบแจ้งหนี้วันนี้เปลี่ยนไปเท่าไหร่",
-      subhead: "แปลการขยับของค่าเงินเป็นผลกระทบต่อต้นทุนธุรกิจและใบแจ้งหนี้",
+      subhead: "ระบบสรุป invoice ต่างประเทศที่คุณกำลังติดตาม และประเมินผลกระทบโดยประมาณจากเรทอ้างอิงล่าสุด",
       cta: "เปิด Invoice Dashboard",
       date: "อัปเดตทุกเช้า 08:30 น.",
       pill: "BUSINESS"
@@ -597,25 +597,33 @@ function renderProEmail({ locale, copy, signalMap, dashboardUrl, unsubscribeUrl,
 function renderBusinessEmail({ locale, copy, dashboardUrl, unsubscribeUrl, planName }) {
   const thai = localeKey(locale) === "th";
   const metricCards = [
-    thai ? ["ยอดรวมใบแจ้งหนี้ที่ติดตาม", "USD 148,250.00", "อ้างอิงเรทล่าสุด 36.72"] : ["Tracked invoice total", "USD 148,250.00", "Latest reference 36.72"],
-    thai ? ["วันครบกำหนดใกล้สุด", "10 มิ.ย. 2569", "อีก 8 วัน"] : ["Nearest due date", "Jun 10, 2026", "8 days left"],
-    thai ? ["ความเสี่ยงจากค่าเงิน", "ผันผวนต่ำ", "7 วัน +0.52%"] : ["Currency exposure", "Low movement", "7 days +0.52%"],
-    thai ? ["สถานะความเสี่ยง", "ติดตามต่อ", "ยังไม่พบแรงกดดันสูงจากข้อมูลย้อนหลัง"] : ["Risk status", "Monitor", "No high pressure seen in historical context"]
+    thai ? ["ยอดรวม invoice ที่ติดตาม", "USD 148,250", "อ้างอิงเรทล่าสุด 36.72 บาท/ดอลลาร์"] : ["Tracked invoice total", "USD 148,250", "Latest reference 36.72 THB/USD"],
+    thai ? ["ใบที่ใกล้ครบกำหนดที่สุด", "10 มิ.ย. 2569", "อีก 8 วัน"] : ["Nearest due invoice", "Jun 10, 2026", "8 days left"],
+    thai ? ["ความผันผวนค่าเงิน", "ต่ำ", "ช่วง 7 วันล่าสุด +0.52%"] : ["Currency movement", "Low", "Last 7 days +0.52%"],
+    thai ? ["สถานะวันนี้", "ติดตามต่อ", "ยังไม่พบแรงกดดันสูงจากข้อมูลย้อนหลัง"] : ["Today's status", "Monitor", "No high pressure seen in historical context"]
   ].map(([title, main, sub]) => sectionBox(`
     <div style="font-size:12px;color:${BRAND.muted};font-weight:800;">${escapeHtml(title)}</div>
     <div style="font-size:22px;line-height:1.3;font-weight:900;color:${BRAND.teal};margin-top:7px;">${escapeHtml(main)}</div>
     <div style="font-size:12px;color:${BRAND.muted};line-height:1.45;margin-top:4px;">${escapeHtml(sub)}</div>
   `, { bg: "#eff7fb", border: "#d9e8ed", padding: "14px" })).join('<div style="height:10px;line-height:10px;">&nbsp;</div>');
   const invoiceCards = [
-    ["ABC Components Ltd.", "USD", "68,250.00", thai ? "31 พ.ค. 2569" : "May 31", "↓ -1,120.45 THB", thai ? "ต้นทุนลดลงประมาณ 1,120.45 THB" : "Cost lower by about 1,120.45 THB"],
-    ["Global Packaging Inc.", "EUR", "42,130.00", thai ? "6 มิ.ย. 2569" : "Jun 6", "↑ +1,874.32 THB", thai ? "ต้นทุนเพิ่มขึ้นประมาณ 1,874.32 THB" : "Cost higher by about 1,874.32 THB"],
-    ["Oceanic Materials Co.", "USD", "37,870.00", thai ? "15 มิ.ย. 2569" : "Jun 15", "↓ -612.18 THB", thai ? "ต้นทุนลดลงประมาณ 612.18 THB" : "Cost lower by about 612.18 THB"]
-  ].map(([supplier, currency, amount, due, impact, impactText]) => sectionBox(`
+    ["ABC Components Ltd.", "USD", "68,250", thai ? "31 พ.ค. 2569" : "May 31", "decrease", "1,120.45", thai ? "เทียบกับเรทอ้างอิงก่อนหน้า" : "Compared with the prior reference rate"],
+    ["Global Packaging Inc.", "EUR", "42,130", thai ? "6 มิ.ย. 2569" : "Jun 6", "increase", "1,874.32", thai ? "ควรติดตามใกล้ชิด เพราะครบกำหนดภายใน 2 สัปดาห์" : "Worth closer monitoring because it is due within two weeks"],
+    ["Oceanic Materials Co.", "USD", "37,870", thai ? "15 มิ.ย. 2569" : "Jun 15", "decrease", "612.18", thai ? "ผลกระทบยังอยู่ในระดับต่ำ แต่ควรติดตามต่อ" : "Impact is still low, but keep monitoring"]
+  ].map(([supplier, currency, amount, due, direction, impactAmount, note]) => {
+    const isIncrease = direction === "increase";
+    const impactTitle = thai
+      ? (isIncrease ? "ต้นทุนเพิ่มขึ้นโดยประมาณ" : "ต้นทุนลดลงโดยประมาณ")
+      : (isIncrease ? "Estimated cost increase" : "Estimated cost decrease");
+    const impactColor = isIncrease ? BRAND.rose : BRAND.green;
+    return sectionBox(`
     <div style="font-size:16px;line-height:1.35;font-weight:900;color:${BRAND.ink};">${escapeHtml(supplier)}</div>
-    <div style="font-size:13px;line-height:1.5;color:${BRAND.muted};margin-top:6px;">${escapeHtml(currency)} ${escapeHtml(amount)} · ${escapeHtml(due)}</div>
-    <div style="font-size:12px;line-height:1.4;color:${BRAND.muted};font-weight:800;margin-top:8px;">${escapeHtml(thai ? "ผลกระทบต่อต้นทุนโดยประมาณ" : "Estimated cost impact")}</div>
-    <div style="font-size:14px;line-height:1.4;font-weight:900;color:${impact.includes("+") ? BRAND.rose : BRAND.green};margin-top:8px;">${escapeHtml(impactText)} · ${escapeHtml(impact)}</div>
-  `, { bg: "#fff", border: BRAND.line, padding: "14px" })).join('<div style="height:10px;line-height:10px;">&nbsp;</div>');
+    <div style="font-size:13px;line-height:1.5;color:${BRAND.muted};margin-top:6px;">${escapeHtml(currency)} ${escapeHtml(amount)} · ${escapeHtml(thai ? `ครบกำหนด ${due}` : `Due ${due}`)}</div>
+    <div style="font-size:12px;line-height:1.4;color:${BRAND.muted};font-weight:800;margin-top:12px;">${escapeHtml(impactTitle)}</div>
+    <div style="font-size:24px;line-height:1.25;font-weight:900;color:${impactColor};margin-top:4px;">${escapeHtml(impactAmount)} ${thai ? "บาท" : "THB"}</div>
+    <div style="font-size:12px;line-height:1.45;color:${BRAND.muted};margin-top:7px;">${escapeHtml(note)}</div>
+  `, { bg: "#fff", border: BRAND.line, padding: "14px" });
+  }).join('<div style="height:10px;line-height:10px;">&nbsp;</div>');
   const body = `
     ${cardStart(600)}
       ${heroBlock(copy, copy.pill)}
@@ -629,8 +637,8 @@ function renderBusinessEmail({ locale, copy, dashboardUrl, unsubscribeUrl, planN
       <tr>
         <td style="padding:14px 22px 0;">${simpleInfoBox({
           icon: "!",
-          title: thai ? "แจ้งเตือนสำหรับทีมบัญชี/การเงิน" : "Finance team note",
-          body: thai ? "ระบบพบว่าใบแจ้งหนี้ที่ครบกำหนดภายใน 2 สัปดาห์ควรติดตามใกล้ชิด โดยอ้างอิงจากความผันผวนของเรทในช่วง 7 วันที่ผ่านมา" : "The system found invoices due within two weeks that deserve closer monitoring based on rate movement over the last 7 days.",
+          title: thai ? "หมายเหตุสำหรับทีมบัญชี/การเงิน" : "Finance team note",
+          body: thai ? "ค่าเงินช่วงนี้ผันผวนต่ำ แต่ยังควรติดตาม invoice ที่ครบกำหนดใน 2 สัปดาห์ข้างหน้า เพราะยอดที่ต้องจ่ายอาจทำให้ต้นทุนเงินบาทเปลี่ยนได้" : "Currency movement is low right now, but invoices due within the next two weeks still deserve monitoring because payable amounts can change THB cost.",
           tone: "amber"
         })}</td>
       </tr>

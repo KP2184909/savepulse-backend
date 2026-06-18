@@ -59,9 +59,12 @@ test("plan previews reveal the right paid feature ladder", () => {
   assert.match(free, /เฉพาะ Pro/);
   assert.match(plus, /อัปเกรดเป็น Pro/);
   assert.match(pro, /ทองคำ และบิตคอยน์/);
-  assert.match(business, /USD 148,250\.00/);
+  assert.match(business, /สรุปผลกระทบค่าเงินต่อใบแจ้งหนี้วันนี้/);
+  assert.match(business, /USD 148,250/);
   assert.match(business, /ใบแจ้งหนี้ที่น่าติดตาม/);
-  assert.match(business, /ต้นทุนธุรกิจ/);
+  assert.match(business, /ต้นทุนเพิ่มขึ้นโดยประมาณ/);
+  assert.match(business, /ต้นทุนลดลงโดยประมาณ/);
+  assert.match(business, /เทียบกับเรทอ้างอิงก่อนหน้า/);
 });
 
 test("email preview index and Netlify route are available", () => {
