@@ -126,6 +126,7 @@ test("plus daily digest uses user-facing direction for JPYTHB row", () => {
 
   assert.match(template.text, /บาทไทย → เยนญี่ปุ่น/);
   assert.match(template.text, /รอก่อน/);
-  assert.match(template.text, /JPY เริ่มแพงขึ้นเมื่อเทียบกับ THB/);
+  assert.match(template.text, /เรทอ้างอิง JPY\/THB อยู่ในโซนที่ควรทบทวนแผนก่อนตัดสินใจ/);
+  assert.match(template.text, /ระดับข้อสังเกต: ต่ำ/);
   assert.doesNotMatch(template.text, /BUY_ZONE|SELL_ZONE|STRONG_BUY|WAIT_ZONE/);
 });

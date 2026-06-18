@@ -46,11 +46,11 @@ const PLAN_COPY = Object.freeze({
     th: {
       name: "Free",
       emailName: "Daily Pulse Lite",
-      subject: "SavePulse Daily Pulse Lite | วันนี้เรทไหนเริ่มน่าจับตา ก่อนคุณแลกช้าไป",
-      headline: "วันนี้เรทไหนเริ่มน่าจับตา ก่อนคุณแลกช้าไป",
+      subject: "SavePulse Daily Pulse Lite | ข้อสังเกตวันนี้ก่อนคุณแลกเงินก้อนใหญ่",
+      headline: "ข้อสังเกตวันนี้ก่อนคุณแลกเงินก้อนใหญ่",
       subhead: "สรุปแบบ Lite ให้เห็นความเคลื่อนไหวสำคัญ โดยยังล็อกรายละเอียดลึกไว้สำหรับแผนที่สูงกว่า",
       cta: "ดูการ์ดวันนี้",
-      date: "อัปเดตทุกเช้า 08:00 น.",
+      date: "อัปเดตทุกเช้า 08:30 น.",
       pill: "FREE"
     },
     en: {
@@ -60,7 +60,7 @@ const PLAN_COPY = Object.freeze({
       headline: "Which rate is worth watching before you exchange late",
       subhead: "A Lite daily snapshot that shows one important movement while deeper context stays unlocked for paid plans.",
       cta: "Open today's card",
-      date: "Updated every morning at 08:00",
+      date: "Updated every morning at 08:30",
       pill: "FREE"
     }
   },
@@ -72,7 +72,7 @@ const PLAN_COPY = Object.freeze({
       headline: "รายการที่คุณเฝ้าอยู่ มีจังหวะเปลี่ยนวันนี้",
       subhead: "การ์ดสรุปจากเรทจริง วิเคราะห์เพื่อการตัดสินใจที่มั่นใจขึ้น",
       cta: "เปิดการ์ดวันนี้",
-      date: "อัปเดตทุกเช้า",
+      date: "อัปเดตทุกเช้า 08:30 น.",
       pill: "PLUS"
     },
     en: {
@@ -82,7 +82,7 @@ const PLAN_COPY = Object.freeze({
       headline: "Your watchlist has timing changes today",
       subhead: "A simple decision card based on current rate context, built for calmer planning.",
       cta: "Open today's card",
-      date: "Updated every morning",
+      date: "Updated every morning at 08:30",
       pill: "PLUS"
     }
   },
@@ -94,7 +94,7 @@ const PLAN_COPY = Object.freeze({
       headline: "ทองคำ และบิตคอยน์ / ค่าเงิน วันนี้ตัวไหนเสี่ยงพลาดจังหวะ",
       subhead: "สรุปจังหวะสำคัญจากข้อมูลสถิติย้อนหลัง เพื่อช่วยให้คุณทบทวนก่อนตัดสินใจ",
       cta: "เปิด Full Radar",
-      date: "อัปเดตล่าสุด 07:30 น.",
+      date: "อัปเดตทุกเช้า 08:30 น.",
       pill: "PRO"
     },
     en: {
@@ -104,7 +104,7 @@ const PLAN_COPY = Object.freeze({
       headline: "Gold, bitcoin, and currencies: which areas deserve attention today",
       subhead: "A wider timing radar based on historical context, built for confident review.",
       cta: "Open Full Radar",
-      date: "Last updated 07:30",
+      date: "Updated every morning at 08:30",
       pill: "PRO"
     }
   },
@@ -112,11 +112,11 @@ const PLAN_COPY = Object.freeze({
     th: {
       name: "Business",
       emailName: "Invoice Risk Brief",
-      subject: "SavePulse Business | Invoice Risk Brief: ต้นทุนใบแจ้งหนี้วันนี้เปลี่ยนไปเท่าไหร่",
+      subject: "SavePulse Business | สรุปความเสี่ยงใบแจ้งหนี้วันนี้",
       headline: "ต้นทุนใบแจ้งหนี้วันนี้เปลี่ยนไปเท่าไหร่",
       subhead: "แปลการขยับของค่าเงินเป็นผลกระทบต่อต้นทุนธุรกิจและใบแจ้งหนี้",
       cta: "เปิด Invoice Dashboard",
-      date: "อัปเดต 08:30 น.",
+      date: "อัปเดตทุกเช้า 08:30 น.",
       pill: "BUSINESS"
     },
     en: {
@@ -126,7 +126,7 @@ const PLAN_COPY = Object.freeze({
       headline: "How today's rates changed your invoice cost",
       subhead: "Currency movement translated into business cost context for your finance team.",
       cta: "Open Invoice Dashboard",
-      date: "Updated 08:30",
+      date: "Updated every morning at 08:30",
       pill: "BUSINESS"
     }
   }
@@ -334,7 +334,68 @@ function cardStart(maxWidth = 760, extra = "") {
 }
 
 function percentFromSignal(signal) {
-  return Number(signal?.percentile?.percent ?? signal?.percentile ?? 54);
+  return Number(signal?.percentile?.percent ?? signal?.percentile ?? 50);
+}
+
+function observationLevelFromPercent(percent, locale = "th") {
+  const thai = localeKey(locale) === "th";
+  if (!Number.isFinite(percent)) {
+    return thai ? "ระดับข้อสังเกต: ปานกลาง" : "Observation level: medium";
+  }
+  if (percent >= 72) {
+    return thai ? "ระดับข้อสังเกต: สูง" : "Observation level: high";
+  }
+  if (percent <= 28) {
+    return thai ? "ระดับข้อสังเกต: ต่ำ" : "Observation level: low";
+  }
+  return thai ? "ระดับข้อสังเกต: ปานกลาง" : "Observation level: medium";
+}
+
+function observationWidthFromPercent(percent) {
+  if (!Number.isFinite(percent)) return 50;
+  if (percent >= 72) return 76;
+  if (percent <= 28) return 34;
+  return 56;
+}
+
+function safeEmailTitle(title, locale = "th") {
+  if (localeKey(locale) !== "th") {
+    return title === "Exchange now" ? "Favorable area" : title;
+  }
+  if (title === "แลกได้เลย") {
+    return "เรทค่อนข้างดี";
+  }
+  return title;
+}
+
+function naturalAssetShort(symbol, decision, locale = "th") {
+  const thai = localeKey(locale) === "th";
+  const code = symbolCode(symbol);
+
+  if (!thai) {
+    return decision.short;
+  }
+
+  if (symbol === "XAUUSD") {
+    return "ราคาทองคำเมื่อเทียบกับดอลลาร์ ยังไม่อยู่ในโซนที่เด่นชัดเมื่อเทียบกับข้อมูลย้อนหลัง";
+  }
+
+  if (symbol === "XAUTHB") {
+    return "ราคาทองคำเมื่อเทียบกับเงินบาท ยังไม่อยู่ในโซนที่เด่นชัดเมื่อเทียบกับข้อมูลย้อนหลัง";
+  }
+
+  if (symbol === "BTCUSD") {
+    return "ราคาบิตคอยน์เมื่อเทียบกับดอลลาร์ ยังไม่อยู่ในโซนที่เด่นชัดเมื่อเทียบกับข้อมูลย้อนหลัง";
+  }
+
+  if (symbol === "BTCTHB") {
+    return "ราคาบิตคอยน์เมื่อเทียบกับเงินบาท ยังไม่อยู่ในโซนที่เด่นชัดเมื่อเทียบกับข้อมูลย้อนหลัง";
+  }
+
+  return String(decision.short || "เรทยังไม่อยู่ในโซนที่เด่นชัดเมื่อเทียบกับข้อมูลย้อนหลัง")
+    .replace(/เรท ([A-Z]{3}) เทียบกับ ([A-Z]{3}) ยังไม่ได้ดีหรือแย่ชัดเจน/g, "เรทยังไม่อยู่ในโซนที่เด่นชัดเมื่อเทียบกับข้อมูลย้อนหลัง")
+    .replace(/ถ้าคุณถือ ([A-Z]{3}) อยู่ จังหวะนี้เริ่มค่อนข้างดีเมื่อเทียบกับ ([A-Z]{3})/g, `เรทอ้างอิง ${code} อยู่ในโซนที่ค่อนข้างดีเมื่อเทียบกับข้อมูลย้อนหลัง`)
+    .replace(/([A-Z]{3}) เริ่มแพงขึ้นเมื่อเทียบกับ ([A-Z]{3}) ถ้าคุณยังไม่รีบ อาจรอดูจังหวะที่ดีกว่านี้/g, `เรทอ้างอิง ${code} อยู่ในโซนที่ควรทบทวนแผนก่อนตัดสินใจ`);
 }
 
 function miniChart(tone = "teal") {
@@ -373,6 +434,10 @@ function assetCard(symbol, signal, locale, { compact = false } = {}) {
   const decision = decisionForSignal(signal, locale, signal?.userDirection || {});
   const color = toneColor(decision.tone);
   const percent = percentFromSignal(signal);
+  const observationLabel = observationLevelFromPercent(percent, locale);
+  const observationWidth = observationWidthFromPercent(percent);
+  const safeTitle = safeEmailTitle(decision.title, locale);
+  const safeShort = naturalAssetShort(symbol, decision, locale);
   return sectionBox(`
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       <tr>
@@ -381,19 +446,19 @@ function assetCard(symbol, signal, locale, { compact = false } = {}) {
         </td>
         <td valign="top">
           <div style="font-size:${compact ? "16px" : "18px"};line-height:1.35;font-weight:900;color:${BRAND.ink};">${escapeHtml(label.name)}</div>
-          <div style="font-size:12px;line-height:1.4;color:${BRAND.muted};margin-top:2px;">${escapeHtml(symbolCode(symbol))}</div>
+          <div style="font-size:12px;line-height:1.4;color:${BRAND.muted};margin-top:2px;">${escapeHtml(localeKey(locale) === "th" ? `อ้างอิง ${symbolCode(symbol)}` : `Reference ${symbolCode(symbol)}`)}</div>
         </td>
       </tr>
       <tr>
         <td colspan="2" style="padding-top:14px;">
-          <span style="display:inline-block;background:${color.bg};color:${color.color};border-radius:999px;padding:7px 10px;font-size:13px;line-height:1.2;font-weight:900;">${escapeHtml(decision.title)}</span>
-          <p style="font-size:14px;line-height:1.55;color:${BRAND.muted};margin:10px 0 0;">${escapeHtml(decision.short)}</p>
+          <span style="display:inline-block;background:${color.bg};color:${color.color};border-radius:999px;padding:7px 10px;font-size:13px;line-height:1.2;font-weight:900;">${escapeHtml(safeTitle)}</span>
+          <p style="font-size:14px;line-height:1.55;color:${BRAND.muted};margin:10px 0 0;">${escapeHtml(safeShort)}</p>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:13px;">
             <tr>
-              <td style="background:#edf4f5;border-radius:999px;height:10px;overflow:hidden;"><div style="width:${Math.max(8, Math.min(92, percent))}%;height:10px;background:${color.color};border-radius:999px;"></div></td>
-              <td align="right" style="width:48px;font-size:12px;color:${BRAND.muted};font-weight:900;">${percent}%</td>
+              <td style="background:#edf4f5;border-radius:999px;height:10px;overflow:hidden;"><div style="width:${observationWidth}%;height:10px;background:${color.color};border-radius:999px;"></div></td>
             </tr>
           </table>
+          <div style="font-size:12px;line-height:1.4;color:${BRAND.muted};font-weight:900;margin-top:7px;">${escapeHtml(observationLabel)}</div>
         </td>
       </tr>
     </table>`);
@@ -427,7 +492,7 @@ function renderFreeEmail({ locale, copy, signalMap, dashboardUrl, unsubscribeUrl
           icon: "↕",
           title: thai ? "ตัวอย่างจากข้อมูลย้อนหลัง" : "Historical example",
           body: thai
-            ? "เมื่อ 17 พ.ค. 67 ข้อสังเกตเคยขึ้นว่า น่าจับตา หากแลกหลังจากนั้น 2 วัน เรทดีขึ้นเฉลี่ย 0.38 บาท ข้อมูลนี้ใช้เพื่อประกอบภาพ ไม่ยืนยันผลในอนาคต"
+            ? "เมื่อ 17 พ.ค. 67 ข้อสังเกตเคยขึ้นว่า น่าจับตา หากรอดูต่ออีก 2 วัน เรทอ้างอิงดีขึ้นเฉลี่ย 0.38 บาท ข้อมูลนี้ใช้เพื่อประกอบภาพ ไม่ยืนยันผลในอนาคต"
             : "On a prior watch window, waiting two days improved the reference rate by about 0.38 baht. Historical data is illustrative, not a future confirmation.",
           tone: "amber"
         })}</td>
@@ -506,7 +571,7 @@ function renderProEmail({ locale, copy, signalMap, dashboardUrl, unsubscribeUrl,
             <h1 style="font-size:29px;line-height:1.22;letter-spacing:-.02em;margin:16px 0 8px;">${escapeHtml(copy.headline)}</h1>
             <p style="font-size:16px;line-height:1.55;color:#d4f7f4;margin:0;">${escapeHtml(copy.subhead)}</p>
           </div>
-          <div style="font-size:13px;color:${BRAND.muted};font-weight:800;margin-top:14px;">☷ ${escapeHtml(copy.date)} · ${thai ? "ค่าความเชื่อมั่นอ้างอิงจากข้อมูลย้อนหลัง" : "Confidence references historical context"}</div>
+          <div style="font-size:13px;color:${BRAND.muted};font-weight:800;margin-top:14px;">☷ ${escapeHtml(copy.date)} · ${thai ? "ระดับข้อสังเกตอ้างอิงจากข้อมูลย้อนหลัง" : "Observation level references historical context"}</div>
         </td>
       </tr>
       ${groupCard(thai ? "ค่าเงิน" : "Currencies", ["USDTHB", "EURTHB", "JPYTHB"], signalMap, locale)}
@@ -517,7 +582,7 @@ function renderProEmail({ locale, copy, signalMap, dashboardUrl, unsubscribeUrl,
           icon: "↺",
           title: thai ? "ย้อนหลังสั้น ๆ (Replay)" : "Short replay",
           body: thai
-            ? "USD/THB, XAU/USD และ BTC/USD มีจังหวะเปลี่ยนในข้อมูลย้อนหลังรอบล่าสุด ใช้เพื่อทบทวน ไม่ใช่การยืนยันอนาคต"
+            ? "เรทอ้างอิง USD/THB, XAU/USD และ BTC/USD มีการเปลี่ยนแปลงในข้อมูลย้อนหลังรอบล่าสุด ใช้เพื่อทบทวน ไม่ใช่การยืนยันอนาคต"
             : "USD/THB, XAU/USD, and BTC/USD moved in the latest historical replay. Use this for review, not as future confirmation.",
           tone: "amber"
         })}</td>
@@ -548,6 +613,7 @@ function renderBusinessEmail({ locale, copy, dashboardUrl, unsubscribeUrl, planN
   ].map(([supplier, currency, amount, due, impact]) => sectionBox(`
     <div style="font-size:16px;line-height:1.35;font-weight:900;color:${BRAND.ink};">${escapeHtml(supplier)}</div>
     <div style="font-size:13px;line-height:1.5;color:${BRAND.muted};margin-top:6px;">${escapeHtml(currency)} ${escapeHtml(amount)} · ${escapeHtml(due)}</div>
+    <div style="font-size:12px;line-height:1.4;color:${BRAND.muted};font-weight:800;margin-top:8px;">${escapeHtml(thai ? "ผลกระทบต่อต้นทุนโดยประมาณ" : "Estimated cost impact")}</div>
     <div style="font-size:14px;line-height:1.4;font-weight:900;color:${impact.includes("+") ? BRAND.rose : BRAND.green};margin-top:8px;">${escapeHtml(impact)}</div>
   `, { bg: "#fff", border: BRAND.line, padding: "14px" })).join('<div style="height:10px;line-height:10px;">&nbsp;</div>');
   const body = `
