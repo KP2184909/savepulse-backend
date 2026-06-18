@@ -69,8 +69,8 @@ const PLAN_COPY = Object.freeze({
       name: "Plus",
       emailName: "Daily Decision Card",
       subject: "SavePulse | Daily Decision Card สำหรับคุณ",
-      headline: "รายการที่คุณเฝ้าอยู่ มีจังหวะเปลี่ยนวันนี้",
-      subhead: "การ์ดสรุปจากเรทจริง วิเคราะห์เพื่อการตัดสินใจที่มั่นใจขึ้น",
+      headline: "รายการที่คุณเฝ้าอยู่ มีข้อสังเกตใหม่วันนี้",
+      subhead: "การ์ดสรุปจากเรทอ้างอิง เพื่อช่วยประกอบการตัดสินใจอย่างมีข้อมูลมากขึ้น",
       cta: "เปิดการ์ดวันนี้",
       date: "อัปเดตทุกเช้า 08:30 น.",
       pill: "PLUS"
@@ -89,9 +89,9 @@ const PLAN_COPY = Object.freeze({
   pro: {
     th: {
       name: "Pro",
-      emailName: "Full Timing Radar",
+      emailName: "Full Daily Radar",
       subject: "SavePulse Pro | เรดาร์ค่าเงิน ทองคำ และบิตคอยน์วันนี้",
-      headline: "ทองคำ และบิตคอยน์ / ค่าเงิน วันนี้ตัวไหนเสี่ยงพลาดจังหวะ",
+      headline: "ทองคำ บิตคอยน์ และค่าเงิน วันนี้ตัวไหนน่าจับตาเป็นพิเศษ",
       subhead: "สรุปจังหวะสำคัญจากข้อมูลสถิติย้อนหลัง เพื่อช่วยให้คุณทบทวนก่อนตัดสินใจ",
       cta: "เปิด Full Radar",
       date: "อัปเดตทุกเช้า 08:30 น.",
@@ -99,7 +99,7 @@ const PLAN_COPY = Object.freeze({
     },
     en: {
       name: "Pro",
-      emailName: "Full Timing Radar",
+      emailName: "Full Daily Radar",
       subject: "SavePulse Pro | Today's currency, gold, and bitcoin radar",
       headline: "Gold, bitcoin, and currencies: which areas deserve attention today",
       subhead: "A wider timing radar based on historical context, built for confident review.",
@@ -492,7 +492,7 @@ function renderFreeEmail({ locale, copy, signalMap, dashboardUrl, unsubscribeUrl
           icon: "↕",
           title: thai ? "ตัวอย่างจากข้อมูลย้อนหลัง" : "Historical example",
           body: thai
-            ? "เมื่อ 17 พ.ค. 67 ข้อสังเกตเคยขึ้นว่า น่าจับตา หากรอดูต่ออีก 2 วัน เรทอ้างอิงดีขึ้นเฉลี่ย 0.38 บาท ข้อมูลนี้ใช้เพื่อประกอบภาพ ไม่ยืนยันผลในอนาคต"
+            ? "จากข้อมูลย้อนหลัง เมื่อเกิดจุดสังเกตลักษณะคล้ายกัน เรทอ้างอิงเคยดีขึ้นเฉลี่ย 0.38 บาทภายใน 2 วัน ข้อมูลนี้ใช้เพื่อประกอบภาพรวม ไม่ยืนยันผลในอนาคต"
             : "On a prior watch window, waiting two days improved the reference rate by about 0.38 baht. Historical data is illustrative, not a future confirmation.",
           tone: "amber"
         })}</td>
@@ -567,7 +567,7 @@ function renderProEmail({ locale, copy, signalMap, dashboardUrl, unsubscribeUrl,
       <tr>
         <td style="padding:0 22px;">
           <div style="background:#082b31;border-radius:16px;padding:24px;color:#fff;">
-            <div style="display:inline-block;background:rgba(20,184,166,.18);border-radius:999px;padding:8px 12px;font-size:13px;font-weight:900;color:#8ff4e8;">◎ Full Timing Radar</div>
+            <div style="display:inline-block;background:rgba(20,184,166,.18);border-radius:999px;padding:8px 12px;font-size:13px;font-weight:900;color:#8ff4e8;">◎ Full Daily Radar</div>
             <h1 style="font-size:29px;line-height:1.22;letter-spacing:-.02em;margin:16px 0 8px;">${escapeHtml(copy.headline)}</h1>
             <p style="font-size:16px;line-height:1.55;color:#d4f7f4;margin:0;">${escapeHtml(copy.subhead)}</p>
           </div>
@@ -580,7 +580,7 @@ function renderProEmail({ locale, copy, signalMap, dashboardUrl, unsubscribeUrl,
       <tr>
         <td style="padding:8px 22px 0;">${simpleInfoBox({
           icon: "↺",
-          title: thai ? "ย้อนหลังสั้น ๆ (Replay)" : "Short replay",
+          title: thai ? "ย้อนหลังสั้น ๆ" : "Quick replay",
           body: thai
             ? "เรทอ้างอิง USD/THB, XAU/USD และ BTC/USD มีการเปลี่ยนแปลงในข้อมูลย้อนหลังรอบล่าสุด ใช้เพื่อทบทวน ไม่ใช่การยืนยันอนาคต"
             : "USD/THB, XAU/USD, and BTC/USD moved in the latest historical replay. Use this for review, not as future confirmation.",
@@ -600,21 +600,21 @@ function renderBusinessEmail({ locale, copy, dashboardUrl, unsubscribeUrl, planN
     thai ? ["ยอดรวมใบแจ้งหนี้ที่ติดตาม", "USD 148,250.00", "อ้างอิงเรทล่าสุด 36.72"] : ["Tracked invoice total", "USD 148,250.00", "Latest reference 36.72"],
     thai ? ["วันครบกำหนดใกล้สุด", "10 มิ.ย. 2569", "อีก 8 วัน"] : ["Nearest due date", "Jun 10, 2026", "8 days left"],
     thai ? ["ความเสี่ยงจากค่าเงิน", "ผันผวนต่ำ", "7 วัน +0.52%"] : ["Currency exposure", "Low movement", "7 days +0.52%"],
-    thai ? ["สถานะความเสี่ยง", "รอก่อน", "ยังไม่ต้องรีบ"] : ["Risk status", "Wait", "No rush yet"]
+    thai ? ["สถานะความเสี่ยง", "ติดตามต่อ", "ยังไม่พบแรงกดดันสูงจากข้อมูลย้อนหลัง"] : ["Risk status", "Monitor", "No high pressure seen in historical context"]
   ].map(([title, main, sub]) => sectionBox(`
     <div style="font-size:12px;color:${BRAND.muted};font-weight:800;">${escapeHtml(title)}</div>
     <div style="font-size:22px;line-height:1.3;font-weight:900;color:${BRAND.teal};margin-top:7px;">${escapeHtml(main)}</div>
     <div style="font-size:12px;color:${BRAND.muted};line-height:1.45;margin-top:4px;">${escapeHtml(sub)}</div>
   `, { bg: "#eff7fb", border: "#d9e8ed", padding: "14px" })).join('<div style="height:10px;line-height:10px;">&nbsp;</div>');
   const invoiceCards = [
-    ["ABC Components Ltd.", "USD", "68,250.00", thai ? "31 พ.ค. 2569" : "May 31", "↓ -1,120.45 THB"],
-    ["Global Packaging Inc.", "EUR", "42,130.00", thai ? "6 มิ.ย. 2569" : "Jun 6", "↑ +1,874.32 THB"],
-    ["Oceanic Materials Co.", "USD", "37,870.00", thai ? "15 มิ.ย. 2569" : "Jun 15", "↓ -612.18 THB"]
-  ].map(([supplier, currency, amount, due, impact]) => sectionBox(`
+    ["ABC Components Ltd.", "USD", "68,250.00", thai ? "31 พ.ค. 2569" : "May 31", "↓ -1,120.45 THB", thai ? "ต้นทุนลดลงประมาณ 1,120.45 THB" : "Cost lower by about 1,120.45 THB"],
+    ["Global Packaging Inc.", "EUR", "42,130.00", thai ? "6 มิ.ย. 2569" : "Jun 6", "↑ +1,874.32 THB", thai ? "ต้นทุนเพิ่มขึ้นประมาณ 1,874.32 THB" : "Cost higher by about 1,874.32 THB"],
+    ["Oceanic Materials Co.", "USD", "37,870.00", thai ? "15 มิ.ย. 2569" : "Jun 15", "↓ -612.18 THB", thai ? "ต้นทุนลดลงประมาณ 612.18 THB" : "Cost lower by about 612.18 THB"]
+  ].map(([supplier, currency, amount, due, impact, impactText]) => sectionBox(`
     <div style="font-size:16px;line-height:1.35;font-weight:900;color:${BRAND.ink};">${escapeHtml(supplier)}</div>
     <div style="font-size:13px;line-height:1.5;color:${BRAND.muted};margin-top:6px;">${escapeHtml(currency)} ${escapeHtml(amount)} · ${escapeHtml(due)}</div>
     <div style="font-size:12px;line-height:1.4;color:${BRAND.muted};font-weight:800;margin-top:8px;">${escapeHtml(thai ? "ผลกระทบต่อต้นทุนโดยประมาณ" : "Estimated cost impact")}</div>
-    <div style="font-size:14px;line-height:1.4;font-weight:900;color:${impact.includes("+") ? BRAND.rose : BRAND.green};margin-top:8px;">${escapeHtml(impact)}</div>
+    <div style="font-size:14px;line-height:1.4;font-weight:900;color:${impact.includes("+") ? BRAND.rose : BRAND.green};margin-top:8px;">${escapeHtml(impactText)} · ${escapeHtml(impact)}</div>
   `, { bg: "#fff", border: BRAND.line, padding: "14px" })).join('<div style="height:10px;line-height:10px;">&nbsp;</div>');
   const body = `
     ${cardStart(600)}
@@ -630,7 +630,7 @@ function renderBusinessEmail({ locale, copy, dashboardUrl, unsubscribeUrl, planN
         <td style="padding:14px 22px 0;">${simpleInfoBox({
           icon: "!",
           title: thai ? "แจ้งเตือนสำหรับทีมบัญชี/การเงิน" : "Finance team note",
-          body: thai ? "อัตราแลกเปลี่ยนมีความผันผวนเล็กน้อยในช่วง 7 วันที่ผ่านมา แนะนำติดตามใบแจ้งหนี้ที่ครบกำหนดภายใน 2 สัปดาห์" : "Currency movement has been mild over the last 7 days. Keep an eye on invoices due within the next two weeks.",
+          body: thai ? "ระบบพบว่าใบแจ้งหนี้ที่ครบกำหนดภายใน 2 สัปดาห์ควรติดตามใกล้ชิด โดยอ้างอิงจากความผันผวนของเรทในช่วง 7 วันที่ผ่านมา" : "The system found invoices due within two weeks that deserve closer monitoring based on rate movement over the last 7 days.",
           tone: "amber"
         })}</td>
       </tr>
