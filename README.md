@@ -35,7 +35,7 @@ http://localhost:3000
 
 ## Render environment
 
-Set these in Render before production use:
+Set these in Render before production use. Keep real secrets in Render environment variables only:
 
 ```bash
 NODE_ENV=production
@@ -43,12 +43,12 @@ HOST=0.0.0.0
 WEBHOOK_SECRET=your-shared-tradingview-secret
 ADMIN_READINESS_KEY=your-separate-admin-readiness-key
 SMTP_HOST=smtp.gmail.com
-SMTP_PORT=465
-SMTP_USER=your-sender-email@gmail.com
-SMTP_PASS=your-google-app-password
-FROM_EMAIL="SavePulse <your-sender-email@gmail.com>"
-EMAIL_PROVIDER=brevo
-BREVO_API_KEY=your-brevo-api-key
+SMTP_PORT=587
+SMTP_USER=optional-smtp-user
+SMTP_PASS=optional-smtp-password
+FROM_EMAIL="SavePulse <alerts@savepulse.cloud>"
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=your-resend-api-key
 PUBLIC_URL=https://savepulse-backend.onrender.com
 VIP_EMAILS=member1@example.com,member2@example.com
 DAILY_FREE_QUOTA=50
@@ -81,17 +81,31 @@ For beta, prefer an email API provider over Gmail SMTP on Render. Gmail SMTP can
 Recommended beta setup:
 
 ```bash
-EMAIL_PROVIDER=brevo
-BREVO_API_KEY=your-brevo-api-key
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=your-resend-api-key
 FROM_EMAIL="SavePulse <alerts@savepulse.cloud>"
 ```
 
-Keep `DAILY_EMAIL_ENABLED=false` until a real test email from Render succeeds. Then run a dry run first:
+Production sanity status as of 2026-06-18:
+
+- `DAILY_EMAIL_ENABLED=false` remains the required production setting until final approval for scheduled sends.
+- Resend is configured for production delivery with `EMAIL_PROVIDER=resend`.
+- `FROM_EMAIL` is `SavePulse <alerts@savepulse.cloud>`.
+- `RESEND_API_KEY` is stored only in Render environment variables and must not be committed or printed.
+- Daily digest dry run for `piyathanin@gmail.com` passed with one recipient and complete signal readiness.
+- One controlled real email to `piyathanin@gmail.com` was sent successfully through Resend.
+- Email logs show `status=sent` with a provider message id.
+- Gmail received the test email in Inbox/Promotions, not Spam or Trash.
+- Keep historical failed logs as debugging evidence; do not delete them.
+- Do not send another real daily digest email unless explicitly approved for that specific send.
+
+Keep `DAILY_EMAIL_ENABLED=false` until a real test email from Render succeeds and the beta operator approves scheduled sending. Run a dry run first:
 
 ```bash
 curl -X POST https://savepulse-backend.onrender.com/api/v1/daily-digest/send \
   -H "content-type: application/json" \
-  -d '{"secret_key":"your-shared-tradingview-secret","dryRun":true}'
+  -H "x-savepulse-admin-key: $ADMIN_READINESS_KEY" \
+  -d '{"dryRun":true,"email":"you@example.com"}'
 ```
 
 ### Daily email scheduler
