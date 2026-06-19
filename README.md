@@ -92,6 +92,7 @@ Production sanity status as of 2026-06-18:
 - Resend is configured for production delivery with `EMAIL_PROVIDER=resend`.
 - `FROM_EMAIL` is `SavePulse <alerts@savepulse.cloud>`.
 - `RESEND_API_KEY` is stored only in Render environment variables and must not be committed or printed.
+- New signups send a non-blocking welcome email when an email provider is configured; signup still succeeds if delivery is skipped or fails.
 - Daily digest dry run for `piyathanin@gmail.com` passed with one recipient and complete signal readiness.
 - One controlled real email to `piyathanin@gmail.com` was sent successfully through Resend.
 - Email logs show `status=sent` with a provider message id.

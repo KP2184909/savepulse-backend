@@ -14,7 +14,7 @@ const {
   createSignal,
   userFacingActionForDirection
 } = require("./src/signalEngine");
-const { recipientsFromEnv, sendSignalEmail } = require("./src/emailDispatcher");
+const { recipientsFromEnv, sendSignalEmail, sendWelcomeEmail } = require("./src/emailDispatcher");
 const { buildDailyDigestEmail, buildEmailPreviewIndex } = require("./src/dailyDigestEmail");
 const { createSupabasePersistence } = require("./src/persistence");
 const {
@@ -1165,6 +1165,11 @@ async function handleSubscribe(req, res) {
   const { record, watchlistResult } = buildSubscriberRecord(email, body, existing, plan);
 
   saveSubscriberRecord(record);
+  if (!existing) {
+    runBackgroundTask(`Welcome email for ${email}`, async () => {
+      await sendWelcomeEmail({ subscriber: record });
+    });
+  }
 
   sendJson(res, 201, {
     subscribed: true,

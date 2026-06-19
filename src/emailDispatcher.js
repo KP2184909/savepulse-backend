@@ -71,6 +71,10 @@ function defaultFrom(env = process.env) {
   return env.FROM_EMAIL || env.SMTP_USER || env.BREVO_FROM_EMAIL || env.RESEND_FROM_EMAIL || "SavePulse <alerts@savepulse.cloud>";
 }
 
+function appUrl(env = process.env) {
+  return env.PUBLIC_URL || env.APP_BASE_URL || env.DASHBOARD_URL || DEFAULT_DASHBOARD_URL;
+}
+
 async function sendBrevoMail({ from, to, subject, text, html }, env = process.env) {
   const sender = parseFromAddress(from, env.BREVO_FROM_EMAIL);
   const response = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -179,6 +183,85 @@ async function sendProviderMail(message, env = process.env) {
   const transport = createTransport(nodemailer, env);
   const info = await transport.sendMail({ ...message, from });
   return { provider, messageId: info.messageId || "" };
+}
+
+function buildWelcomeEmail({ subscriber = {}, dashboardUrl = DEFAULT_DASHBOARD_URL } = {}) {
+  const locale = String(subscriber.locale || "th").toLowerCase() === "en" ? "en" : "th";
+  const thai = locale === "th";
+  const url = String(dashboardUrl || DEFAULT_DASHBOARD_URL).replace(/\/+$/, "");
+  const subject = thai ? "ยินดีต้อนรับสู่ SavePulse" : "Welcome to SavePulse";
+  const headline = thai ? "สมัคร SavePulse เรียบร้อยแล้ว" : "You are signed up for SavePulse";
+  const intro = thai
+    ? "เราจะช่วยสรุปข้อสังเกตจากข้อมูลย้อนหลังของค่าเงิน ทอง และ BTC เป็นภาษาที่อ่านง่าย เพื่อใช้ประกอบการตัดสินใจก่อนแลกเงินก้อนใหญ่"
+    : "SavePulse summarizes historical exchange-rate, gold, and BTC reference data in plain language so you have more context before large currency decisions.";
+  const next = thai
+    ? "ช่วง Private Beta นี้เราจะทยอยส่ง Daily Pulse แบบควบคุมก่อน ยังไม่มีการเปิดชำระเงินจริง"
+    : "During Private Beta, Daily Pulse emails are sent in a controlled way first. Paid checkout is not open yet.";
+  const disclaimer = thai
+    ? "SavePulse ไม่ใช่คำแนะนำการลงทุน ไม่ใช่คำสั่งให้แลกเงิน ไม่ใช่บริการรับแลกเงิน และไม่รับประกันผลลัพธ์หรือเรทในอนาคต"
+    : "SavePulse is not financial advice, not an instruction to exchange money, not a money exchange service, and does not guarantee future rates or outcomes.";
+  const cta = thai ? "เปิด SavePulse" : "Open SavePulse";
+  const text = `${headline}\n\n${intro}\n\n${next}\n\n${url}\n\n${disclaimer}`;
+  const html = `<!doctype html>
+<html lang="${locale}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>${escapeHtml(subject)}</title>
+  </head>
+  <body style="margin:0;background:#edf8f8;font-family:Inter,system-ui,-apple-system,'Segoe UI','Noto Sans Thai',sans-serif;color:#101827;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#edf8f8;padding:28px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #d8e7ea;border-radius:20px;overflow:hidden;">
+            <tr>
+              <td style="background:#067b7f;padding:28px 26px;color:#ffffff;">
+                <div style="font-size:28px;font-weight:900;letter-spacing:.01em;">SavePulse</div>
+                <div style="margin-top:14px;font-size:34px;line-height:1.15;font-weight:900;">${escapeHtml(headline)}</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:26px;">
+                <p style="margin:0;color:#435468;font-size:17px;line-height:1.65;">${escapeHtml(intro)}</p>
+                <div style="margin:22px 0;padding:16px;border-radius:14px;background:#effafa;color:#064e57;font-weight:800;line-height:1.55;">${escapeHtml(next)}</div>
+                <a href="${escapeHtml(url)}" style="display:block;text-align:center;background:#078b8d;color:#ffffff;text-decoration:none;border-radius:12px;padding:15px 18px;font-size:16px;font-weight:900;">${escapeHtml(cta)}</a>
+                <p style="margin:22px 0 0;color:#66788a;font-size:12px;line-height:1.6;">${escapeHtml(disclaimer)}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  return { subject, text, html, locale };
+}
+
+async function sendWelcomeEmail({ subscriber, env = process.env }) {
+  const email = String(subscriber?.email || "").trim().toLowerCase();
+
+  if (!email) {
+    return { ok: false, skipped: true, reason: "no_recipient" };
+  }
+
+  const template = buildWelcomeEmail({
+    subscriber,
+    dashboardUrl: appUrl(env)
+  });
+  const info = await sendProviderMail({
+    from: defaultFrom(env),
+    to: email,
+    subject: template.subject,
+    text: template.text,
+    html: template.html
+  }, env);
+
+  if (info.skipped) {
+    return { email, ok: false, skipped: true, reason: info.reason };
+  }
+
+  return { email, ok: true, provider: info.provider, id: info.messageId };
 }
 
 function recipientsFromEnv(env = process.env) {
@@ -469,10 +552,12 @@ module.exports = {
   broadcastSignal,
   broadcastStrongBuy,
   buildEmail,
+  buildWelcomeEmail,
   apiProviderForEnv,
   recipientRecords,
   recipientsFromEnv,
   sendDailyDigestEmail,
+  sendWelcomeEmail,
   sendSignalEmail,
   sendProviderMail,
   smtpConfigured,
