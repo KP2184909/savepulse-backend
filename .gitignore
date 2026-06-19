@@ -4,3 +4,5 @@ node_modules/
 state/*.json
 coverage/
 npm-debug.log*
+*.zip
+savepulse-netlify-drop-*.zip
