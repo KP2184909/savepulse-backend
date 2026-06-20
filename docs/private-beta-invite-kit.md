@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-06-19
 
-Use this kit for the first controlled Tiny Beta group. Start with 10 people only. Do not invite the full 30-person group until signup, email delivery, logs, and feedback are reviewed.
+Use this kit for the controlled Tiny Beta. Start with one trusted household pilot, then invite people one at a time toward the first 10. Do not invite the full 30-person group until signup, email delivery, logs, and feedback are reviewed.
 
 ## Beta Status To Communicate
 
@@ -135,15 +135,16 @@ Ask these after they receive a Daily Pulse email:
 
 ## First 10 User Launch Flow
 
-1. Send the invite manually.
-2. Ask the user to sign up at `https://savepulse.cloud`.
-3. Record the signup email and primary pair/asset.
-4. Verify subscriber state before sending any email.
-5. Dry run the Daily Pulse send for selected beta emails.
-6. Send a manual Daily Pulse only to selected beta emails.
-7. Check email logs immediately.
-8. Ask each user to check Inbox, Spam, Promotions, and Trash.
-9. Collect feedback before inviting the next group.
+1. Complete the one-person household pilot in `docs/household-pilot-feedback.md`.
+2. Send each next invite manually; there is no requirement to invite all 10 at once.
+3. Ask the user to sign up at `https://savepulse.cloud`.
+4. Record the signup email and primary pair/asset.
+5. Verify subscriber state before sending any Daily Pulse.
+6. Dry run the Daily Pulse send for selected beta emails.
+7. Send a manual Daily Pulse only to selected beta emails.
+8. Check email logs immediately.
+9. Ask each user to check Inbox, Spam, Promotions, and Trash.
+10. Collect feedback before inviting the next person.
 
 ## Do Not Do During First 10 Users
 

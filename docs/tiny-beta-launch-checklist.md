@@ -1,6 +1,6 @@
 # SavePulse Tiny Beta Launch Checklist
 
-Last reviewed: 2026-06-18
+Last reviewed: 2026-06-20
 
 This checklist is the operating playbook for a controlled Private Tiny Beta. It is not a feature roadmap. Keep the system stable, invite a small group, measure feedback, and only expand after the logs and user experience look healthy.
 
@@ -8,7 +8,8 @@ This checklist is the operating playbook for a controlled Private Tiny Beta. It 
 
 - `https://savepulse.cloud` production landing page is live.
 - Mobile EN/TH language switch works.
-- English is currently the default homepage language.
+- Browser-language detection is live: Thai browsers start in Thai and other browsers start in English.
+- A saved manual language choice overrides browser detection.
 - Early Beta pricing is visible: `$5/mo`, `$15/mo`, `$59/mo`.
 - Paid buttons are request-only: `Request early access` / `Contact us`.
 - No public checkout flow is exposed from homepage paid buttons.
@@ -24,7 +25,9 @@ This checklist is the operating playbook for a controlled Private Tiny Beta. It 
 ## Tiny Beta Definition
 
 - Private group only.
-- Start with 10 users first.
+- Start with one trusted household pilot before inviting the first 10 users.
+- The household pilot may contain only one person; do not delay useful feedback just to fill a quota.
+- After the household pilot passes, grow toward 10 users one at a time.
 - Expand to 30 users only after logs, deliverability, and feedback look stable.
 - No paid checkout yet.
 - No public ads yet.
@@ -55,6 +58,30 @@ Avoid inviting broad public traffic until the first 10 users complete signup and
 7. Operator checks email logs.
 8. Operator checks inbox/spam feedback from users.
 9. Operator collects qualitative feedback before inviting more users.
+
+## One-Person Household Pilot
+
+Use this before the first wider invitation round:
+
+1. Ask the pilot to open `https://savepulse.cloud` on their own phone without an explanation first.
+2. Ask what they think SavePulse does within five seconds.
+3. Ask them to select the money they have, the money they want, and enter a realistic amount.
+4. Confirm that the current rate and estimated conversion are understandable.
+5. Ask them to sign up with their own email and confirm that the success state is clear.
+6. Confirm that the welcome email arrives; check Inbox, Spam, Promotions, and Trash.
+7. Record the asset or currency pair they actually care about.
+8. Do not send a Daily Pulse until the operator has verified the subscriber and completed a dry run.
+9. If a manual Daily Pulse is approved, send only to that pilot email and inspect the email log immediately.
+10. Record confusion and wording feedback before changing the product or inviting another person.
+
+Household pilot pass criteria:
+
+- The pilot understands the product without coaching.
+- Live conversion is readable and directionally correct.
+- Signup succeeds once without duplicate confusion.
+- Welcome email is received and readable on mobile.
+- The pilot understands that SavePulse is decision support, not a trading signal or exchange service.
+- No production errors or email delivery failures are observed.
 
 ## Manual Email Send Safety Rules
 
@@ -112,29 +139,13 @@ The daily scheduler can only be considered after:
 
 ## Language Readiness
 
-Current behavior:
-
-- Homepage defaults to English.
-- Thai is available through the language toggle.
-- Browser-language auto-detection is not currently implemented.
-
-Recommendation before a Thai-first beta:
-
-- Add a small frontend-only language auto-detection improvement.
-- If `navigator.language` or `navigator.languages` starts with `th`, default to Thai.
-- Otherwise keep English as the default.
-- Keep the manual EN/TH toggle available.
-- Do not change backend logic for this.
-
-Suggested rule:
+Verified behavior:
 
 ```text
 Thai browser -> Thai homepage
 Non-Thai browser -> English homepage
-Manual toggle -> user can switch anytime
+Manual toggle -> user can switch anytime and the saved choice wins next time
 ```
-
-This should improve Thai beta conversion without changing the product model or operational risk.
 
 ## Final Lockdown Notes
 
