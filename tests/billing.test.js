@@ -46,12 +46,44 @@ test("checkout price IDs can be configured with Stripe env aliases", () => {
   );
 });
 
+test("public checkout stays closed by default even when Stripe is configured", async () => {
+  const payload = await checkoutPayload(
+    "plus",
+    { email: "member@example.com" },
+    {
+      STRIPE_SECRET_KEY: "sk_test_not_called",
+      STRIPE_PRICE_PLUS: "price_test_not_called"
+    }
+  );
+
+  assert.equal(payload.configured, false);
+  assert.equal(payload.provider, "disabled");
+  assert.equal(payload.reason, "public_checkout_disabled");
+  assert.equal(payload.url, null);
+});
+
+test("direct checkout endpoint stays closed during Private Beta", async () => {
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const response = await fetch(`${baseUrl}/api/v1/billing/checkout`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: "member@example.com", plan: "pro" })
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.checkout.configured, false);
+  assert.equal(payload.checkout.reason, "public_checkout_disabled");
+  assert.equal(payload.checkout.url, null);
+});
+
 test("checkout payload reports missing Stripe configuration without failing", async () => {
   const payload = await checkoutPayload(
     "pro",
     { email: "member@example.com" },
     {
-      PUBLIC_URL: "https://savepulse.example"
+      PUBLIC_URL: "https://savepulse.example",
+      PUBLIC_CHECKOUT_ENABLED: "true"
     }
   );
 
@@ -108,6 +140,7 @@ test("billing readiness snapshot reports live readiness without exposing secrets
 
   assert.equal(snapshot.endpoints.stripeWebhook, "https://savepulse.cloud/api/v1/billing/webhook");
   assert.equal(snapshot.stripe.mode, "live");
+  assert.equal(snapshot.stripe.publicCheckoutEnabled, false);
   assert.equal(snapshot.stripe.secretKeyConfigured, true);
   assert.equal(snapshot.stripe.webhookSecretConfigured, true);
   assert.deepEqual(snapshot.stripe.priceIdsConfigured, {
@@ -157,6 +190,54 @@ test("health endpoint supports HEAD for uptime monitors", async () => {
 
   assert.equal(response.status, 200);
   assert.equal(body, "");
+});
+
+test("business invoice endpoints require an admin or master secret", async () => {
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const planResponse = await fetch(`${baseUrl}/api/v1/admin/subscribers/plan`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-savepulse-secret": "test-master-secret"
+    },
+    body: JSON.stringify({ email: "finance@example.com", plan: "business" })
+  });
+  assert.equal(planResponse.status, 200);
+
+  const invoice = {
+    email: "finance@example.com",
+    amount: 10000,
+    currency: "USD",
+    targetCurrency: "THB",
+    dueDate: "2026-07-15",
+    vendor: "Example Vendor"
+  };
+  const unauthorizedCreate = await fetch(`${baseUrl}/api/v1/business/invoices`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(invoice)
+  });
+  assert.equal(unauthorizedCreate.status, 401);
+
+  const authorizedCreate = await fetch(`${baseUrl}/api/v1/business/invoices`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-savepulse-admin-key": "test-admin-readiness-key"
+    },
+    body: JSON.stringify(invoice)
+  });
+  assert.equal(authorizedCreate.status, 201);
+
+  const unauthorizedList = await fetch(`${baseUrl}/api/v1/business/invoices?email=finance@example.com`);
+  assert.equal(unauthorizedList.status, 401);
+
+  const authorizedList = await fetch(`${baseUrl}/api/v1/business/invoices?email=finance@example.com`, {
+    headers: { "x-savepulse-admin-key": "test-admin-readiness-key" }
+  });
+  const payload = await authorizedList.json();
+  assert.equal(authorizedList.status, 200);
+  assert.equal(payload.invoices.length, 1);
 });
 
 test("status endpoint returns a default direction-aware signal before TradingView data arrives", async () => {

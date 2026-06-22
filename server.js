@@ -289,7 +289,7 @@ function emailIsValid(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
 }
 
-function hasMasterSecret(req, body) {
+function hasMasterSecret(req, body = {}) {
   return Boolean(WEBHOOK_SECRET && incomingSecret(req, body) === WEBHOOK_SECRET);
 }
 
@@ -310,6 +310,11 @@ function checkoutUrlForPlan(plan, env = process.env) {
   }
 
   return env[`CHECKOUT_${planId.toUpperCase()}_URL`] || null;
+}
+
+function publicCheckoutEnabled(env = process.env) {
+  const value = env.PUBLIC_CHECKOUT_ENABLED ?? env.CHECKOUT_ENABLED;
+  return String(value || "").trim().toLowerCase() === "true";
 }
 
 function stripeSecretKey(env = process.env) {
@@ -384,6 +389,7 @@ function billingReadinessSnapshot(env = process.env) {
       checkout: `${baseUrl}/api/v1/billing/checkout`
     },
     stripe: {
+      publicCheckoutEnabled: publicCheckoutEnabled(env),
       mode: stripeKeyMode(stripeSecretKey(env)),
       secretKeyConfigured: Boolean(stripeSecretKey(env)),
       webhookSecretConfigured: Boolean(stripeWebhookSecret(env)),
@@ -574,6 +580,18 @@ async function createStripeCheckoutSession({ email, plan, locale = "en", watchli
 
 async function checkoutPayload(plan, options = {}, env = process.env) {
   const planId = normalizePlan(plan);
+
+  if (!publicCheckoutEnabled(env)) {
+    return {
+      plan: planId,
+      configured: false,
+      provider: "disabled",
+      url: null,
+      reason: "public_checkout_disabled",
+      message: "Paid checkout is not open during Private Beta."
+    };
+  }
+
   const staticUrl = checkoutUrlForPlan(planId, env);
 
   if (options.email && checkoutRequirements(planId, env).length === 0) {
@@ -1271,6 +1289,12 @@ async function handleAdminSubscriberPlan(req, res) {
 
 async function handleBusinessInvoice(req, res) {
   const body = await parseBody(req);
+
+  if (!hasAdminSecret(req) && !hasMasterSecret(req, body)) {
+    sendJson(res, 401, { error: "unauthorized_business_invoice" });
+    return;
+  }
+
   const email = String(body.email || "").trim().toLowerCase();
 
   if (!emailIsValid(email)) {
@@ -1335,7 +1359,12 @@ async function handleBusinessInvoice(req, res) {
   });
 }
 
-function handleListBusinessInvoices(url, res) {
+function handleListBusinessInvoices(req, url, res) {
+  if (!hasAdminSecret(req) && !hasMasterSecret(req)) {
+    sendJson(res, 401, { error: "unauthorized_business_invoices" });
+    return;
+  }
+
   const email = String(url.searchParams.get("email") || "").trim().toLowerCase();
 
   if (!emailIsValid(email)) {
@@ -1524,7 +1553,7 @@ async function handleRequest(req, res) {
     }
 
     if (req.method === "GET" && url.pathname === "/api/v1/business/invoices") {
-      handleListBusinessInvoices(url, res);
+      handleListBusinessInvoices(req, url, res);
       return;
     }
 
@@ -1570,6 +1599,7 @@ module.exports = {
   listAssets,
   listStoredSignals,
   publicNotificationSummary,
+  publicCheckoutEnabled,
   quotaSnapshot,
   safeStripeEventSummary,
   server,

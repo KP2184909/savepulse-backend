@@ -42,6 +42,7 @@ NODE_ENV=production
 HOST=0.0.0.0
 WEBHOOK_SECRET=your-shared-tradingview-secret
 ADMIN_READINESS_KEY=your-separate-admin-readiness-key
+PUBLIC_CHECKOUT_ENABLED=false
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=optional-smtp-user
@@ -89,6 +90,7 @@ FROM_EMAIL="SavePulse <alerts@savepulse.cloud>"
 Production sanity status as of 2026-06-18:
 
 - `DAILY_EMAIL_ENABLED=false` remains the required production setting until final approval for scheduled sends.
+- `PUBLIC_CHECKOUT_ENABLED=false` keeps every paid checkout path closed during Private Beta, even if Stripe keys or payment links are configured.
 - Resend is configured for production delivery with `EMAIL_PROVIDER=resend`.
 - `FROM_EMAIL` is `SavePulse <alerts@savepulse.cloud>`.
 - `RESEND_API_KEY` is stored only in Render environment variables and must not be committed or printed.
@@ -269,7 +271,11 @@ curl -X POST http://localhost:3000/api/v1/billing/checkout \
   -d '{ "email": "member@example.com", "plan": "plus" }'
 ```
 
-If `STRIPE_SECRET_KEY` and the plan price ID are configured, this endpoint creates a Stripe Checkout subscription session and returns its `url`. If Stripe is not configured yet, it falls back to `CHECKOUT_PLUS_URL`, `CHECKOUT_PRO_URL`, or `CHECKOUT_BUSINESS_URL` when those are present.
+Paid checkout is closed by default. `PUBLIC_CHECKOUT_ENABLED=true` must be set explicitly before this endpoint can return a Stripe Checkout session or payment-link URL. During Private Beta, keep it `false` even when Stripe keys or fallback URLs are configured.
+
+After explicit approval, if `PUBLIC_CHECKOUT_ENABLED=true`, `STRIPE_SECRET_KEY`, and the plan price ID are configured, this endpoint creates a Stripe Checkout subscription session and returns its `url`. If Stripe is not configured yet, it can fall back to `CHECKOUT_PLUS_URL`, `CHECKOUT_PRO_URL`, or `CHECKOUT_BUSINESS_URL` when those are present.
+
+Business invoice endpoints are also locked behind `ADMIN_READINESS_KEY` or `WEBHOOK_SECRET` until SavePulse has real user authentication. An email address alone is never sufficient authorization to create or read invoice data.
 
 Stripe webhook endpoint:
 
