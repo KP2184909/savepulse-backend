@@ -126,8 +126,8 @@ const PLAN_COPY = Object.freeze({
       name: "Business",
       emailName: "Invoice Risk Brief",
       subject: "SavePulse Business | สรุปผลกระทบค่าเงินต่อใบแจ้งหนี้วันนี้",
-      headline: "วันนี้ใบแจ้งหนี้ต่างประเทศ ใช้เงินบาทเพิ่มหรือลดเท่าไร",
-      subhead: "ช่วยทีมการเงินเห็นว่าใบแจ้งหนี้ใดใกล้ครบกำหนด และต้นทุนเงินบาทของแต่ละรายการเปลี่ยนจากเรทอ้างอิงก่อนหน้าเท่าไร",
+      headline: "วันนี้ใบแจ้งหนี้ต่างประเทศ คิดเป็นเงินบาทประมาณเท่าไร",
+      subhead: "ใช้เรทอ้างอิงล่าสุดแปลงยอดตัวอย่างเป็นเงินบาทและเรียงวันครบกำหนด เพื่อช่วยทีมการเงินเตรียมเงินสดและรู้ว่าควรตรวจสอบใบไหนก่อน",
       cta: "เปิดดูใบแจ้งหนี้ทั้งหมด",
       date: "อัปเดตทุกเช้า 08:30 น.",
       pill: "BUSINESS"
@@ -136,8 +136,8 @@ const PLAN_COPY = Object.freeze({
       name: "Business",
       emailName: "Invoice Risk Brief",
       subject: "SavePulse Business | Invoice Risk Brief: How today's rates changed your invoice cost",
-      headline: "Which foreign invoices cost more or less in Thai baht today",
-      subhead: "Helps finance teams see upcoming due dates and how each invoice's estimated Thai-baht cost changed from the prior reference rate.",
+      headline: "What foreign invoices are worth in Thai baht today",
+      subhead: "Uses the latest reference rates to estimate Thai-baht cost and order upcoming due dates, helping finance teams plan cash and prioritize reviews.",
       cta: "Open all tracked invoices",
       date: "Updated every morning at 08:30",
       pill: "BUSINESS"
@@ -695,6 +695,7 @@ function premiumAssetModel(symbol, signalMap, locale) {
     tone: decision.tone,
     title: safeEmailTitle(decision.title, locale),
     short: naturalAssetShort(symbol, decision, locale),
+    price: Number.isFinite(Number(signal?.price)) ? Number(signal.price) : null,
     percent,
     observationIntro: thai ? "ตำแหน่งราคาเทียบข้อมูลย้อนหลัง" : "Price position in the historical range",
     observationLabel: observationLevelFromPercent(percent, locale),
@@ -717,6 +718,10 @@ function premiumAssetsForPlan(plan, signalMap, locale) {
       ["XAUUSD", "XAUTHB"],
       ["BTCUSD", "BTCTHB"]
     ].map((symbols) => symbols.map((symbol) => premiumAssetModel(symbol, signalMap, locale)));
+  }
+
+  if (plan === "business") {
+    return ["USDTHB", "EURTHB"].map((symbol) => premiumAssetModel(symbol, signalMap, locale));
   }
 
   return [];

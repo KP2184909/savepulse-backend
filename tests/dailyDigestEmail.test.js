@@ -90,14 +90,30 @@ test("plan previews reveal the right paid feature ladder", () => {
   assert.match(plus, /อัปเกรดเป็น Pro/);
   assert.match(pro, /ทองคำ และบิตคอยน์/);
   assert.match(business, /สรุปผลกระทบค่าเงินต่อใบแจ้งหนี้วันนี้/);
-  assert.match(business, /USD 148,250/);
+  assert.match(business, /3 ใบแจ้งหนี้/);
   assert.match(business, /Business ช่วยทีมการเงินอย่างไร/);
   assert.match(business, /ตัวอย่างใบแจ้งหนี้สมมติ/);
   assert.match(business, /ไม่ใช่ข้อมูลบริษัทจริง/);
-  assert.match(business, /ใช้เงินบาทเพิ่มขึ้นประมาณ/);
-  assert.match(business, /ใช้เงินบาทลดลงประมาณ/);
-  assert.match(business, /เทียบกับเรทอ้างอิงก่อนหน้า/);
+  assert.match(business, /เตรียมเงินบาทประมาณ/);
+  assert.match(business, /คำนวณจากสัญญาณเรทล่าสุด/);
   assert.doesNotMatch(business, /ABC Components|Global Packaging|Oceanic Materials/);
+});
+
+test("business email calculates example THB costs from current production-style rates", () => {
+  const business = buildDailyDigestEmail({
+    plan: "business",
+    locale: "th",
+    signals: [
+      { symbol: "USDTHB", action: ACTIONS.WAIT_ZONE, price: 32, receivedAt: new Date().toISOString() },
+      { symbol: "EURTHB", action: ACTIONS.WAIT_ZONE, price: 40, receivedAt: new Date().toISOString() }
+    ]
+  }).html;
+
+  assert.match(business, /USD 32\.000/);
+  assert.match(business, /EUR 40\.000/);
+  assert.match(business, /ประมาณ 5,081,040 บาท/);
+  assert.match(business, /เตรียมเงินบาทประมาณ 2,184,000 บาท/);
+  assert.match(business, /เตรียมเงินบาทประมาณ 1,685,200 บาท/);
 });
 
 test("email calls to action describe what opens next", () => {
