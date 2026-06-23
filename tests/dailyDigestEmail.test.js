@@ -49,6 +49,34 @@ test("daily digest emails avoid high-risk Thai marketing words", () => {
   }
 });
 
+test("approved premium email design is used for every plan", () => {
+  for (const plan of PLANS) {
+    const template = buildDailyDigestEmail({ plan, locale: "th", signals: sampleSignals() });
+
+    assert.match(template.html, /x-apple-disable-message-reformatting/);
+    assert.match(template.html, /class="hero-title"/);
+    assert.match(template.html, /max-width:600px/);
+    assert.match(template.html, /linear-gradient/);
+    assert.match(template.html, /box-shadow/);
+  }
+});
+
+test("premium email cards display the real signal percentile", () => {
+  const template = buildDailyDigestEmail({
+    plan: "free",
+    locale: "th",
+    signals: [{
+      symbol: "USDTHB",
+      action: ACTIONS.WAIT_ZONE,
+      percentile: { percent: 63 },
+      receivedAt: new Date().toISOString()
+    }]
+  });
+
+  assert.match(template.html, />63%<\/div>/);
+  assert.match(template.html, /width:63%/);
+});
+
 test("plan previews reveal the right paid feature ladder", () => {
   const free = buildDailyDigestEmail({ plan: "free", locale: "th" }).html;
   const plus = buildDailyDigestEmail({ plan: "plus", locale: "th" }).html;

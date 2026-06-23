@@ -9,10 +9,23 @@ const {
   userFacingActionForDirection
 } = require("./signalEngine");
 const { ADVANCED_ASSETS, FIAT_ASSETS, normalizePlan, planFor } = require("./plans");
+const { renderPremiumDailyDigestEmail } = require("./premiumDailyDigestEmail");
 
 const DEFAULT_APP_URL = "https://savepulse.cloud";
 const UNSUBSCRIBE_PLACEHOLDER = "{{unsubscribe_url}}";
-const BANNED_EMAIL_WORDS_TH = Object.freeze(["สัญญาณซื้อ", "กำไร", "รับประกัน", "ต้องเข้า", "จุดเข้า"]);
+const BANNED_EMAIL_WORDS_TH = Object.freeze([
+  "สัญญาณซื้อ",
+  "สัญญาณขาย",
+  "ทำกำไร",
+  "กำไร",
+  "รับประกัน",
+  "ต้องเข้า",
+  "จุดเข้า",
+  "ซื้อเลย",
+  "ขายเลย",
+  "แลกเลย",
+  "พลาดกำไร"
+]);
 
 const BRAND = Object.freeze({
   teal: "#078b8d",
@@ -655,6 +668,59 @@ function disclaimer(locale = "th") {
     : "This email is decision-support information based on historical data only. It is not financial advice, investment advice, trading instruction, or a confirmation of future rates. Please verify provider rates, fees, and spreads before making decisions.";
 }
 
+const PREMIUM_ASSET_ICONS = Object.freeze({
+  USDTHB: "🇺🇸",
+  EURUSD: "🇪🇺",
+  EURTHB: "🇪🇺",
+  JPYTHB: "🇯🇵",
+  USDJPY: "🇯🇵",
+  XAUUSD: "🟨",
+  XAUTHB: "🇹🇭",
+  BTCUSD: "₿",
+  BTCTHB: "🇹🇭"
+});
+
+function premiumAssetModel(symbol, signalMap, locale) {
+  const signal = signalMap[symbol] || createDefaultSignal(symbol);
+  const label = labelForSymbol(symbol, locale);
+  const decision = decisionForSignal(signal, locale, signal?.userDirection || {});
+  const percent = Math.max(0, Math.min(100, Math.round(percentFromSignal(signal))));
+  const thai = localeKey(locale) === "th";
+
+  return {
+    symbol,
+    icon: PREMIUM_ASSET_ICONS[symbol] || label.icon,
+    name: label.name,
+    reference: thai ? `อ้างอิง ${symbolCode(symbol)}` : `Reference ${symbolCode(symbol)}`,
+    tone: decision.tone,
+    title: safeEmailTitle(decision.title, locale),
+    short: naturalAssetShort(symbol, decision, locale),
+    percent,
+    observationIntro: thai ? "ระดับข้อสังเกตจากข้อมูลย้อนหลัง" : "Historical observation level",
+    observationLabel: observationLevelFromPercent(percent, locale)
+  };
+}
+
+function premiumAssetsForPlan(plan, signalMap, locale) {
+  if (plan === "free") {
+    return [premiumAssetModel("USDTHB", signalMap, locale)];
+  }
+
+  if (plan === "plus") {
+    return ["EURUSD", "JPYTHB", "USDTHB"].map((symbol) => premiumAssetModel(symbol, signalMap, locale));
+  }
+
+  if (plan === "pro") {
+    return [
+      ["USDTHB", "EURTHB", "JPYTHB"],
+      ["XAUUSD", "XAUTHB"],
+      ["BTCUSD", "BTCTHB"]
+    ].map((symbols) => symbols.map((symbol) => premiumAssetModel(symbol, signalMap, locale)));
+  }
+
+  return [];
+}
+
 function buildDailyDigestEmail({
   plan = "free",
   locale = "th",
@@ -668,18 +734,16 @@ function buildDailyDigestEmail({
   const signalMap = signalsBySymbol(signals);
   const resolvedDashboardUrl = baseUrl(dashboardUrl);
   const planName = planFor(planId).name;
-  const args = { locale: language, copy, signalMap, dashboardUrl: resolvedDashboardUrl, unsubscribeUrl, planName };
-
-  let html;
-  if (planId === "plus") {
-    html = renderPlusEmail(args);
-  } else if (planId === "pro") {
-    html = renderProEmail(args);
-  } else if (planId === "business") {
-    html = renderBusinessEmail(args);
-  } else {
-    html = renderFreeEmail(args);
-  }
+  const html = renderPremiumDailyDigestEmail({
+    plan: planId,
+    locale: language,
+    copy,
+    assets: premiumAssetsForPlan(planId, signalMap, language),
+    dashboardUrl: resolvedDashboardUrl,
+    unsubscribeUrl,
+    planName,
+    disclaimerText: disclaimer(language)
+  });
 
   return {
     plan: planId,
