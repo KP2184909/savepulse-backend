@@ -62,7 +62,7 @@ const PLAN_COPY = Object.freeze({
       subject: "SavePulse Daily Pulse Lite | ข้อสังเกตวันนี้ก่อนคุณแลกเงินก้อนใหญ่",
       headline: "ข้อสังเกตวันนี้ก่อนคุณแลกเงินก้อนใหญ่",
       subhead: "สรุปแบบ Lite ให้เห็นความเคลื่อนไหวสำคัญ โดยยังล็อกรายละเอียดลึกไว้สำหรับแผนที่สูงกว่า",
-      cta: "ดูการ์ดวันนี้",
+      cta: "เช็กข้อมูลล่าสุดบนเว็บ",
       date: "อัปเดตทุกเช้า 08:30 น.",
       pill: "FREE"
     },
@@ -72,7 +72,7 @@ const PLAN_COPY = Object.freeze({
       subject: "SavePulse Daily Pulse Lite | Which rate is worth watching before you exchange late",
       headline: "Which rate is worth watching before you exchange late",
       subhead: "A Lite daily snapshot that shows one important movement while deeper context stays unlocked for paid plans.",
-      cta: "Open today's card",
+      cta: "Check the latest details online",
       date: "Updated every morning at 08:30",
       pill: "FREE"
     }
@@ -84,7 +84,7 @@ const PLAN_COPY = Object.freeze({
       subject: "SavePulse | Daily Decision Card สำหรับคุณ",
       headline: "รายการที่คุณเฝ้าอยู่ มีข้อสังเกตใหม่วันนี้",
       subhead: "การ์ดสรุปจากเรทอ้างอิง เพื่อช่วยประกอบการตัดสินใจอย่างมีข้อมูลมากขึ้น",
-      cta: "เปิดการ์ดวันนี้",
+      cta: "เปิดรายการที่ฉันติดตาม",
       date: "อัปเดตทุกเช้า 08:30 น.",
       pill: "PLUS"
     },
@@ -94,7 +94,7 @@ const PLAN_COPY = Object.freeze({
       subject: "SavePulse | Your Daily Decision Card",
       headline: "Your watchlist has timing changes today",
       subhead: "A simple decision card based on current rate context, built for calmer planning.",
-      cta: "Open today's card",
+      cta: "Open my watchlist",
       date: "Updated every morning at 08:30",
       pill: "PLUS"
     }
@@ -106,7 +106,7 @@ const PLAN_COPY = Object.freeze({
       subject: "SavePulse Pro | เรดาร์ค่าเงิน ทองคำ และบิตคอยน์วันนี้",
       headline: "ทองคำ บิตคอยน์ และค่าเงิน วันนี้ตัวไหนน่าจับตาเป็นพิเศษ",
       subhead: "สรุปจังหวะสำคัญจากข้อมูลสถิติย้อนหลัง เพื่อช่วยให้คุณทบทวนก่อนตัดสินใจ",
-      cta: "เปิด Full Radar",
+      cta: "เปิดดูค่าเงิน ทอง และบิตคอยน์",
       date: "อัปเดตทุกเช้า 08:30 น.",
       pill: "PRO"
     },
@@ -116,7 +116,7 @@ const PLAN_COPY = Object.freeze({
       subject: "SavePulse Pro | Today's currency, gold, and bitcoin radar",
       headline: "Gold, bitcoin, and currencies: which areas deserve attention today",
       subhead: "A wider timing radar based on historical context, built for confident review.",
-      cta: "Open Full Radar",
+      cta: "Open currency, gold, and bitcoin details",
       date: "Updated every morning at 08:30",
       pill: "PRO"
     }
@@ -126,9 +126,9 @@ const PLAN_COPY = Object.freeze({
       name: "Business",
       emailName: "Invoice Risk Brief",
       subject: "SavePulse Business | สรุปผลกระทบค่าเงินต่อใบแจ้งหนี้วันนี้",
-      headline: "ต้นทุนใบแจ้งหนี้วันนี้เปลี่ยนไปเท่าไหร่",
-      subhead: "ระบบสรุป invoice ต่างประเทศที่คุณกำลังติดตาม และประเมินผลกระทบโดยประมาณจากเรทอ้างอิงล่าสุด",
-      cta: "เปิด Invoice Dashboard",
+      headline: "วันนี้ใบแจ้งหนี้ต่างประเทศ ใช้เงินบาทเพิ่มหรือลดเท่าไร",
+      subhead: "ช่วยทีมการเงินเห็นว่าใบแจ้งหนี้ใดใกล้ครบกำหนด และต้นทุนเงินบาทของแต่ละรายการเปลี่ยนจากเรทอ้างอิงก่อนหน้าเท่าไร",
+      cta: "เปิดดูใบแจ้งหนี้ทั้งหมด",
       date: "อัปเดตทุกเช้า 08:30 น.",
       pill: "BUSINESS"
     },
@@ -136,9 +136,9 @@ const PLAN_COPY = Object.freeze({
       name: "Business",
       emailName: "Invoice Risk Brief",
       subject: "SavePulse Business | Invoice Risk Brief: How today's rates changed your invoice cost",
-      headline: "How today's rates changed your invoice cost",
-      subhead: "Currency movement translated into business cost context for your finance team.",
-      cta: "Open Invoice Dashboard",
+      headline: "Which foreign invoices cost more or less in Thai baht today",
+      subhead: "Helps finance teams see upcoming due dates and how each invoice's estimated Thai-baht cost changed from the prior reference rate.",
+      cta: "Open all tracked invoices",
       date: "Updated every morning at 08:30",
       pill: "BUSINESS"
     }
@@ -353,15 +353,15 @@ function percentFromSignal(signal) {
 function observationLevelFromPercent(percent, locale = "th") {
   const thai = localeKey(locale) === "th";
   if (!Number.isFinite(percent)) {
-    return thai ? "ระดับข้อสังเกต: ปานกลาง" : "Observation level: medium";
+    return thai ? "อยู่ช่วงกลางของข้อมูลย้อนหลัง" : "In the middle of the historical range";
   }
   if (percent >= 72) {
-    return thai ? "ระดับข้อสังเกต: สูง" : "Observation level: high";
+    return thai ? "อยู่ช่วงบนของข้อมูลย้อนหลัง" : "Near the upper end of the historical range";
   }
   if (percent <= 28) {
-    return thai ? "ระดับข้อสังเกต: ต่ำ" : "Observation level: low";
+    return thai ? "อยู่ช่วงล่างของข้อมูลย้อนหลัง" : "Near the lower end of the historical range";
   }
-  return thai ? "ระดับข้อสังเกต: ปานกลาง" : "Observation level: medium";
+  return thai ? "อยู่ช่วงกลางของข้อมูลย้อนหลัง" : "In the middle of the historical range";
 }
 
 function observationWidthFromPercent(percent) {
@@ -696,8 +696,9 @@ function premiumAssetModel(symbol, signalMap, locale) {
     title: safeEmailTitle(decision.title, locale),
     short: naturalAssetShort(symbol, decision, locale),
     percent,
-    observationIntro: thai ? "ระดับข้อสังเกตจากข้อมูลย้อนหลัง" : "Historical observation level",
-    observationLabel: observationLevelFromPercent(percent, locale)
+    observationIntro: thai ? "ตำแหน่งราคาเทียบข้อมูลย้อนหลัง" : "Price position in the historical range",
+    observationLabel: observationLevelFromPercent(percent, locale),
+    observationExplanation: thai ? "บอกตำแหน่งราคา ไม่ใช่โอกาสสำเร็จ" : "Shows price position, not a success probability"
   };
 }
 

@@ -61,7 +61,7 @@ test("approved premium email design is used for every plan", () => {
   }
 });
 
-test("premium email cards display the real signal percentile", () => {
+test("premium email cards use the real percentile without showing an unexplained probability", () => {
   const template = buildDailyDigestEmail({
     plan: "free",
     locale: "th",
@@ -73,8 +73,10 @@ test("premium email cards display the real signal percentile", () => {
     }]
   });
 
-  assert.match(template.html, />63%<\/div>/);
   assert.match(template.html, /width:63%/);
+  assert.doesNotMatch(template.html, />63%<\/div>/);
+  assert.match(template.html, /อยู่ช่วงกลางของข้อมูลย้อนหลัง/);
+  assert.match(template.html, /ไม่ใช่โอกาสสำเร็จ/);
 });
 
 test("plan previews reveal the right paid feature ladder", () => {
@@ -89,10 +91,24 @@ test("plan previews reveal the right paid feature ladder", () => {
   assert.match(pro, /ทองคำ และบิตคอยน์/);
   assert.match(business, /สรุปผลกระทบค่าเงินต่อใบแจ้งหนี้วันนี้/);
   assert.match(business, /USD 148,250/);
-  assert.match(business, /ใบแจ้งหนี้ที่น่าติดตาม/);
-  assert.match(business, /ต้นทุนเพิ่มขึ้นโดยประมาณ/);
-  assert.match(business, /ต้นทุนลดลงโดยประมาณ/);
+  assert.match(business, /Business ช่วยทีมการเงินอย่างไร/);
+  assert.match(business, /ตัวอย่างใบแจ้งหนี้สมมติ/);
+  assert.match(business, /ไม่ใช่ข้อมูลบริษัทจริง/);
+  assert.match(business, /ใช้เงินบาทเพิ่มขึ้นประมาณ/);
+  assert.match(business, /ใช้เงินบาทลดลงประมาณ/);
   assert.match(business, /เทียบกับเรทอ้างอิงก่อนหน้า/);
+  assert.doesNotMatch(business, /ABC Components|Global Packaging|Oceanic Materials/);
+});
+
+test("email calls to action describe what opens next", () => {
+  const free = buildDailyDigestEmail({ plan: "free", locale: "th" }).html;
+  const plus = buildDailyDigestEmail({ plan: "plus", locale: "th" }).html;
+  const business = buildDailyDigestEmail({ plan: "business", locale: "th" }).html;
+
+  assert.match(free, /เช็กข้อมูลล่าสุดบนเว็บ/);
+  assert.match(plus, /เปิดรายการที่ฉันติดตาม/);
+  assert.match(business, /เปิดดูใบแจ้งหนี้ทั้งหมด/);
+  assert.doesNotMatch(free, /ดูการ์ดวันนี้/);
 });
 
 test("email preview index and Netlify route are available", () => {
@@ -158,6 +174,7 @@ test("plus daily digest uses user-facing direction for JPYTHB row", () => {
   assert.match(template.text, /บาทไทย → เยนญี่ปุ่น/);
   assert.match(template.text, /รอก่อน/);
   assert.match(template.text, /เรทอ้างอิง JPY\/THB อยู่ในโซนที่ควรทบทวนแผนก่อนตัดสินใจ/);
-  assert.match(template.text, /ระดับข้อสังเกต: ต่ำ/);
+  assert.match(template.text, /อยู่ช่วงล่างของข้อมูลย้อนหลัง/);
+  assert.match(template.text, /ไม่ใช่โอกาสสำเร็จ/);
   assert.doesNotMatch(template.text, /BUY_ZONE|SELL_ZONE|STRONG_BUY|WAIT_ZONE/);
 });
