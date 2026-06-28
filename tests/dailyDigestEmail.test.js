@@ -95,7 +95,7 @@ test("plan previews reveal the right paid feature ladder", () => {
   assert.match(business, /ตัวอย่างใบแจ้งหนี้สมมติ/);
   assert.match(business, /ไม่ใช่ข้อมูลบริษัทจริง/);
   assert.match(business, /เตรียมเงินบาทประมาณ/);
-  assert.match(business, /คำนวณจากสัญญาณเรทล่าสุด/);
+  assert.match(business, /คำนวณจากข้อมูลเรทล่าสุด/);
   assert.doesNotMatch(business, /ABC Components|Global Packaging|Oceanic Materials/);
 });
 
