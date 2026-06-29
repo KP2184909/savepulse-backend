@@ -668,6 +668,10 @@ function disclaimer(locale = "th") {
     : "This email is decision-support information based on historical data only. It is not financial advice, investment advice, trading instruction, or a confirmation of future rates. Please verify provider rates, fees, and spreads before making decisions.";
 }
 
+function bilingualDisclaimer() {
+  return `${disclaimer("en")} / ${disclaimer("th")}`;
+}
+
 const PREMIUM_ASSET_ICONS = Object.freeze({
   USDTHB: "🇺🇸",
   EURUSD: "🇪🇺",
@@ -735,25 +739,30 @@ function buildDailyDigestEmail({
   unsubscribeUrl = UNSUBSCRIBE_PLACEHOLDER
 } = {}) {
   const planId = normalizePlan(plan);
-  const language = localeKey(locale);
-  const copy = PLAN_COPY[planId][language];
+  const requestedLanguage = localeKey(locale);
+  const primaryLanguage = "en";
+  const secondaryLanguage = "th";
+  const copy = PLAN_COPY[planId][primaryLanguage];
   const signalMap = signalsBySymbol(signals);
   const resolvedDashboardUrl = baseUrl(dashboardUrl);
   const planName = planFor(planId).name;
   const html = renderPremiumDailyDigestEmail({
     plan: planId,
-    locale: language,
+    locale: primaryLanguage,
     copy,
-    assets: premiumAssetsForPlan(planId, signalMap, language),
+    assets: premiumAssetsForPlan(planId, signalMap, primaryLanguage),
+    secondaryLocale: secondaryLanguage,
+    secondaryCopy: PLAN_COPY[planId][secondaryLanguage],
+    secondaryAssets: premiumAssetsForPlan(planId, signalMap, secondaryLanguage),
     dashboardUrl: resolvedDashboardUrl,
     unsubscribeUrl,
     planName,
-    disclaimerText: disclaimer(language)
+    disclaimerText: bilingualDisclaimer()
   });
 
   return {
     plan: planId,
-    locale: language,
+    locale: requestedLanguage,
     subject: copy.subject,
     html,
     text: textFromHtml(html)

@@ -32,9 +32,23 @@ test("daily digest emails include legal disclaimer and unsubscribe placeholder",
   for (const plan of PLANS) {
     const template = buildDailyDigestEmail({ plan, locale: "th" });
 
+    assert.match(template.html, /This email is decision-support information/);
     assert.match(template.html, /ไม่ใช่คำแนะนำการลงทุน/);
     assert.match(template.html, /ยกเลิกรับอีเมล/);
     assert.match(template.html, /\{\{unsubscribe_url\}\}/);
+  }
+});
+
+test("daily digest emails render English first and Thai second in one message", () => {
+  for (const plan of PLANS) {
+    const template = buildDailyDigestEmail({ plan, locale: "th", signals: sampleSignals() });
+    const englishIndex = template.text.indexOf("Updated every morning");
+    const thaiIndex = template.text.indexOf("ภาษาไทย");
+
+    assert.equal(template.subject.includes("SavePulse"), true);
+    assert.notEqual(englishIndex, -1, `${plan} is missing the English section`);
+    assert.notEqual(thaiIndex, -1, `${plan} is missing the Thai section`);
+    assert.equal(englishIndex < thaiIndex, true, `${plan} should show English before Thai`);
   }
 });
 
@@ -88,8 +102,8 @@ test("plan previews reveal the right paid feature ladder", () => {
   assert.match(free, /ข้อมูลเต็มยังล็อกไว้/);
   assert.match(free, /เฉพาะ Pro/);
   assert.match(plus, /อัปเกรดเป็น Pro/);
-  assert.match(pro, /ทองคำ และบิตคอยน์/);
-  assert.match(business, /สรุปผลกระทบค่าเงินต่อใบแจ้งหนี้วันนี้/);
+  assert.match(pro, /ทองคำ บิตคอยน์/);
+  assert.match(business, /วันนี้ใบแจ้งหนี้ต่างประเทศ/);
   assert.match(business, /3 ใบแจ้งหนี้/);
   assert.match(business, /Business ช่วยทีมการเงินอย่างไร/);
   assert.match(business, /ตัวอย่างใบแจ้งหนี้สมมติ/);
