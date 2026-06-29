@@ -6,3 +6,4 @@ coverage/
 npm-debug.log*
 *.zip
 savepulse-netlify-drop-*.zip
+prototypes/
