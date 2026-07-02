@@ -321,103 +321,289 @@ function planName(subscriber) {
   return plan.charAt(0).toUpperCase() + plan.slice(1);
 }
 
+function alertTone(action) {
+  if (action === "SELL_ZONE") {
+    return {
+      badgeBg: "#ffe6ec",
+      badgeColor: "#a51f43",
+      accent: "#ff9cab",
+      chart: [30, 22, 27, 18, 15, 10]
+    };
+  }
+
+  if (action === "WAIT_ZONE") {
+    return {
+      badgeBg: "#ffeeb8",
+      badgeColor: "#795308",
+      accent: "#ffd052",
+      chart: [12, 18, 14, 20, 17, 22]
+    };
+  }
+
+  return {
+    badgeBg: "#bfffe4",
+    badgeColor: "#08734f",
+    accent: "#73f1ca",
+    chart: [8, 14, 11, 20, 17, 28]
+  };
+}
+
+function alertCopyFor(action, thai, symbol) {
+  if (thai) {
+    if (action === "SELL_ZONE") {
+      return {
+        subject: `SavePulse: ${symbol} อยู่ในโซนที่ควรระวัง`,
+        eyebrow: "ข้อสังเกตล่าสุด",
+        headline: `${symbol}: อยู่ในโซนที่ควรระวัง`,
+        badge: "ควรระวัง",
+        body:
+          "ข้อมูลย้อนหลังบอกว่ารายการนี้อยู่ในโซนที่ควรทบทวนให้รอบคอบก่อนตัดสินใจ โดยเฉพาะถ้าคุณกำลังจะใช้เงินก้อนใหญ่",
+        context:
+          "ถ้ายังไม่จำเป็นเร่งด่วน การรอข้อมูลรอบถัดไปอาจช่วยให้เห็นภาพชัดขึ้นก่อนตัดสินใจ",
+        cta: "ดูรายละเอียดบน SavePulse",
+        note: "ใช้ประกอบการตัดสินใจ ไม่ใช่คำสั่งให้แลกเงิน"
+      };
+    }
+
+    if (action === "WAIT_ZONE") {
+      return {
+        subject: `SavePulse: ${symbol} ยังไม่ต้องรีบ`,
+        eyebrow: "ข้อสังเกตล่าสุด",
+        headline: `${symbol}: ยังไม่ต้องรีบ`,
+        badge: "ยังไม่ต้องรีบ",
+        body:
+          "ข้อมูลย้อนหลังยังไม่ชี้ว่าจังหวะนี้เด่นพอสำหรับการรีบตัดสินใจ หากยังมีเวลา ควรรอดูข้อมูลเพิ่มเติม",
+        context:
+          "เหมาะกับการเฝ้าดูต่อ ไม่ใช่จุดที่ต้องตัดสินใจทันที",
+        cta: "ดูรายละเอียดบน SavePulse",
+        note: "ใช้ประกอบการตัดสินใจ ไม่ใช่คำสั่งให้แลกเงิน"
+      };
+    }
+
+    return {
+      subject: `SavePulse: ${symbol} เริ่มน่าจับตา`,
+      eyebrow: "ข้อสังเกตล่าสุด",
+      headline: `${symbol}: เริ่มน่าจับตา`,
+      badge: "เริ่มน่าจับตา",
+      body:
+        "ข้อมูลย้อนหลังบอกว่ารายการนี้เริ่มอยู่ในช่วงที่ควรกลับมาเช็กบริบทอีกครั้ง หากคุณมีแผนแลกเงินอยู่แล้ว",
+      context:
+        "ช่วงที่ดูน่าสนใจมักไม่ได้อยู่นาน การเช็กก่อนแลกช่วยลดโอกาสเสียเปรียบโดยไม่รู้ตัว",
+      cta: "ดูรายละเอียดบน SavePulse",
+      note: "ใช้ประกอบการตัดสินใจ ไม่ใช่คำสั่งให้แลกเงิน"
+    };
+  }
+
+  if (action === "SELL_ZONE") {
+    return {
+      subject: `SavePulse: ${symbol} needs extra caution`,
+      eyebrow: "Latest context",
+      headline: `${symbol}: extra caution zone`,
+      badge: "Use caution",
+      body:
+        "Historical context suggests this item deserves a more careful review before making a large decision.",
+      context:
+        "If timing is not urgent, waiting for the next update may give you clearer context.",
+      cta: "View details on SavePulse",
+      note: "Decision-support context, not an instruction to exchange."
+    };
+  }
+
+  if (action === "WAIT_ZONE") {
+    return {
+      subject: `SavePulse: ${symbol} is not urgent yet`,
+      eyebrow: "Latest context",
+      headline: `${symbol}: not urgent yet`,
+      badge: "Not urgent yet",
+      body:
+        "Historical context does not yet show a strong reason to rush. If you have time, keep watching for a clearer setup.",
+      context:
+        "This is a monitoring state, not a reason to act immediately.",
+      cta: "View details on SavePulse",
+      note: "Decision-support context, not an instruction to exchange."
+    };
+  }
+
+  return {
+    subject: `SavePulse: ${symbol} is worth watching`,
+    eyebrow: "Latest context",
+    headline: `${symbol}: worth watching`,
+    badge: "Worth watching",
+    body:
+      "Historical context suggests this item is worth checking again if you already have an exchange plan.",
+    context:
+      "Checking before you exchange helps reduce the chance of being disadvantaged by timing.",
+    cta: "View details on SavePulse",
+    note: "Decision-support context, not an instruction to exchange."
+  };
+}
+
+function confidencePercent(signal) {
+  const percent = Number(signal?.percentile?.percent);
+  if (!Number.isFinite(percent)) {
+    return null;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(percent)));
+}
+
+function alertBars(tone) {
+  return tone.chart.map((height) => (
+    `<td valign="bottom" style="padding:0 2px;width:12px;"><div style="height:${height}px;background:${tone.accent};border-radius:4px 4px 0 0;box-shadow:0 0 12px ${tone.accent};"></div></td>`
+  )).join("");
+}
+
 function buildEmail(signal, effectiveSignal, subscriberOrLocale = "en", env = process.env) {
   const localeHint =
     typeof subscriberOrLocale === "string" ? subscriberOrLocale : subscriberOrLocale?.locale || "en";
   const thai = isThaiAsset(signal.symbol) || localeHint === "th";
   const priceText = signal.price === null ? "N/A" : Number(signal.price).toLocaleString("en-US");
-  const percentileText = signal.percentile ? `${signal.percentile.percent}%` : "pending";
-  const symbol = escapeHtml(signal.symbol);
+  const symbolRaw = String(signal.symbol || "").toUpperCase();
+  const symbol = escapeHtml(symbolRaw);
   const action = String(signal.action || "").toUpperCase();
-  const isRiskAlert = action === "SELL_ZONE";
-  const meta = localizedMeta(effectiveSignal, thai);
   const dashboardUrl = env.PUBLIC_URL || DEFAULT_DASHBOARD_URL;
   const subscriberPlan = planName(subscriberOrLocale);
-  const headline = thai
-    ? isRiskAlert
-      ? `${symbol}: เข้าโซนเสี่ยงซื้อแพง`
-      : `${symbol}: เริ่มเข้าโซนที่ควรจับตา`
-    : isRiskAlert
-      ? `${symbol}: Expensive-zone risk is elevated`
-      : `${symbol}: A low-regret window is opening`;
-  const subject = thai
-    ? isRiskAlert
-      ? `SavePulse: ${signal.symbol} เข้าโซนเสี่ยงซื้อแพง`
-      : `SavePulse: ${signal.symbol} จังหวะดีอาจไม่รอนาน`
-    : isRiskAlert
-      ? `SavePulse: ${signal.symbol} moved into an expensive-risk zone`
-      : `SavePulse: ${signal.symbol} may be entering a better window`;
+  const tone = alertTone(action);
+  const copy = alertCopyFor(action, thai, symbolRaw);
+  const percent = confidencePercent(signal);
+  const percentText = percent === null
+    ? thai ? "รอข้อมูลย้อนหลังเพิ่มเติม" : "More history needed"
+    : `${percent}%`;
+  const percentWidth = percent === null ? 45 : percent;
+  const subject = copy.subject;
 
   const text = thai
     ? [
-        headline,
+        copy.headline,
         `ราคาอ้างอิง: ${priceText}`,
-        `ตำแหน่งเปอร์เซ็นไทล์: ${percentileText}`,
-        `สถานะ: ${meta.label}`,
-        "จังหวะเรทดีมักอยู่ไม่นาน หลายคนมาเห็นอีกทีตอนเรทขยับไปแล้ว",
-        "ข้อความนี้เป็นข้อมูลประกอบการตัดสินใจ ไม่ใช่คำแนะนำลงทุนหรือการรับประกันผลตอบแทน"
+        `สถานะ: ${copy.badge}`,
+        `ระดับข้อสังเกตจากข้อมูลย้อนหลัง: ${percentText}`,
+        copy.body,
+        copy.context,
+        "SavePulse ไม่ใช่คำแนะนำการลงทุน ไม่ใช่คำสั่งให้แลกเงิน ไม่ใช่บริการรับแลกเงิน และไม่รับประกันผลลัพธ์หรือเรทในอนาคต"
       ].join("\n")
     : [
-        headline,
+        copy.headline,
         `Reference price: ${priceText}`,
-        `Percentile position: ${percentileText}`,
-        `Decision state: ${meta.label}`,
-        "Good rate windows rarely stay open for long. Many people check again after the move has already passed.",
-        "This is decision intelligence, not financial advice, a trading signal, or a return guarantee."
+        `Status: ${copy.badge}`,
+        `Historical context level: ${percentText}`,
+        copy.body,
+        copy.context,
+        "SavePulse is not financial advice, not an instruction to exchange money, not a money exchange service, and does not guarantee future rates or outcomes."
       ].join("\n");
 
-  const bodyCopy = thai
-    ? isRiskAlert
-      ? "SavePulse เห็นสัญญาณว่าเรทหรือสินทรัพย์นี้อยู่ในโซนที่คนจำนวนมากอาจรู้สึกว่าเข้าช้าไปแล้ว ควรใช้ข้อมูลนี้เพื่อชะลออารมณ์และทบทวนแผนก่อนตัดสินใจ"
-      : "SavePulse เห็นจังหวะที่ควรจับตา จังหวะเรทดีมักไม่ได้เปิดอยู่นาน หากคุณมีแผนแลกเงินหรือสะสมอยู่แล้ว นี่คือเวลาที่ควรกลับมาเช็กการ์ดตัดสินใจ"
-    : isRiskAlert
-      ? "SavePulse detected a zone where many people may later feel they acted too late. Use this to slow down and review your plan before making a decision."
-      : "SavePulse detected a window worth checking. Better rate windows do not usually stay open for long. If you already planned to exchange or save, now is the moment to review your decision card.";
-
   const html = `<!doctype html>
-<html>
-  <body style="margin:0;background:#eef7f8;font-family:Arial,sans-serif;color:#111827;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:28px 16px;">
+<html lang="${thai ? "th" : "en"}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="x-apple-disable-message-reformatting">
+    <title>${escapeHtml(subject)}</title>
+  </head>
+  <body style="margin:0;background:#edf6f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,'Noto Sans Thai',sans-serif;color:#10252b;-webkit-text-size-adjust:100%;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${escapeHtml(copy.body)}</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#edf6f7;padding:18px 8px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;background:#ffffff;border:1px solid #dcebed;border-radius:18px;overflow:hidden;box-shadow:0 18px 45px rgba(15,118,110,.12);">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #d7e4e6;border-radius:20px;overflow:hidden;box-shadow:0 18px 50px rgba(3,52,59,.14);">
             <tr>
-              <td style="padding:26px 30px;background:linear-gradient(135deg,#087f83,#00a6b2);color:#ffffff;">
-                <div style="font-size:12px;text-transform:uppercase;letter-spacing:.08em;">SavePulse ${escapeHtml(subscriberPlan)} Alert</div>
-                <h1 style="margin:9px 0 0;font-size:26px;line-height:1.25;">${headline}</h1>
+              <td style="padding:20px 24px;border-bottom:1px solid #dbe7e9;background:#ffffff;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td valign="middle">
+                      <table role="presentation" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td style="width:48px;height:48px;border-radius:50%;background:linear-gradient(145deg,#18c7b7,#056672);color:#ffffff;text-align:center;line-height:48px;font-size:24px;font-weight:900;box-shadow:0 10px 22px rgba(4,142,143,.25);">⌁</td>
+                          <td style="padding-left:13px;color:#064851;font-size:30px;line-height:1.05;font-weight:900;">SavePulse</td>
+                        </tr>
+                      </table>
+                    </td>
+                    <td align="right"><span style="display:inline-block;padding:9px 15px;border:1.5px solid #078b8d;border-radius:999px;color:#078b8d;font-size:13px;font-weight:900;letter-spacing:.02em;">${escapeHtml(subscriberPlan.toUpperCase())}</span></td>
+                  </tr>
+                </table>
               </td>
             </tr>
             <tr>
-              <td style="padding:30px;">
-                <p style="font-size:16px;line-height:1.6;margin:0 0 18px;">${escapeHtml(bodyCopy)}</p>
-                <div style="border:1px solid #fde68a;background:#fffbeb;border-radius:14px;padding:14px 16px;margin:0 0 20px;color:#92400e;font-size:14px;line-height:1.5;">
-                  ${thai ? "หลายคนแลกช้าไป แล้วค่อยมารู้ทีหลังว่าส่วนต่างมากกว่าที่คิด" : "Many people exchange too late, then realize the difference was larger than expected."}
-                </div>
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+              <td style="padding:12px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(145deg,#023840 0%,#00545c 56%,#076d68 100%);border-radius:18px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(88,235,216,.16);">
                   <tr>
-                    <td style="padding:12px;border:1px solid #e5e7eb;">${thai ? "สินทรัพย์" : "Asset"}</td>
-                    <td style="padding:12px;border:1px solid #e5e7eb;"><strong>${symbol}</strong></td>
+                    <td style="padding:24px 21px 14px;color:#ffffff;">
+                      <div style="color:#73f1ca;font-size:13px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;">${escapeHtml(copy.eyebrow)}</div>
+                      <div style="margin-top:8px;color:#ffffff;font-size:31px;line-height:1.12;font-weight:900;word-break:keep-all;">${escapeHtml(copy.headline)}</div>
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:14px;">
+                        <tr>
+                          <td valign="middle" style="width:64%;padding-right:12px;color:#dff5f2;font-size:14px;line-height:1.55;">${escapeHtml(copy.body)}</td>
+                          <td align="right" valign="middle" style="width:36%;">
+                            <table role="presentation" cellpadding="0" cellspacing="0" style="display:inline-table;height:36px;"><tr>${alertBars(tone)}</tr><tr><td colspan="6" style="height:2px;background:rgba(126,242,217,.35);line-height:2px;font-size:0;">&nbsp;</td></tr></table>
+                          </td>
+                        </tr>
+                      </table>
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:15px;border:1px solid rgba(126,242,217,.28);border-radius:18px;background:rgba(0,31,37,.22);">
+                        <tr>
+                          <td style="width:50%;padding:10px 12px;color:#d7efed;font-size:11px;line-height:1.35;">${thai ? "อ้างอิงล่าสุด" : "Latest reference"}<br><strong style="font-size:17px;color:#ffffff;">${escapeHtml(priceText)}</strong></td>
+                          <td style="width:50%;padding:10px 12px;border-left:1px solid rgba(126,242,217,.22);color:#d7efed;font-size:11px;line-height:1.35;">${thai ? "รายการ" : "Item"}<br><strong style="font-size:17px;color:#ffffff;">${symbol}</strong></td>
+                        </tr>
+                      </table>
+                    </td>
                   </tr>
                   <tr>
-                    <td style="padding:12px;border:1px solid #e5e7eb;">${thai ? "ราคาอ้างอิง" : "Reference price"}</td>
-                    <td style="padding:12px;border:1px solid #e5e7eb;">${escapeHtml(priceText)}</td>
+                    <td style="padding:0 17px 12px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(145deg,#06464f 0%,#08726d 100%);border:1px solid ${tone.accent};border-radius:17px;box-shadow:0 10px 22px rgba(0,42,46,.16);">
+                        <tr>
+                          <td style="padding:16px 17px 15px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                              <tr>
+                                <td valign="top" style="width:58%;padding-right:10px;">
+                                  <div style="color:#ffffff;font-size:19px;line-height:1.28;font-weight:900;">${symbol}</div>
+                                  <div style="margin-top:3px;color:#a7d9d7;font-size:11px;line-height:1.35;">${thai ? "ข้อสังเกตจากข้อมูลย้อนหลัง" : "Historical context"}</div>
+                                </td>
+                                <td align="right" valign="top" style="width:42%;"><span style="display:inline-block;padding:9px 11px;background:${tone.badgeBg};color:${tone.badgeColor};border-radius:999px;font-size:12px;line-height:1.15;font-weight:900;white-space:nowrap;box-shadow:0 0 14px ${tone.accent};">${escapeHtml(copy.badge)}</span></td>
+                              </tr>
+                            </table>
+                            <p style="margin:13px 0 0;color:#e6f6f4;font-size:13px;line-height:1.6;">${escapeHtml(copy.context)}</p>
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:13px;background:rgba(1,43,50,.58);border-radius:12px;">
+                              <tr>
+                                <td style="padding:12px 13px;width:75%;">
+                                  <div style="color:#8cf0df;font-size:11px;line-height:1.35;font-weight:800;">${thai ? "ระดับข้อสังเกตจากข้อมูลย้อนหลัง" : "Historical context level"}</div>
+                                  <div style="margin-top:8px;height:8px;background:#195d61;border-radius:999px;overflow:hidden;"><div style="width:${percentWidth}%;height:8px;background:${tone.accent};border-radius:999px;"></div></div>
+                                  <div style="margin-top:8px;color:#ffffff;font-size:12px;font-weight:900;line-height:1.35;">${escapeHtml(percentText)}</div>
+                                </td>
+                                <td align="right" valign="middle" style="padding:10px 13px 10px 4px;width:25%;">
+                                  <table role="presentation" cellpadding="0" cellspacing="0" style="display:inline-table;height:32px;"><tr>${alertBars(tone)}</tr></table>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
                   </tr>
                   <tr>
-                    <td style="padding:12px;border:1px solid #e5e7eb;">${thai ? "สถานะวันนี้" : "Decision state"}</td>
-                    <td style="padding:12px;border:1px solid #e5e7eb;">${escapeHtml(meta.label)}</td>
+                    <td style="padding:0 17px 12px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff9e9;border:1px solid #f0d181;border-radius:14px;">
+                        <tr>
+                          <td style="width:45px;padding:14px 0 14px 15px;"><div style="width:36px;height:36px;border-radius:50%;background:#ffe29a;color:#a97000;text-align:center;line-height:36px;font-size:18px;font-weight:900;">↺</div></td>
+                          <td style="padding:13px 14px;">
+                            <div style="font-size:15px;font-weight:900;color:#352c1e;">${thai ? "บริบทจากข้อมูลย้อนหลัง" : "Historical context"}</div>
+                            <div style="margin-top:4px;color:#6c5f49;font-size:11px;line-height:1.5;">${thai ? "อีเมลนี้ช่วยบอกว่าตอนนี้ต่างจากช่วงก่อนหน้าอย่างไร เพื่อให้คุณเช็กข้อมูลก่อนตัดสินใจด้วยตัวเอง" : "This alert highlights how the current context differs from recent history so you can check before making your own decision."}</div>
+                            <div style="display:inline-block;margin-top:9px;padding:7px 10px;border-radius:10px;background:#ffeeb8;color:#7a5708;font-size:11px;font-weight:900;">${escapeHtml(copy.note)}</div>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
                   </tr>
                   <tr>
-                    <td style="padding:12px;border:1px solid #e5e7eb;">${thai ? "เปอร์เซ็นไทล์" : "Percentile"}</td>
-                    <td style="padding:12px;border:1px solid #e5e7eb;">${escapeHtml(percentileText)}</td>
+                    <td align="center" style="padding:0 17px 18px;">
+                      <a href="${escapeHtml(dashboardUrl)}" style="display:block;padding:14px 17px;background:linear-gradient(90deg,#20d5b0,#079b9b);border:1px solid #a5ffe2;border-radius:13px;color:#ffffff;text-decoration:none;text-align:center;font-size:18px;line-height:1.3;font-weight:900;box-shadow:0 0 22px rgba(51,237,196,.5);">⚡ ${escapeHtml(copy.cta)} →</a>
+                    </td>
                   </tr>
                 </table>
-                <p style="font-size:14px;line-height:1.6;color:#4b5563;margin:18px 0 0;">${escapeHtml(meta.guidance)}</p>
-                <div style="margin:24px 0 0;">
-                  <a href="${escapeHtml(dashboardUrl)}" style="display:inline-block;background:#087f83;color:#ffffff;text-decoration:none;font-weight:700;border-radius:12px;padding:13px 18px;">
-                    ${thai ? "เปิดการ์ดตัดสินใจวันนี้" : "Open today's decision card"}
-                  </a>
-                </div>
-                <p style="font-size:12px;line-height:1.6;color:#6b7280;margin:20px 0 0;">${escapeHtml(text.split("\n").at(-1))}</p>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:17px 27px 23px;">
+                <p style="margin:0;color:#71838c;font-size:11px;line-height:1.65;">${thai ? "SavePulse ให้ข้อมูลประกอบการตัดสินใจจากข้อมูลย้อนหลัง ไม่ใช่คำแนะนำการลงทุน ไม่ใช่บริการรับแลกเงิน และไม่รับประกันผลลัพธ์หรือเรทในอนาคต" : "SavePulse provides decision-support context from historical data. It is not financial advice, not a money exchange service, and does not guarantee future rates or outcomes."}</p>
+                <div style="margin-top:10px;padding-top:10px;border-top:1px solid #dbe8ea;color:#8a9aa1;font-size:10px;">${escapeHtml(subscriberPlan)} • © 2026 SavePulse Analytics Network</div>
               </td>
             </tr>
           </table>

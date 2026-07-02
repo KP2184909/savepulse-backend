@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 
 const {
   apiProviderForEnv,
+  buildEmail,
   buildWelcomeEmail,
   sendDailyDigestEmail,
   sendSignalEmail,
@@ -175,7 +176,32 @@ test("signal email can be sent through Resend API when selected", async () => {
     assert.equal(request.options.headers.authorization, "Bearer resend_test_key");
     assert.equal(request.body.from, "SavePulse <alerts@savepulse.cloud>");
     assert.deepEqual(request.body.to, ["member@example.com"]);
+    assert.match(request.body.html, /ข้อสังเกตล่าสุด/);
+    assert.match(request.body.html, /ดูรายละเอียดบน SavePulse/);
+    assert.doesNotMatch(request.body.html, /SAVEPULSE FREE ALERT|เปอร์เซ็นไทล์|pending|เปิดการ์ดตัดสินใจวันนี้/);
+    assert.doesNotMatch(request.body.html, /BUY_ZONE|SELL_ZONE|STRONG_BUY|WAIT_ZONE/);
   } finally {
     global.fetch = originalFetch;
   }
+});
+
+test("signal alert email uses premium compact design without legacy table copy", () => {
+  const signal = {
+    ...createDefaultSignal("JPYTHB"),
+    action: "BUY_ZONE",
+    price: 0.2029,
+    percentile: { percent: 61 }
+  };
+  const template = buildEmail(signal, signal, { email: "member@example.com", plan: "free", locale: "th" }, {
+    PUBLIC_URL: "https://savepulse.cloud"
+  });
+
+  assert.match(template.subject, /เริ่มน่าจับตา/);
+  assert.match(template.html, /SavePulse/);
+  assert.match(template.html, /ข้อสังเกตล่าสุด/);
+  assert.match(template.html, /บริบทจากข้อมูลย้อนหลัง/);
+  assert.match(template.html, /ดูรายละเอียดบน SavePulse/);
+  assert.match(template.html, /61%/);
+  assert.doesNotMatch(`${template.subject} ${template.text} ${template.html}`, /SAVEPULSE FREE ALERT|เปอร์เซ็นไทล์|pending|เปิดการ์ดตัดสินใจวันนี้/);
+  assert.doesNotMatch(`${template.subject} ${template.text} ${template.html}`, /BUY_ZONE|SELL_ZONE|STRONG_BUY|WAIT_ZONE/);
 });
