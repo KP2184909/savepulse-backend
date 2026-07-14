@@ -228,20 +228,30 @@ function normalizeSubscriberRecord(subscriber = {}) {
   };
 }
 
-function dailyDigestCandidates(plan = "", email = "") {
+function dailyEmailRecipientAllowlist(env = process.env) {
+  return String(env.DAILY_EMAIL_RECIPIENTS || env.DAILY_DIGEST_RECIPIENTS || "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(emailIsValid);
+}
+
+function dailyDigestCandidates(plan = "", email = "", env = process.env) {
   const targetPlan = String(plan || "").trim().toLowerCase();
   const targetEmail = String(email || "").trim().toLowerCase();
+  const recipientAllowlist = dailyEmailRecipientAllowlist(env);
+  const allowedEmails = new Set(recipientAllowlist);
   const subscribers = loadSubscribers();
 
   return subscribers
     .map(normalizeSubscriberRecord)
     .filter((subscriber) => emailIsValid(subscriber.email))
+    .filter((subscriber) => !recipientAllowlist.length || allowedEmails.has(subscriber.email))
     .filter((subscriber) => !targetPlan || subscriber.plan === normalizePlan(targetPlan))
     .filter((subscriber) => !targetEmail || subscriber.email === targetEmail);
 }
 
-function dailyDigestRecipients(plan = "", email = "") {
-  return dailyDigestCandidates(plan, email).filter((subscriber) => !subscriberSkipReason(subscriber));
+function dailyDigestRecipients(plan = "", email = "", env = process.env) {
+  return dailyDigestCandidates(plan, email, env).filter((subscriber) => !subscriberSkipReason(subscriber));
 }
 
 function dailyEmailEnabled(env = process.env) {
@@ -303,11 +313,14 @@ function safeErrorMessage(error) {
 }
 
 function dailyEmailConfigForAdmin(env = process.env) {
+  const recipientAllowlist = dailyEmailRecipientAllowlist(env);
   return {
     enabled: dailyEmailEnabled(env),
     sendTime: dailyEmailTime(env),
     timeZone: dailyEmailTimeZone(env),
     signalMaxAgeHours: dailyEmailSignalMaxAgeHours(env),
+    recipientScope: recipientAllowlist.length ? "allowlist" : "all_subscribers",
+    recipientAllowlistCount: recipientAllowlist.length,
     smtpConfigured: smtpConfigured(env)
   };
 }
@@ -325,7 +338,7 @@ async function sendDailyDigestBatch(
   { dryRun = false, plan = "", email = "", signals, now = new Date(), sendEmail = sendDailyDigestEmail } = {},
   env = process.env
 ) {
-  const recipients = dailyDigestCandidates(plan, email);
+  const recipients = dailyDigestCandidates(plan, email, env);
   const signalList = storedSignalsForDigest(signals);
   const readiness = assessSignalReadiness(signalList, {
     now,
@@ -486,6 +499,10 @@ function bangkokDateParts(now = new Date()) {
 function dailyDigestScheduleDue(now = new Date(), env = process.env, state = loadJson(SCHEDULER_STATE_FILE, {})) {
   if (!dailyEmailEnabled(env)) {
     return { due: false, reason: "disabled" };
+  }
+
+  if (!dailyEmailRecipientAllowlist(env).length) {
+    return { due: false, reason: "recipient_allowlist_required" };
   }
 
   const scheduled = parseDigestTime(dailyEmailTime(env));
@@ -717,6 +734,7 @@ module.exports = {
   dailyDigestRecipients,
   dailyDigestScheduleDue,
   dailyEmailEnabled,
+  dailyEmailRecipientAllowlist,
   dailyEmailSignalMaxAgeHours,
   dailyEmailTime,
   dailyEmailTimeZone,

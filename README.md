@@ -54,6 +54,7 @@ PUBLIC_URL=https://savepulse-backend.onrender.com
 VIP_EMAILS=member1@example.com,member2@example.com
 DAILY_FREE_QUOTA=50
 DAILY_EMAIL_ENABLED=false
+DAILY_EMAIL_RECIPIENTS=pilot1@example.com,pilot2@example.com
 DAILY_EMAIL_TIME=08:30
 DAILY_EMAIL_TIMEZONE=Asia/Bangkok
 DAILY_EMAIL_SIGNAL_MAX_AGE_HOURS=36
@@ -115,8 +116,11 @@ curl -X POST https://savepulse-backend.onrender.com/api/v1/daily-digest/send \
 
 The production scheduler wakes every five minutes and sends once per Bangkok calendar day after the configured send window. The default is 08:30 Asia/Bangkok, after the daily TradingView alerts are expected to arrive.
 
+Private Beta scheduled delivery fails closed unless `DAILY_EMAIL_RECIPIENTS` contains a comma-separated allowlist. This prevents old test signups and unapproved subscribers from receiving automatic email. Manual admin sends can still target one approved subscriber with the `email` request field.
+
 ```bash
 DAILY_EMAIL_ENABLED=false
+DAILY_EMAIL_RECIPIENTS=pilot1@example.com,pilot2@example.com
 DAILY_EMAIL_TIME=08:30
 DAILY_EMAIL_TIMEZONE=Asia/Bangkok
 DAILY_EMAIL_SIGNAL_MAX_AGE_HOURS=36

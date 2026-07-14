@@ -18,7 +18,9 @@ process.env.WEBHOOK_SECRET = "test-master-secret";
 process.env.ADMIN_READINESS_KEY = "test-admin-key";
 
 const {
+  dailyDigestCandidates,
   dailyDigestScheduleDue,
+  dailyEmailRecipientAllowlist,
   loadEmailLogs,
   saveEmailLogs,
   sendDailyDigestBatch,
@@ -214,7 +216,7 @@ test("direction-aware copy is used for subscriber watchlists", () => {
 });
 
 test("daily email scheduler uses configurable Bangkok 08:30 default window", () => {
-  const env = { DAILY_EMAIL_ENABLED: "true" };
+  const env = { DAILY_EMAIL_ENABLED: "true", DAILY_EMAIL_RECIPIENTS: "pilot@example.com" };
 
   assert.equal(
     dailyDigestScheduleDue(new Date("2026-06-02T01:29:00.000Z"), env, {}).reason,
@@ -224,5 +226,31 @@ test("daily email scheduler uses configurable Bangkok 08:30 default window", () 
   assert.equal(
     dailyDigestScheduleDue(new Date("2026-06-02T02:00:00.000Z"), env, { dailyEmailDate: "2026-06-02" }).reason,
     "already_processed_today"
+  );
+});
+
+test("scheduled daily email stays closed until a recipient allowlist is configured", () => {
+  const result = dailyDigestScheduleDue(new Date("2026-06-02T02:00:00.000Z"), {
+    DAILY_EMAIL_ENABLED: "true"
+  });
+
+  assert.equal(result.due, false);
+  assert.equal(result.reason, "recipient_allowlist_required");
+});
+
+test("daily email recipient allowlist limits automatic pilot recipients", () => {
+  resetState([
+    subscriber("owner@example.com", "free"),
+    subscriber("pilot@example.com", "free"),
+    subscriber("old-test@example.com", "free")
+  ]);
+  const env = {
+    DAILY_EMAIL_RECIPIENTS: " OWNER@example.com, pilot@example.com, invalid "
+  };
+
+  assert.deepEqual(dailyEmailRecipientAllowlist(env), ["owner@example.com", "pilot@example.com"]);
+  assert.deepEqual(
+    dailyDigestCandidates("", "", env).map((record) => record.email),
+    ["owner@example.com", "pilot@example.com"]
   );
 });
