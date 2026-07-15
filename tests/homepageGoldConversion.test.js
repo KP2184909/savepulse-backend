@@ -18,3 +18,10 @@ test("homepage explains the international gold reference conversion", () => {
   assert.match(homepage, /1 ทรอยออนซ์ = 31\.10 กรัม/);
   assert.match(homepage, /Provider fees and spreads are not included/);
 });
+
+test("homepage renders copy before waiting for live asset data", () => {
+  assert.match(
+    homepage,
+    /async function load\(\)\{lang\(\);try\{const r=await fetch\("\/api\/v1\/assets"\)/,
+  );
+});
