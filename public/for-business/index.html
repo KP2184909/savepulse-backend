@@ -50,7 +50,7 @@ input[aria-invalid=true]{border-color:var(--danger)}
 .white-card{border:1px solid #d2e2e4;border-radius:18px;padding:22px;background:white}.white-card b{color:#102e40}
 .cta-panel{background:linear-gradient(115deg,#12374a,#17433c);border:1px solid #37695d;border-radius:22px;padding:36px;margin:16px 0 42px}
 .cta-panel p{color:#bcd1d6;max-width:740px}
-#report{display:none}
+textarea{font:inherit;background:#071826;border:1px solid #456073;color:var(--cream);border-radius:10px;padding:12px;width:100%;resize:vertical}.consent{display:flex;gap:10px;align-items:flex-start}.consent input{width:20px;min-height:20px;flex-shrink:0;margin-top:3px}.btn:disabled{opacity:.5;cursor:not-allowed}#demo-form{max-width:800px}#report{display:none}
 @media(max-width:850px){.hero{grid-template-columns:1fr;gap:24px;padding-top:54px}.calc-body{grid-template-columns:1fr}.calc-left{border-right:0;border-bottom:1px solid var(--line)}.grid3{grid-template-columns:1fr}.nav a.hide-mobile{display:none}}
 @media(max-width:500px){.fields{grid-template-columns:1fr}.span2{grid-column:auto}.calc-left,.calc-right{padding:20px}.calc-header{padding:20px}.hero h1{font-size:40px}.split{grid-template-columns:1fr}}
 @media print{body{background:#fff;color:#162b38}.top,.hero,.section:not(#calculator),.footer,.cta-panel,.calc-left,.calc-header,.report-actions,.audit{display:none!important}.section#calculator{padding:0;background:#fff}.calculator,.calc-right{border:0;background:#fff;color:#162b38;padding:0}.calc-body{display:block}.kpi label,.small,.driver{color:#35576b}.kpi strong,.driver b{color:#102e40!important}#report{display:block;margin-bottom:26px}#report h1{font-size:27px}.wrap{padding:0} .calc-right{padding:0}.calculator{border-radius:0}}
@@ -80,7 +80,7 @@ input[aria-invalid=true]{border-color:var(--danger)}
 </div></div></section>
 <section class="section" id="calculator"><div class="wrap">
 <div class="eyebrow">Free, interactive & private</div><h2>Procurement cost exposure calculator</h2>
-<p style="color:var(--muted);max-width:800px">Run an illustrative PO scenario with your own assumptions or select a demo. Nothing is uploaded or stored by SavePulse. Print the result as a one-page executive brief.</p>
+<p style="color:var(--muted);max-width:800px">Run an illustrative PO scenario with your own assumptions or select a demo. Calculator inputs stay in your browser and are not submitted with a demo request. Print the result as a one-page executive brief.</p>
 <div class="calculator">
 <div class="calc-header"><div><h3 style="margin:0">Scenario builder</h3><div class="small">Choose a sample or enter your own numbers</div></div><span class="small">No sign-up required</span></div>
 <div class="calc-body"><div class="calc-left">
@@ -121,9 +121,29 @@ input[aria-invalid=true]{border-color:var(--danger)}
 <div class="white-card"><b>For finance teams</b><p>Bridge purchase-order assumptions and settlement-day currency costs.</p></div>
 <div class="white-card"><b>For procurement leads</b><p>Separate upstream supplier repricing from FX effects on landed costs.</p></div>
 </div></div></section>
-<div class="wrap"><section class="cta-panel"><div class="eyebrow">Help shape SavePulse for Business</div><h2>Would this be useful in your procurement workflow?</h2><p>We are speaking with finance and procurement leaders before developing business features. Share your workflow or request an exploratory demo. No obligation, no confidential documents required.</p><a class="btn primary" id="contact" href="mailto:piyathanin@gmail.com?subject=SavePulse%20Business%20%7C%20Research%20Conversation">Request a 10-minute conversation →</a><p class="note">Pilot availability, integrations and pricing are not promised. Business capabilities remain under research.</p></section></div>
+<div class="wrap"><section class="cta-panel"><div class="eyebrow">Help shape SavePulse for Business</div><h2>Would this be useful in your procurement workflow?</h2><p>We are speaking with finance and procurement leaders before developing business features. Share your workflow or request an exploratory demo. No obligation, no confidential documents required.</p><form name="savepulse-b2b-demo" method="POST" action="/for-business/thank-you/" data-netlify="true" netlify-honeypot="bot-field" id="demo-form">
+<input type="hidden" name="form-name" value="savepulse-b2b-demo">
+<input type="hidden" name="request-id" id="request-id" value="">
+<input type="hidden" name="channel" id="lead-channel" value="Website">
+<input type="hidden" name="source" value="Website B2B">
+<input type="hidden" name="privacy-version" value="2026-10-12">
+<input type="hidden" name="subject" value="SavePulse B2B demo request (%{submissionId})">
+<p hidden><label>Leave this empty <input name="bot-field" tabindex="-1" autocomplete="off"></label></p>
+<div class="fields">
+<div class="field"><label for="lead-company">Company name</label><input id="lead-company" name="company" required maxlength="160" autocomplete="organization"></div>
+<div class="field"><label for="lead-country">Company country</label><select id="lead-country" name="country" required><option value="">Choose a country</option><option>Malaysia</option><option>Philippines</option><option>Thailand</option><option>United Kingdom</option><option>India</option><option>Singapore</option><option>Other</option></select></div>
+<div class="field"><label for="lead-email">Business email</label><input id="lead-email" name="email" type="email" required maxlength="254" autocomplete="email"></div>
+<div class="field"><label for="lead-role">Your position</label><input id="lead-role" name="position" required maxlength="120" autocomplete="organization-title"></div>
+<div class="field"><label for="lead-persona">Your team</label><select id="lead-persona" name="persona" required><option value="">Choose your team</option><option>CFO / Finance Director</option><option>Finance / Treasury</option><option>Procurement</option><option>Owner / CEO</option><option>Other</option></select></div>
+<div class="field"><label for="lead-interest">What would you like to explore?</label><select id="lead-interest" name="interest"><option>Exploratory demo</option><option>Paid pilot discussion (subject to agreement)</option></select></div>
+<div class="field span2"><label for="lead-problem">What would you like to understand or improve?</label><textarea id="lead-problem" name="problem" required maxlength="1500" rows="4" placeholder="For example: explain supplier-price and FX effects on unpaid purchase orders. Please do not include confidential figures, invoices or personal data."></textarea></div>
+</div>
+<p><label class="consent"><input type="checkbox" name="consent" value="yes" required> I agree that SavePulse may use these details to respond to this request and contact me about this demo or pilot discussion. I have read the <a href="/for-business/privacy/">Business Privacy Notice</a>. This does not subscribe me to marketing emails; I can withdraw by emailing the contact address in our main privacy policy.</label></p>
+<button class="btn primary" type="submit">Request an exploratory demo →</button>
+<p id="lead-status" class="small" role="status" aria-live="polite"></p>
+</form><p class="note">Pilot availability, integrations and pricing are not promised. Business capabilities remain under research.</p></section></div>
 </main>
-<footer class="footer"><div class="wrap footer-grid"><span>© <span id="year"></span> SavePulse · Business research preview · Not financial advice</span><span><a href="/">Consumer SavePulse</a> · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · <a href="mailto:piyathanin@gmail.com">Contact</a></span></div></footer>
+<footer class="footer"><div class="wrap footer-grid"><span>© <span id="year"></span> SavePulse · Business research preview · Not financial advice</span><span><a href="/">Consumer SavePulse</a> · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · <a href="/privacy.html">Contact</a></span></div></footer>
 <script>
 (function(){
 "use strict";
@@ -135,14 +155,14 @@ aluminium:{commodity:"Aluminium - illustrative",currency:"GBP",quantity:80,oldPr
 };
 var ids=["quantity","old-price","new-price","old-fx","new-fx","hedge","logistics"],$=id=>document.getElementById(id),last=null;
 function fmt(v,ccy){try{return new Intl.NumberFormat("en-GB",{style:"currency",currency:ccy,minimumFractionDigits:0,maximumFractionDigits:2}).format(v)}catch(e){return ccy+" "+v.toFixed(2)}}
-function read(){var a=ids.map(id=>Number($(id).value));if(a.some(v=>!Number.isFinite(v))||a[0]<=0||a[1]<0||a[2]<0||a[3]<=0||a[4]<=0||a[5]<0||a[5]>100||a[6]<0||a.some(v=>Math.abs(v)>1e12))return null;return {quantity:a[0],p0:a[1],p1:a[2],fx0:a[3],fx1:a[4],hedge:a[5]/100,logistics:a[6],currency:$("currency").value,material:$("commodity").value||"Purchase order"}}
-function calc(){var p=read(),err=$("validation");if(!p){err.textContent="Enter valid, positive quantities/FX rates and a locked share from 0–100%.";return;}err.textContent="";
+function read(){var a=ids.map(id=>$(id).value.trim()===""?NaN:Number($(id).value));if(a.some(v=>!Number.isFinite(v))||a[0]<=0||a[1]<0||a[2]<0||a[3]<=0||a[4]<=0||a[5]<0||a[5]>100||a[6]<0||a.some(v=>Math.abs(v)>1e12))return null;return {quantity:a[0],p0:a[1],p1:a[2],fx0:a[3],fx1:a[4],hedge:a[5]/100,logistics:a[6],currency:$("currency").value,material:$("commodity").value||"Purchase order"}}
+function calc(){var p=read(),err=$("validation");if(!p){last=null;$("print").disabled=true;$("copy").disabled=true;err.textContent="Enter valid, positive quantities/FX rates and a locked share from 0–100%.";return;}err.textContent="";$("print").disabled=false;$("copy").disabled=false;
 var fx=p.fx0*p.hedge+p.fx1*(1-p.hedge);
 var budget=p.quantity*p.p0*p.fx0+p.logistics,current=p.quantity*p.p1*fx+p.logistics;
 var priceEffect=p.quantity*(p.p1-p.p0)*p.fx0;
 var fxEffect=p.quantity*p.p1*(fx-p.fx0);
 var delta=current-budget;
-if(![fx,budget,current,priceEffect,fxEffect,delta].every(Number.isFinite)){err.textContent="The calculation exceeds the supported range.";return;}
+if(![fx,budget,current,priceEffect,fxEffect,delta].every(Number.isFinite)){last=null;$("print").disabled=true;$("copy").disabled=true;err.textContent="The calculation exceeds the supported range.";return;}
 var percent=budget?delta/budget*100:0;var f=x=>fmt(x,p.currency);
 $("budget-cost").textContent=f(budget);$("current-cost").textContent=f(current);
 $("variance").textContent=(delta>0?"+":"")+f(delta);
@@ -160,6 +180,18 @@ ids.concat(["commodity","currency"]).forEach(id=>$(id).addEventListener("input",
 $("print").addEventListener("click",()=>{calc();if(last)window.print()});
 $("copy").addEventListener("click",async()=>{calc();if(!last)return;var p=last.p;var summary="SavePulse | Scenario exposure summary\n"+p.material+"\nBudget: "+fmt(last.budget,p.currency)+"\nUpdated scenario: "+fmt(last.current,p.currency)+"\nVariance: "+fmt(last.delta,p.currency)+" ("+last.percent.toFixed(2)+"%)\nSupplier price impact: "+fmt(last.priceEffect,p.currency)+"\nFX impact: "+fmt(last.fxEffect,p.currency)+"\nIllustrative manually entered assumptions. Not a promise of savings.\nhttps://savepulse.cloud/for-business/";try{await navigator.clipboard.writeText(summary);$("copy-status").textContent="Summary copied."}catch(e){$("copy-status").textContent="Copy unavailable in this browser; use Print / PDF instead."}});
 calc();
+})();
+</script>
+<script>
+(function(){
+var form=document.getElementById("demo-form"),status=document.getElementById("lead-status"),button=form.querySelector("button[type=submit]");
+var source=new URLSearchParams(window.location.search).get("utm_source");var channels={linkedin:"LinkedIn",partner:"Partner",email:"Email",youtube:"YouTube"};document.getElementById("lead-channel").value=channels[source]||"Website";
+document.getElementById("request-id").value=crypto.randomUUID ? crypto.randomUUID() : String(Date.now())+"-"+Math.random().toString(36).slice(2);
+form.addEventListener("submit",async function(e){
+e.preventDefault();if(!form.reportValidity())return;button.disabled=true;status.textContent="Submitting your request…";
+try{var response=await fetch("/for-business/",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams(new FormData(form)).toString()});if(!response.ok)throw new Error("Submission failed");window.location.assign("/for-business/thank-you/");}
+catch(error){status.textContent="We could not confirm receipt. Please try again or email the contact address in our main privacy policy. Your details are still in this form.";button.disabled=false;}
+});
 })();
 </script>
 </body></html>
