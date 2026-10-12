@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SavePulse for Business — Know your procurement exposure before payment</title>
+<meta name="description" content="Explore the potential impact of supplier prices and FX movements on open purchase orders. Free, private, scenario-based CFO exposure calculator.">
+<meta property="og:title" content="Your supplier quote hasn't changed. Has your cost? | SavePulse">
+<meta property="og:description" content="See how supplier prices and foreign exchange can change open purchase-order costs before payment. Try an illustrative calculation.">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://savepulse.cloud/for-business/">
+<style>
+:root{--bg:#081522;--panel:#0f2335;--panel2:#142d41;--line:#294357;--teal:#6de5c5;--cream:#edf6f5;--muted:#adc5cf;--orange:#ffc68c;--danger:#ff9f99;--blue:#88b6ff}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--cream);font:16px/1.6 system-ui,-apple-system,Segoe UI,Arial,sans-serif}
+a{color:var(--teal)}button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid var(--teal);outline-offset:3px}
+.wrap{max-width:1160px;margin:0 auto;padding:0 26px}
+.top{border-bottom:1px solid var(--line);background:rgba(8,21,34,.95);position:sticky;top:0;z-index:5}
+.top-inner{height:72px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{font-weight:800;font-size:23px;letter-spacing:-1px;text-decoration:none;color:var(--cream)}.brand span{color:var(--teal)}
+.nav{display:flex;gap:22px;align-items:center}.nav a{color:var(--muted);text-decoration:none;font-size:14px}.nav a:hover{color:var(--cream)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:11px;padding:13px 18px;font-weight:750;text-decoration:none;transition:transform .15s}.btn:hover{transform:translateY(-2px)}
+.btn.primary{background:var(--teal);color:#09251f}.btn.ghost{background:transparent;border:1px solid #557082;color:var(--cream)}
+.btn.sm{font-size:13px;padding:9px 14px}
+.hero{padding:76px 0 62px;display:grid;grid-template-columns:1.12fr .88fr;align-items:center;gap:52px}
+.eyebrow{color:var(--teal);font-size:12px;letter-spacing:2px;font-weight:800;text-transform:uppercase}
+h1,h2,h3{line-height:1.16;letter-spacing:-.035em}h1{font-size:clamp(40px,5.2vw,72px);margin:16px 0 22px}h2{font-size:clamp(28px,3vw,40px);margin:10px 0 16px}h3{font-size:21px;margin:8px 0 12px}
+.hero-lead{font-size:19px;line-height:1.65;color:var(--muted);max-width:660px}.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+.note{font-size:12px;color:#90aab6;margin-top:16px}
+.hero-art{border:1px solid #35586b;border-radius:22px;background:linear-gradient(155deg,#19394d,#0b1c2b);padding:24px;box-shadow:0 30px 70px #0005}
+.art-top{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px;letter-spacing:1px;text-transform:uppercase}
+.big{font-size:clamp(30px,4vw,48px);font-weight:850;color:var(--orange);letter-spacing:-2px;margin:26px 0 10px;font-variant-numeric:tabular-nums}
+.bars{display:grid;gap:13px}.bar-label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}.bar{height:10px;border-radius:15px;background:#24445b;overflow:hidden}.bar>i{display:block;height:100%;background:var(--teal);border-radius:15px}.bar>i.alt{background:var(--orange)}
+.art-footer{border-top:1px solid var(--line);margin-top:24px;padding-top:16px;color:var(--muted);font-size:13px}
+.section{padding:64px 0}.section.light{background:#eff5f4;color:#102639}.section.light p{color:#486172}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:26px}.feature{border:1px solid var(--line);background:var(--panel);border-radius:18px;padding:24px}.feature p{color:var(--muted);margin:0}.feature .num{font-size:13px;color:var(--teal);letter-spacing:1px}
+.calculator{border:1px solid #31576b;background:#0d2031;border-radius:22px;overflow:hidden}
+.calc-header{padding:26px 30px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
+.calc-body{display:grid;grid-template-columns:1fr 1fr;gap:0}.calc-left{padding:30px;border-right:1px solid var(--line)}.calc-right{padding:30px;background:#122b3d}
+.fields{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}.field{display:flex;flex-direction:column;gap:6px}
+label{font-size:13px;color:#c9dce1;font-weight:650}input,select{background:#071826;border:1px solid #456073;color:var(--cream);border-radius:10px;padding:11px 12px;min-height:46px;width:100%}
+input[aria-invalid=true]{border-color:var(--danger)}
+.span2{grid-column:1/-1}.small{color:var(--muted);font-size:13px}
+.preset-row{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 24px}.preset{border:1px solid #4e6674;background:transparent;color:var(--cream);padding:8px 13px;border-radius:999px;font-size:12px}.preset[aria-pressed=true]{color:#09251f;background:var(--teal);border-color:var(--teal)}
+.kpi{padding:17px 0;border-bottom:1px solid var(--line)}.kpi label{display:block;color:var(--muted);font-weight:500}.kpi strong{display:block;font-size:26px;letter-spacing:-.04em;font-variant-numeric:tabular-nums}.kpi strong.negative{color:var(--danger)}.kpi strong.positive{color:var(--teal)}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:12px}.driver{display:flex;justify-content:space-between;gap:14px;font-size:14px;color:var(--muted);padding:9px 0}.driver b{color:var(--cream);font-variant-numeric:tabular-nums}
+.validation{font-size:13px;color:var(--orange);min-height:20px;padding:7px 0}
+.report-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.audit{border:1px solid #3a5565;background:#0b1e2d;border-radius:12px;padding:16px;color:#c4d8df;font-size:13px;margin-top:24px}
+.footer{padding:38px 0;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.footer a{color:var(--muted)}.footer-grid{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap}
+.white-card{border:1px solid #d2e2e4;border-radius:18px;padding:22px;background:white}.white-card b{color:#102e40}
+.cta-panel{background:linear-gradient(115deg,#12374a,#17433c);border:1px solid #37695d;border-radius:22px;padding:36px;margin:16px 0 42px}
+.cta-panel p{color:#bcd1d6;max-width:740px}
+#report{display:none}
+@media(max-width:850px){.hero{grid-template-columns:1fr;gap:24px;padding-top:54px}.calc-body{grid-template-columns:1fr}.calc-left{border-right:0;border-bottom:1px solid var(--line)}.grid3{grid-template-columns:1fr}.nav a.hide-mobile{display:none}}
+@media(max-width:500px){.fields{grid-template-columns:1fr}.span2{grid-column:auto}.calc-left,.calc-right{padding:20px}.calc-header{padding:20px}.hero h1{font-size:40px}.split{grid-template-columns:1fr}}
+@media print{body{background:#fff;color:#162b38}.top,.hero,.section:not(#calculator),.footer,.cta-panel,.calc-left,.calc-header,.report-actions,.audit{display:none!important}.section#calculator{padding:0;background:#fff}.calculator,.calc-right{border:0;background:#fff;color:#162b38;padding:0}.calc-body{display:block}.kpi label,.small,.driver{color:#35576b}.kpi strong,.driver b{color:#102e40!important}#report{display:block;margin-bottom:26px}#report h1{font-size:27px}.wrap{padding:0} .calc-right{padding:0}.calculator{border-radius:0}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap top-inner"><a class="brand" href="/">⌁ Save<span>Pulse</span></a><nav class="nav"><a class="hide-mobile" href="#how">How it works</a><a class="hide-mobile" href="#calculator">Free calculator</a><a class="btn primary sm" href="#calculator">Estimate your exposure ↗</a></nav></div></header>
+<main>
+<div class="wrap"><section class="hero"><div>
+<div class="eyebrow">SavePulse for Business · Finance & Procurement</div>
+<h1>Your supplier quote stayed the same.<br><span style="color:var(--teal)">Did your landed cost?</span></h1>
+<p class="hero-lead">An overseas purchase order can cost more in your reporting currency by the time payment is due. See the potential impact of supplier prices and FX—before it appears in your margin report.</p>
+<div class="actions"><a class="btn primary" href="#calculator">Try the free cost calculator →</a><a class="btn ghost" href="#how">See how it works</a></div>
+<p class="note">Early-stage concept · No account needed · No real-time market data or savings guarantees</p>
+</div>
+<div class="hero-art" aria-label="Illustrative procurement exposure scenario"><div class="art-top"><span>Illustrative USD purchase order</span><span>FX + supplier repricing</span></div>
+<div style="font-size:15px;color:var(--muted);margin-top:22px">Potential cost increase versus approved budget</div><div class="big">+฿1,000,000</div>
+<div class="bars"><div class="bar-label"><span>Budgeted cost</span><b>฿35,000,000</b></div><div class="bar"><i style="width:87.5%"></i></div><div class="bar-label"><span>At illustrative FX rate</span><b>฿36,000,000</b></div><div class="bar"><i class="alt" style="width:90%"></i></div></div>
+<div class="art-footer">Example only: USD 1,000,000 outstanding × (THB 36 − THB 35). Actual cost depends on your contracts and hedges.</div></div>
+</section></div>
+<section class="section light" id="how"><div class="wrap">
+<div class="eyebrow" style="color:#117969">Where hidden cost variance starts</div><h2>Three numbers worth seeing together</h2>
+<div class="grid3">
+<div class="white-card"><span style="color:#12836e">01 / PO</span><h3>What you committed</h3><p>Supplier quantity, quoted unit cost and the rate used when the budget was approved.</p></div>
+<div class="white-card"><span style="color:#12836e">02 / Change</span><h3>What moved</h3><p>A later supplier quote, an exchange-rate change or both—clearly separated.</p></div>
+<div class="white-card"><span style="color:#12836e">03 / Decision</span><h3>What to discuss</h3><p>Show the difference before payment so finance and purchasing can review exposure together.</p></div>
+</div></div></section>
+<section class="section" id="calculator"><div class="wrap">
+<div class="eyebrow">Free, interactive & private</div><h2>Procurement cost exposure calculator</h2>
+<p style="color:var(--muted);max-width:800px">Run an illustrative PO scenario with your own assumptions or select a demo. Nothing is uploaded or stored by SavePulse. Print the result as a one-page executive brief.</p>
+<div class="calculator">
+<div class="calc-header"><div><h3 style="margin:0">Scenario builder</h3><div class="small">Choose a sample or enter your own numbers</div></div><span class="small">No sign-up required</span></div>
+<div class="calc-body"><div class="calc-left">
+<label>Try an industry example</label><div class="preset-row" role="group" aria-label="Sample industries">
+<button class="preset" data-preset="copper" aria-pressed="true">Copper · THB</button>
+<button class="preset" data-preset="grain" aria-pressed="false">Grain · MYR</button>
+<button class="preset" data-preset="aluminium" aria-pressed="false">Aluminium · GBP</button>
+</div>
+<div class="fields">
+<div class="field"><label for="commodity">Material / PO reference</label><input id="commodity" maxlength="60" value="Copper - illustrative"></div>
+<div class="field"><label for="currency">Reporting currency</label><select id="currency"><option value="THB">THB · Thai Baht</option><option value="MYR">MYR · Malaysian Ringgit</option><option value="PHP">PHP · Philippine Peso</option><option value="GBP">GBP · Pound Sterling</option><option value="INR">INR · Indian Rupee</option><option value="SGD">SGD · Singapore Dollar</option><option value="USD">USD · US Dollar</option><option value="EUR">EUR · Euro</option></select></div>
+<div class="field"><label for="quantity">Quantity</label><input id="quantity" type="number" min="0.000001" max="1e12" step="any" value="100"></div>
+<div class="field"><label for="old-price">Budgeted unit price (supplier currency)</label><input id="old-price" type="number" min="0" step="any" value="9000"></div>
+<div class="field"><label for="new-price">Current unit-price assumption</label><input id="new-price" type="number" min="0" step="any" value="9300"></div>
+<div class="field"><label for="old-fx">Budgeted FX rate (local / supplier unit)</label><input id="old-fx" type="number" min="0.000001" step="any" value="35"></div>
+<div class="field"><label for="new-fx">Current FX-rate assumption</label><input id="new-fx" type="number" min="0.000001" step="any" value="36"></div>
+<div class="field"><label for="hedge">Share locked at budgeted FX (%)</label><input id="hedge" type="number" min="0" max="100" step="1" value="0"></div>
+<div class="field span2"><label for="logistics">Other fixed local costs (same in both scenarios)</label><input id="logistics" type="number" min="0" step="any" value="250000"></div>
+</div>
+<div class="validation" id="validation" role="alert"></div>
+<p class="small">FX assumptions are entered manually, not a live feed. “Locked” means the selected share is assumed to settle at the budgeted rate; hedge fees and mark-to-market are excluded.</p>
+</div>
+<div class="calc-right">
+<div id="report"><div class="eyebrow" style="color:#197567">SavePulse · Executive exposure brief</div><h1>Procurement budget vs current assumptions</h1><p id="report-meta"></p><p>Illustrative internal sensitivity analysis — prepared from manually entered assumptions. Not a transaction valuation or advisory recommendation.</p></div>
+<div class="split"><div class="kpi"><label>Approved budget cost</label><strong id="budget-cost">—</strong></div><div class="kpi"><label>Updated scenario cost</label><strong id="current-cost">—</strong></div></div>
+<div class="kpi"><label>Potential cost variance</label><strong id="variance" class="negative">—</strong><div class="small" id="pct">—</div></div>
+<h3 style="font-size:17px;margin-top:24px">What changed?</h3>
+<div class="driver"><span>Supplier price impact (at budget FX)</span><b id="price-effect">—</b></div>
+<div class="driver"><span>FX effect (after locked share assumption)</span><b id="fx-effect">—</b></div>
+<div class="driver" style="border-top:1px solid var(--line)"><span>Reconciled total variance</span><b id="reconciled">—</b></div>
+<div class="audit"><b>For your executive discussion</b><p style="margin:8px 0 0">Does our ERP or treasury process already show changes to approved-but-unpaid purchase orders? If so, how do purchasing and finance reconcile price and FX effects?</p></div>
+<div class="report-actions"><button class="btn primary" id="print">Print / save executive PDF ↗</button><button class="btn ghost" id="copy">Copy summary</button></div>
+<p class="small" id="copy-status" role="status"></p>
+</div></div></div>
+</div></section>
+<section class="section light"><div class="wrap"><div class="eyebrow" style="color:#117969">Designed for decision makers</div><h2>Bring clarity to the next procurement review</h2><div class="grid3">
+<div class="white-card"><b>For CFOs</b><p>Discuss budget drift and exposure before the invoice comes due.</p></div>
+<div class="white-card"><b>For finance teams</b><p>Bridge purchase-order assumptions and settlement-day currency costs.</p></div>
+<div class="white-card"><b>For procurement leads</b><p>Separate upstream supplier repricing from FX effects on landed costs.</p></div>
+</div></div></section>
+<div class="wrap"><section class="cta-panel"><div class="eyebrow">Help shape SavePulse for Business</div><h2>Would this be useful in your procurement workflow?</h2><p>We are speaking with finance and procurement leaders before developing business features. Share your workflow or request an exploratory demo. No obligation, no confidential documents required.</p><a class="btn primary" id="contact" href="mailto:piyathanin@gmail.com?subject=SavePulse%20Business%20%7C%20Research%20Conversation">Request a 10-minute conversation →</a><p class="note">Pilot availability, integrations and pricing are not promised. Business capabilities remain under research.</p></section></div>
+</main>
+<footer class="footer"><div class="wrap footer-grid"><span>© <span id="year"></span> SavePulse · Business research preview · Not financial advice</span><span><a href="/">Consumer SavePulse</a> · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · <a href="mailto:piyathanin@gmail.com">Contact</a></span></div></footer>
+<script>
+(function(){
+"use strict";
+document.getElementById("year").textContent=String(new Date().getFullYear());
+var samples={
+copper:{commodity:"Copper - illustrative",currency:"THB",quantity:100,oldPrice:9000,newPrice:9300,oldFx:35,newFx:36,hedge:0,logistics:250000},
+grain:{commodity:"Wheat - illustrative",currency:"MYR",quantity:500,oldPrice:250,newPrice:260,oldFx:4.2,newFx:4.35,hedge:0,logistics:25000},
+aluminium:{commodity:"Aluminium - illustrative",currency:"GBP",quantity:80,oldPrice:2450,newPrice:2500,oldFx:.78,newFx:.8,hedge:0,logistics:5000}
+};
+var ids=["quantity","old-price","new-price","old-fx","new-fx","hedge","logistics"],$=id=>document.getElementById(id),last=null;
+function fmt(v,ccy){try{return new Intl.NumberFormat("en-GB",{style:"currency",currency:ccy,minimumFractionDigits:0,maximumFractionDigits:2}).format(v)}catch(e){return ccy+" "+v.toFixed(2)}}
+function read(){var a=ids.map(id=>Number($(id).value));if(a.some(v=>!Number.isFinite(v))||a[0]<=0||a[1]<0||a[2]<0||a[3]<=0||a[4]<=0||a[5]<0||a[5]>100||a[6]<0||a.some(v=>Math.abs(v)>1e12))return null;return {quantity:a[0],p0:a[1],p1:a[2],fx0:a[3],fx1:a[4],hedge:a[5]/100,logistics:a[6],currency:$("currency").value,material:$("commodity").value||"Purchase order"}}
+function calc(){var p=read(),err=$("validation");if(!p){err.textContent="Enter valid, positive quantities/FX rates and a locked share from 0–100%.";return;}err.textContent="";
+var fx=p.fx0*p.hedge+p.fx1*(1-p.hedge);
+var budget=p.quantity*p.p0*p.fx0+p.logistics,current=p.quantity*p.p1*fx+p.logistics;
+var priceEffect=p.quantity*(p.p1-p.p0)*p.fx0;
+var fxEffect=p.quantity*p.p1*(fx-p.fx0);
+var delta=current-budget;
+if(![fx,budget,current,priceEffect,fxEffect,delta].every(Number.isFinite)){err.textContent="The calculation exceeds the supported range.";return;}
+var percent=budget?delta/budget*100:0;var f=x=>fmt(x,p.currency);
+$("budget-cost").textContent=f(budget);$("current-cost").textContent=f(current);
+$("variance").textContent=(delta>0?"+":"")+f(delta);
+$("variance").className=delta>0?"negative":delta<0?"positive":"";
+$("pct").textContent=(delta>=0?"Increase":"Decrease")+" of "+Math.abs(percent).toFixed(2)+"% versus approved budget";
+$("price-effect").textContent=f(priceEffect);
+$("fx-effect").textContent=f(fxEffect);
+$("reconciled").textContent=f(priceEffect+fxEffect);
+$("report-meta").textContent=p.material+" · Reporting currency "+p.currency+" · "+new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
+last={p,budget,current,delta,percent,priceEffect,fxEffect};
+}
+function setPreset(name){var p=samples[name];if(!p)return;$("commodity").value=p.commodity;$("currency").value=p.currency;$("quantity").value=p.quantity;$("old-price").value=p.oldPrice;$("new-price").value=p.newPrice;$("old-fx").value=p.oldFx;$("new-fx").value=p.newFx;$("hedge").value=p.hedge;$("logistics").value=p.logistics;document.querySelectorAll(".preset").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.preset===name)));calc()}
+document.querySelectorAll(".preset").forEach(b=>b.addEventListener("click",()=>setPreset(b.dataset.preset)));
+ids.concat(["commodity","currency"]).forEach(id=>$(id).addEventListener("input",()=>{document.querySelectorAll(".preset").forEach(b=>b.setAttribute("aria-pressed","false"));calc()}));
+$("print").addEventListener("click",()=>{calc();if(last)window.print()});
+$("copy").addEventListener("click",async()=>{calc();if(!last)return;var p=last.p;var summary="SavePulse | Scenario exposure summary\n"+p.material+"\nBudget: "+fmt(last.budget,p.currency)+"\nUpdated scenario: "+fmt(last.current,p.currency)+"\nVariance: "+fmt(last.delta,p.currency)+" ("+last.percent.toFixed(2)+"%)\nSupplier price impact: "+fmt(last.priceEffect,p.currency)+"\nFX impact: "+fmt(last.fxEffect,p.currency)+"\nIllustrative manually entered assumptions. Not a promise of savings.\nhttps://savepulse.cloud/for-business/";try{await navigator.clipboard.writeText(summary);$("copy-status").textContent="Summary copied."}catch(e){$("copy-status").textContent="Copy unavailable in this browser; use Print / PDF instead."}});
+calc();
+})();
+</script>
+</body></html>
