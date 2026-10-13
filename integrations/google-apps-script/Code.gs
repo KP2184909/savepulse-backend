@@ -33,6 +33,7 @@ function doPost(e) {
       const existing=rows.slice(1).findIndex(r=>key_(r[3])===email);
       const companyKey=key_(company)+'|'+key_(country);
       const companyMatch=rows.slice(1).some(r=>r[20]===companyKey);
+      const isTest=company.startsWith('SavePulse Internal QA') && email===SP_OWNER.toLowerCase();
       const now=new Date().toISOString(), isPilot=d.interest==='Paid pilot discussion (subject to agreement)';
       let leadId,rowNum,ack='Pending',owner='Pending';
       if(existing>=0) {
@@ -42,7 +43,7 @@ function doPost(e) {
         if(suppressed) leads.getRange(rowNum,18).setValue('YES');
       } else {
         leadId='WEB-'+Utilities.getUuid();rowNum=leads.getLastRow()+1;
-        leads.appendRow([leadId,company,country,email,text_(d.position,120),text_(d.persona,80),text_(d.problem,1500),text_(d.interest,100),'Website B2B',(['LinkedIn','Partner','Email','YouTube'].includes(d.channel)?d.channel:'Website'),'New',now,now,'Review use case; reply in English by email','yes',d['privacy-version'],legacyMatches.map(r=>r[0]).join(', '),suppressed?'YES':'NO','Pending','Pending',companyKey,'','NO',companyMatch?'Company already represented; count once':''].map(cell_));
+        leads.appendRow([leadId,company,country,email,text_(d.position,120),text_(d.persona,80),text_(d.problem,1500),text_(d.interest,100),'Website B2B',(['LinkedIn','Partner','Email','YouTube'].includes(d.channel)?d.channel:'Website'),isTest?'Test':'New',now,now,'Review use case; reply in English by email','yes',d['privacy-version'],legacyMatches.map(r=>r[0]).join(', '),suppressed?'YES':'NO','Pending','Pending',companyKey,'','NO',isTest?'INTERNAL QA — exclude from growth metrics':companyMatch?'Company already represented; count once':''].map(cell_));
       }
       const eventRow=events.getLastRow()+1;
       events.appendRow([requestId,leadId,now,isPilot?'Paid pilot interest':'Demo request','Recorded',existing>=0?'Repeated email; stage preserved':companyMatch?'Company duplicate flagged':''].map(cell_));

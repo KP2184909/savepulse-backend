@@ -17,4 +17,17 @@ export async function forwardLead(data, env, fetcher = fetch) {
   const result = await response.json();
   if (!result.ok) throw new Error('CRM did not accept the submission; recover from Netlify Forms.');
 }
-export default { async formSubmitted(event) { await forwardLead(event.data, Netlify.env); } };
+export function readiness(env) {
+  const endpoint=env.get('B2B_CRM_ENDPOINT');
+  const secret=env.get('B2B_CRM_SECRET');
+  const crmConfigured=Boolean(endpoint && secret && /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(endpoint));
+  return {formCodeDeployed:true,crmConfigured,endToEndVerified:false};
+}
+export default {
+  fetch(request) {
+    if(request.method!=='GET') return new Response(null,{status:405,headers:{Allow:'GET'}});
+    const status=readiness(Netlify.env);
+    return Response.json(status,{status:status.crmConfigured?200:503,headers:{'Cache-Control':'no-store'}});
+  },
+  async formSubmitted(event) { await forwardLead(event.data, Netlify.env); }
+};

@@ -131,7 +131,7 @@ textarea{font:inherit;background:#071826;border:1px solid #456073;color:var(--cr
 <p hidden><label>Leave this empty <input name="bot-field" tabindex="-1" autocomplete="off"></label></p>
 <div class="fields">
 <div class="field"><label for="lead-company">Company name</label><input id="lead-company" name="company" required maxlength="160" autocomplete="organization"></div>
-<div class="field"><label for="lead-country">Company country</label><select id="lead-country" name="country" required><option value="">Choose a country</option><option>Malaysia</option><option>Philippines</option><option>Thailand</option><option>United Kingdom</option><option>India</option><option>Singapore</option><option>Other</option></select></div>
+<div class="field"><label for="lead-country">Company country</label><input id="lead-country" name="country" required maxlength="80" autocomplete="country-name" placeholder="For example: United Kingdom, India or Australia"></div>
 <div class="field"><label for="lead-email">Business email</label><input id="lead-email" name="email" type="email" required maxlength="254" autocomplete="email"></div>
 <div class="field"><label for="lead-role">Your position</label><input id="lead-role" name="position" required maxlength="120" autocomplete="organization-title"></div>
 <div class="field"><label for="lead-persona">Your team</label><select id="lead-persona" name="persona" required><option value="">Choose your team</option><option>CFO / Finance Director</option><option>Finance / Treasury</option><option>Procurement</option><option>Owner / CEO</option><option>Other</option></select></div>
