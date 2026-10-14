@@ -56,6 +56,13 @@ function doPost(e) {
           leads.getRange(rowNum,19).setValue('Sent');
         } catch(error) { leads.getRange(rowNum,19).setValue('Failed — review before retry'); }
       } else if(suppressed) leads.getRange(rowNum,19).setValue('Suppressed — owner review');
+      // The owner receives the acknowledgement for an internal QA submission.
+      // Avoid sending a second notification to the same inbox.
+      if(isTest) {
+        events.getRange(eventRow,5).setValue('Internal QA — owner notification skipped');
+        leads.getRange(rowNum,20).setValue('Internal QA — skipped');
+        return output_({ok:true});
+      }
       // Notify on every NEW request ID; repeated delivery of the same request ID is ignored.
       events.getRange(eventRow,5).setValue('Owner notification sending');SpreadsheetApp.flush();
       try {
