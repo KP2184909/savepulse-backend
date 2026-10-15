@@ -1,9 +1,9 @@
 "use strict";
 
-const { TRACKED_ASSETS } = require("./signalEngine");
+const { LEGACY_ASSETS } = require("./signalEngine");
 const { normalizePlan } = require("./plans");
 
-const REQUIRED_DAILY_SIGNAL_SYMBOLS = Object.freeze([...TRACKED_ASSETS]);
+const REQUIRED_DAILY_SIGNAL_SYMBOLS = Object.freeze([...LEGACY_ASSETS]);
 const DEFAULT_DAILY_EMAIL_TIME = "08:30";
 const DEFAULT_DAILY_EMAIL_TIMEZONE = "Asia/Bangkok";
 const DEFAULT_SIGNAL_FRESHNESS_HOURS = 36;

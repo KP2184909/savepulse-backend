@@ -32,7 +32,7 @@ const ACTION_ALIASES = Object.freeze({
   NEUTRAL: ACTIONS.WAIT_ZONE
 });
 
-const TRACKED_ASSETS = Object.freeze([
+const LEGACY_ASSETS = Object.freeze([
   "USDTHB",
   "JPYTHB",
   "EURTHB",
@@ -43,6 +43,24 @@ const TRACKED_ASSETS = Object.freeze([
   "XAUUSD",
   "BTCUSD"
 ]);
+
+// Futures are reference benchmarks, not supplier quotes or executable FX pairs.
+const COMMODITY_ASSETS = Object.freeze({
+  BRENTUSD: { th: "น้ำมันดิบเบรนท์", en: "Brent crude oil", ticker: "ICEEUR:BRN1!", currency: "USD", unit: "barrel" },
+  WTIUSD: { th: "น้ำมันดิบ WTI", en: "WTI crude oil", ticker: "NYMEX:CL1!", currency: "USD", unit: "barrel" },
+  NGUSD: { th: "ก๊าซธรรมชาติ", en: "Henry Hub natural gas", ticker: "NYMEX:NG1!", currency: "USD", unit: "MMBtu" },
+  COPPERUSD: { th: "ทองแดง", en: "Copper", ticker: "COMEX:HG1!", currency: "USD", unit: "pound" },
+  ALUMINUMUSD: { th: "อะลูมิเนียม", en: "Aluminum", ticker: "COMEX:ALI1!", currency: "USD", unit: "metric tonne" },
+  SUGARUSD: { th: "น้ำตาลทรายดิบ", en: "Sugar No. 11", ticker: "ICEUS:SB1!", currency: "US cents", unit: "pound" },
+  FCPO: { th: "น้ำมันปาล์มดิบ", en: "Crude palm oil", ticker: "MYX:FCPO1!", currency: "MYR", unit: "metric tonne" }
+});
+const TRACKED_ASSETS = Object.freeze([...LEGACY_ASSETS, ...Object.keys(COMMODITY_ASSETS)]);
+const COMMODITY_ALIASES = Object.freeze({
+  BRN1: "BRENTUSD", BRENT: "BRENTUSD", CL1: "WTIUSD", WTI: "WTIUSD",
+  NG1: "NGUSD", HG1: "COPPERUSD", COPPER: "COPPERUSD",
+  ALI1: "ALUMINUMUSD", ALUMINUM: "ALUMINUMUSD", ALUMINIUM: "ALUMINUMUSD",
+  SB1: "SUGARUSD", SUGAR: "SUGARUSD", FCPO1: "FCPO"
+});
 
 const SYMBOL_MARKETS = Object.freeze({
   USDTHB: { base: "USD", quote: "THB" },
@@ -184,7 +202,7 @@ function normalizeSymbol(symbol) {
     throw new Error("symbol must normalize to 3-24 alphanumeric chars");
   }
 
-  return normalized;
+  return COMMODITY_ALIASES[normalized] || normalized;
 }
 
 function normalizeCurrencyCode(currency) {
@@ -537,13 +555,27 @@ function createSignal(payload, now = new Date()) {
   const p90 = numericOrNull(payload.p90 ?? payload.P90);
   const percentile = confidencePercentile({ current: price, p10, p90 });
   const pine = pineFieldsFromPayload(payload);
+  const timeframe = String(payload.timeframe || "1D").toUpperCase();
+  const sourceTicker = textOrNull(payload.source_ticker ?? payload.sourceTicker, 80);
+  // Optional identity in new feeds catches a wrong override, including legacy targets.
+  if (sourceTicker && normalizeSymbol(sourceTicker) !== symbol) {
+    throw new Error("source_symbol_mismatch");
+  }
+  if (COMMODITY_ASSETS[symbol]) {
+    if (timeframe !== "1D") throw new Error("commodity_timeframe_must_be_1D");
+    if (price === null || price <= 0) throw new Error("commodity_price_must_be_positive");
+    if (!pine.barTime) throw new Error("commodity_bar_time_required");
+    const barAge = now.getTime() - new Date(pine.barTime).getTime();
+    if (barAge < -3_600_000 || barAge > 7 * DAY_MS) throw new Error("commodity_bar_time_out_of_range");
+  }
 
   return {
     id: `${symbol}-${now.getTime()}`,
     symbol,
     action,
     price,
-    timeframe: String(payload.timeframe || "1D").toUpperCase(),
+    timeframe,
+    ...(sourceTicker ? { sourceTicker } : {}),
     p10,
     p90,
     percentile,
@@ -564,6 +596,8 @@ module.exports = {
   STRONG_BUY_FRESH_BUSINESS_DAYS,
   SYMBOL_MARKETS,
   TRACKED_ASSETS,
+  LEGACY_ASSETS,
+  COMMODITY_ASSETS,
   USER_FACING_ACTION_COPY,
   actionMeta,
   applyAutoDemotion,

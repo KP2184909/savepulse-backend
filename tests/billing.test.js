@@ -289,8 +289,8 @@ test("admin latest signals endpoint is protected and shows normalized Pine field
   const jpythb = payload.signals.find((signal) => signal.symbol === "JPYTHB");
 
   assert.equal(authorized.status, 200);
-  assert.equal(payload.count, 9);
-  assert.equal(payload.signals.length, 9);
+  assert.equal(payload.count, 16);
+  assert.equal(payload.signals.length, 16);
   assert.equal(jpythb.action, "BUY_ZONE");
   assert.deepEqual(jpythb.pine, {
     detail: "Daily bar closed in the watch window.",
@@ -306,10 +306,10 @@ test("admin latest signals endpoint is protected and shows normalized Pine field
 test("latest signals snapshot includes the full tracked universe", () => {
   const snapshot = latestSignalsSnapshot();
 
-  assert.equal(snapshot.count, 9);
+  assert.equal(snapshot.count, 16);
   assert.deepEqual(
     snapshot.signals.map((signal) => signal.symbol),
-    ["USDTHB", "JPYTHB", "EURTHB", "XAUTHB", "BTCTHB", "USDJPY", "EURUSD", "XAUUSD", "BTCUSD"]
+    ["USDTHB", "JPYTHB", "EURTHB", "XAUTHB", "BTCTHB", "USDJPY", "EURUSD", "XAUUSD", "BTCUSD", "BRENTUSD", "WTIUSD", "NGUSD", "COPPERUSD", "ALUMINUMUSD", "SUGARUSD", "FCPO"]
   );
   assert.equal(JSON.stringify(snapshot).includes("test-master-secret"), false);
 });

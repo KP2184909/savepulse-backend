@@ -153,7 +153,8 @@ test("tracked asset universe matches the SavePulse alert list", () => {
     "USDJPY",
     "EURUSD",
     "XAUUSD",
-    "BTCUSD"
+    "BTCUSD",
+    "BRENTUSD", "WTIUSD", "NGUSD", "COPPERUSD", "ALUMINUMUSD", "SUGARUSD", "FCPO"
   ]);
 
   const defaultSignal = createDefaultSignal("xauthb");

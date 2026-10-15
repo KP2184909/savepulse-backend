@@ -2,7 +2,7 @@
 
 const {
   ACTIONS,
-  TRACKED_ASSETS,
+  LEGACY_ASSETS,
   applyAutoDemotion,
   createDefaultSignal,
   marketForSymbol,
@@ -192,7 +192,7 @@ function sampleSignals() {
   };
   const percents = [54, 21, 47, 88, 82, 61, 72, 91, 58];
 
-  return TRACKED_ASSETS.map((symbol, index) => ({
+  return LEGACY_ASSETS.map((symbol, index) => ({
     ...createDefaultSignal(symbol),
     id: `${symbol}-daily-preview`,
     action: actions[symbol] || ACTIONS.WAIT_ZONE,
@@ -224,7 +224,7 @@ function symbolsForPlan(plan) {
     return ["EURUSD", "JPYTHB", "USDTHB", "EURTHB"].filter((symbol) => FIAT_ASSETS.includes(symbol));
   }
 
-  return TRACKED_ASSETS;
+  return LEGACY_ASSETS;
 }
 
 function directionAwareDecision(signal, locale = "th", direction = {}) {

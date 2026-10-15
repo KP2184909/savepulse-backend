@@ -9,6 +9,8 @@ const { URL } = require("node:url");
 const {
   ACTIONS,
   TRACKED_ASSETS,
+  COMMODITY_ASSETS,
+  normalizeSymbol,
   applyAutoDemotion,
   createDefaultSignal,
   createSignal,
@@ -166,6 +168,15 @@ function publicSignal(signal) {
   const effective = applyAutoDemotion(signal);
   return {
     ...effective,
+    ...(COMMODITY_ASSETS[effective.symbol] ? {
+      asset: { ...COMMODITY_ASSETS[effective.symbol], kind: "commodity", continuousFuture: true },
+      // EMA direction alone cannot establish a cheap purchasing window.
+      meta: {
+        tone: "neutral",
+        th: { label: "ข้อมูลอ้างอิงวัตถุดิบ", headline: "ตรวจสอบบริบทก่อนตัดสินใจจัดซื้อ", guidance: "สถานะจาก EMA ไม่ใช่หลักฐานว่าราคาถูกหรือจะประหยัดต้นทุน" },
+        en: { label: "Commodity reference", headline: "Review context before purchasing", guidance: "EMA states do not establish cheap prices or proven cost savings." }
+      }
+    } : {}),
     legalBoundary:
       "Decision intelligence only. Not financial advice, trading instruction, or return guarantee."
   };
@@ -236,6 +247,7 @@ function latestSignalSummary(signal) {
 
   return {
     symbol: effective.symbol,
+    ...(effective.asset ? { asset: effective.asset } : {}),
     action: effective.action,
     rawAction: effective.rawAction || effective.action,
     label: {
@@ -1148,6 +1160,15 @@ async function handleWebhook(req, res) {
   }
 
   const signal = createSignal(body);
+  const previous = signalsBySymbol[signal.symbol];
+  if (COMMODITY_ASSETS[signal.symbol] && previous?.pine?.barTime) {
+    const incomingTime = new Date(signal.pine.barTime).getTime();
+    const previousTime = new Date(previous.pine.barTime).getTime();
+    if (incomingTime <= previousTime) {
+      sendJson(res, 200, { accepted: false, reason: incomingTime === previousTime ? "duplicate_bar" : "out_of_order_bar", symbol: signal.symbol });
+      return;
+    }
+  }
   signalsBySymbol[signal.symbol] = signal;
   saveJson(SIGNALS_FILE, signalsBySymbol);
 
@@ -1452,12 +1473,13 @@ async function handleRequest(req, res) {
     }
 
     if (req.method === "GET" && url.pathname === "/api/v1/status") {
-      const symbol = String(url.searchParams.get("symbol") || "").trim().toUpperCase();
-      if (!symbol) {
+      const rawSymbol = String(url.searchParams.get("symbol") || "").trim();
+      if (!rawSymbol) {
         sendJson(res, 400, { error: "symbol_required" });
         return;
       }
 
+      const symbol = normalizeSymbol(rawSymbol);
       const signal = signalsBySymbol[symbol] || createDefaultSignal(symbol);
 
       const userFromCurrency =
