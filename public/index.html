@@ -1,211 +1,621 @@
-<!DOCTYPE html>
-<html lang="th">
+<!doctype html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SavePulse - จับจังหวะเรทเงิน</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- MailerLite Universal -->
-    <script>
-        (function(w,d,e,u,f,l,n){w[f]=w[f]||function(){(w[f].q=w[f].q||[])
-        .push(arguments);},l=d.createElement(e),l.async=1,l.src=u,
-        n=d.getElementsByTagName(e)[0],n.parentNode.insertBefore(l,n);})
-        (window,document,'script','https://assets.mailerlite.com/js/universal.js','ml');
-        ml('account', '2312574');
-    </script>
-    <!-- End MailerLite Universal -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SavePulse - Check before you exchange (14-Day Free Trial)</title>
+  <meta name="description" content="Decision-support information for exchange-rate, gold, BTC, and B2B raw-material reference data before large currency and purchasing decisions. Start a 14-day free trial on any plan.">
+  <style>
+    :root{--ink:#101827;--muted:#5d6b7b;--line:#d8e7ea;--teal:#078b8d;--deep:#064e57;--amber:#f2a818;--green:#12a66a;--rose:#d72e4d;--gold:#9b6500;--shadow:0 22px 52px #0f172a1a}
+    *{box-sizing:border-box}html,body{margin:0;scroll-behavior:smooth}body{font-family:Inter,system-ui,-apple-system,"Segoe UI","Noto Sans Thai",sans-serif;color:var(--ink);background:linear-gradient(#fbfefe,#edf8f8 58%,#fff)}button,input,select{font:inherit}button{cursor:pointer}a{text-decoration:none;color:inherit}.wrap{width:min(1120px,calc(100% - 36px));margin:auto}.ticker{overflow:hidden;color:#fff;background:#050816;font-size:13px;font-weight:900;white-space:nowrap}.ticker div{display:inline-flex;gap:44px;min-width:200%;padding:10px 0;animation:mar 30s linear infinite}@keyframes mar{to{transform:translateX(-50%)}}
+    header{position:sticky;top:0;z-index:20;background:#fffffff2;border-bottom:1px solid var(--line);backdrop-filter:blur(16px)}.nav{min-height:70px;display:flex;align-items:center;justify-content:space-between;gap:14px}.brand{display:flex;align-items:center;gap:10px;color:var(--deep);font-size:24px;font-weight:950}.mark{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;color:#fff;background:linear-gradient(135deg,var(--teal),#08b2aa);box-shadow:0 12px 24px #078b8d3d}.links{display:flex;gap:22px;font-size:14px;font-weight:850}.actions{display:flex;gap:10px;align-items:center}.btn,.primary,.light,.goldBtn{min-height:44px;border:1px solid var(--line);border-radius:10px;padding:0 15px;background:#fff;color:var(--ink);font-weight:950;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:transform .12s ease,box-shadow .12s ease}.primary{border-color:var(--teal);color:#fff;background:linear-gradient(135deg,var(--teal),#05767a);box-shadow:0 16px 28px #078b8d38}.light{border-color:#fff;color:var(--deep)}.goldBtn{border-color:#c88913;color:#fff;background:linear-gradient(135deg,#8b5900,#c88913);box-shadow:0 10px 24px rgba(139,89,0,.25)}
 
-    <style>
-        body {
-            font-family: 'Prompt', sans-serif;
-            background-color: #f3f4f6;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-        }
+    /* 14-Day Free Trial Top Experience Bar */
+    .trialBar{margin:18px auto 0;padding:12px 18px;border-radius:14px;background:linear-gradient(90deg,#fff8e4 0%,#effdf7 60%,#e8fafa 100%);border:1px solid #ead8a0;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;box-shadow:0 10px 26px rgba(15,23,42,.05)}
+    .trialBarLeft{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13.5px;font-weight:850;color:#064e57}
+    .trialPill{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:99px;background:linear-gradient(135deg,#8b5900,#c88913);color:#fff;font-size:11.5px;font-weight:950;letter-spacing:.03em;text-transform:uppercase}
+    .trialPill.active{background:linear-gradient(135deg,#08734a,#12a66a)}
+    .trialBarRight{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .trialToggleBtn{min-height:36px;padding:0 12px;border-radius:99px;border:1px solid #078b8d55;background:#fff;color:var(--deep);font-size:12px;font-weight:900}
+    .trialToggleBtn:hover{background:#effafa}
+    .trialStartMiniBtn{min-height:36px;padding:0 14px;border-radius:99px;border:0;background:linear-gradient(135deg,#8b5900,#c88913);color:#fff;font-size:12px;font-weight:950;box-shadow:0 6px 14px rgba(139,89,0,.22)}
 
-        .mobile-mockup {
-            width: 100%;
-            max-width: 414px;
-            height: 896px;
-            max-height: 100vh;
-            background-color: #FAFAFA;
-            position: relative;
-            overflow-y: auto;
-            overflow-x: hidden;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            scroll-behavior: smooth;
-        }
+    .hero{display:grid;grid-template-columns:.95fr 1.05fr;gap:30px;align-items:start;padding:20px 0 22px}.fomo{min-height:610px;position:relative;overflow:hidden;border-radius:16px;padding:36px;color:#fff;background:radial-gradient(circle at 82% 18%,#c7fff329,transparent 32%),linear-gradient(145deg,#08777b,#064655);box-shadow:var(--shadow)}.fomo:after{content:"";position:absolute;right:-90px;top:116px;width:280px;height:280px;border:46px solid #ffffff14;border-radius:50%}.fomo>*{position:relative}.live{display:inline-flex;gap:8px;align-items:center;border-radius:99px;padding:9px 12px;background:#ffffff22;color:#fff0bd;font-size:13px;font-weight:950}.dot{width:9px;height:9px;border-radius:50%;background:#43eaa9;box-shadow:0 0 0 6px #43eaa929}h1{margin:22px 0 14px;font-size:clamp(38px,5vw,64px);line-height:1.08}h1 span{display:block;color:#c7fff3}.lead{max-width:620px;margin:0;color:#ffffffe6;font-size:20px;line-height:1.58}.fomoBox,.nudge{display:flex;gap:12px;margin-top:24px;padding:16px;border-radius:12px;font-weight:900;line-height:1.5}.fomoBox{border:1px solid #ffe09c85;background:#f4a51c24;color:#fff7df}.heroBtns{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:34px}.stat{min-height:100px;padding:15px;border:1px solid #ffffff2e;border-radius:12px;background:#ffffff1a}.stat strong{display:block;font-size:30px}.stat span{display:block;margin-top:6px;color:#ffffffc7;font-size:12px;font-weight:850}
+    .panel{border:1px solid var(--line);border-radius:16px;background:#fffffff7;box-shadow:var(--shadow)}.pad,.story,.watch,.pricing{padding:22px}.title{display:flex;justify-content:space-between;gap:14px;margin-bottom:18px;align-items:flex-start;flex-wrap:wrap}.title h2{margin:0;font-size:26px;line-height:1.16}.title p{margin:8px 0 0;color:var(--muted);line-height:1.5}.badge{display:inline-flex;align-items:center;min-height:36px;border-radius:99px;padding:0 12px;color:var(--deep);background:#e8fafa;font-size:12px;font-weight:950;white-space:nowrap}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:grid;align-content:start;gap:8px}.wide{grid-column:1/-1}.conversion{min-height:58px;border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:#f7fcfc;color:var(--ink)}.conversion small{display:block;color:var(--muted);font-size:11px;font-weight:900;line-height:1.25}.conversion b{display:block;margin-top:3px;font-size:15px;line-height:1.22}.conversion span{display:block;margin-top:3px;color:var(--deep);font-size:11px;font-weight:950;line-height:1.25}label{color:#435468;font-size:13px;font-weight:900}select,input{width:100%;min-height:58px;border:1px solid var(--line);border-radius:10px;padding:0 14px;background:#fff;color:var(--ink);font-size:16px;font-weight:900}.full{width:100%;min-height:58px;margin-top:16px}.mini{display:flex;justify-content:space-between;gap:12px;margin-top:14px;color:var(--muted);font-size:12px;font-weight:850}.decision{margin-top:16px;transition:.25s}.decision.focused{border-color:#078b8db8;box-shadow:0 24px 62px #078b8d3d;transform:translateY(-2px)}.decisionTop{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:18px;border-bottom:1px solid var(--line)}.decisionMain{display:flex;align-items:center;gap:18px}.icon{display:grid;place-items:center;width:92px;height:92px;border:8px solid #ffd98c;border-radius:50%;color:var(--amber);background:#fff9ef;font-size:34px;flex-shrink:0}.icon.good{border-color:#a8ead2;color:var(--green);background:#effdf7}.icon.risk{border-color:#ffc1cd;color:var(--rose);background:#fff2f5}.icon.vip{border-color:#f0d68f;color:var(--gold);background:#fff8e4}.copy h2{margin:0 0 8px;font-size:30px}.copy p{margin:0;color:#4e6073;line-height:1.5}.metric{display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:12px;min-height:68px;border-bottom:1px solid var(--line)}.metric:last-child{border:0}.micon{display:grid;place-items:center;width:38px;height:38px;border:1px solid #078b8d47;border-radius:10px;color:var(--teal);background:#effafa}.metric b{font-size:20px}.dots{display:inline-flex;gap:7px}.dots span{width:12px;height:12px;border-radius:50%;background:var(--teal)}.notice{display:none;margin-top:12px;border:1px solid #078b8d38;border-radius:10px;padding:12px 14px;color:var(--deep);background:#effafa;font-weight:950}.notice.show{display:block}.nudge{border:1px solid #f2cf8e;background:#fff8e8;color:#694509;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    .vipUnlockCta{display:none;margin-top:14px;width:100%;min-height:50px;border-radius:12px;border:1px solid #c88913;background:linear-gradient(135deg,#8b5900,#c88913);color:#fff;font-size:14.5px;font-weight:950;box-shadow:0 12px 26px rgba(139,89,0,.24)}
+    .vipUnlockCta.show{display:inline-flex;align-items:center;justify-content:center;gap:8px}
 
-        .mobile-mockup::-webkit-scrollbar {
-            width: 0px;
-        }
+    .below{display:grid;grid-template-columns:.9fr 1.1fr;gap:22px;padding-top:22px}.example{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:12px;align-items:center;margin-top:18px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#fbfeff}.small{color:var(--muted);font-size:12px;font-weight:900}.num{margin-top:4px;font-size:30px;font-weight:950}.save{color:var(--green)}.list{display:grid;gap:10px;margin-top:16px}.watchItem{position:relative;display:grid;grid-template-columns:auto 1fr auto;gap:13px;align-items:center;min-height:78px;padding:13px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}.watchItem:hover{transform:translateY(-1px);box-shadow:0 8px 20px #0f172a0f}.watchItem.locked{border-color:#ead8a0;background:linear-gradient(90deg,#fffdf6,#fff)}.watchItem.unlockedVip{border-color:#a8ead2;background:linear-gradient(90deg,#effdf7,#fff)}.assetIcon{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:#eefafa;font-size:18px;font-weight:950}.locked .assetIcon{color:var(--gold);background:#fff1c9}.unlockedVip .assetIcon{color:#08734a;background:#d1fae5}.watchTitle{font-size:16px;font-weight:950;line-height:1.35;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.watchSub{margin-top:4px;color:var(--muted);font-size:12px;font-weight:850}.pill{display:inline-flex;align-items:center;justify-content:center;min-width:104px;min-height:34px;border-radius:99px;padding:0 10px;font-size:12px;font-weight:950;white-space:nowrap}.pill.good{color:#08734a;background:#e5f8ef}.pill.wait{color:#8b5900;background:#fff1c9}.pill.risk{color:#ad173b;background:#ffeff3}.pill.vip{color:#fff;background:linear-gradient(135deg,#8b5900,#c88913);box-shadow:0 4px 12px rgba(139,89,0,.22)}
+    .vipStamp{display:inline-flex;align-items:center;justify-content:center;padding:2px 8px;border-radius:6px;background:linear-gradient(135deg,#8b5900,#c88913);color:#fff;font-size:10.5px;font-weight:950;letter-spacing:.05em;text-transform:uppercase;box-shadow:0 2px 6px rgba(139,89,0,.2)}
+    .vipStamp.unlocked{background:linear-gradient(135deg,#08734a,#12a66a)}
+    .b2bGroupDivider{margin:10px 0 2px;padding:8px 12px;border-radius:10px;background:linear-gradient(90deg,#fff8e4,#fffdf6);border:1px solid #ead8a0;color:#8b5900;font-size:12.5px;font-weight:950;display:flex;align-items:center;justify-content:space-between;gap:10px}
 
-        .aura-teal {
-            position: absolute;
-            top: -50px;
-            right: -50px;
-            width: 250px;
-            height: 250px;
-            background: radial-gradient(circle, rgba(20,184,166,0.15) 0%, rgba(255,255,255,0) 70%);
-            border-radius: 50%;
-            z-index: 0;
-        }
+    /* 14-Day Free Trial 3-Step Timeline & Pricing Cards */
+    .trialTimeline{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 20px;padding:16px;border-radius:14px;background:linear-gradient(135deg,#f4fbfb 0%,#fffdf7 100%);border:1px solid #ead8a0}
+    .tStep{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;background:#fff;border:1px solid var(--line)}
+    .tStepNum{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#8b5900,#c88913);color:#fff;font-size:13px;font-weight:950;flex-shrink:0}
+    .tStep b{display:block;font-size:13.5px;color:var(--ink)}
+    .tStep span{display:block;margin-top:3px;font-size:12px;color:var(--muted);font-weight:700;line-height:1.4}
 
-        .aura-gold {
-            position: absolute;
-            top: 250px;
-            left: -100px;
-            width: 300px;
-            height: 300px;
-            background: radial-gradient(circle, rgba(245,158,11,0.08) 0%, rgba(255,255,255,0) 70%);
-            border-radius: 50%;
-            z-index: 0;
-        }
+    .plans{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+    .plan{display:flex;flex-direction:column;justify-content:space-between;min-height:340px;padding:18px;border:1px solid var(--line);border-radius:14px;background:#fff;position:relative;transition:transform .15s ease,box-shadow .15s ease}
+    .plan:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(15,23,42,.08)}
+    .plan.hot{border:2px solid var(--teal);box-shadow:0 14px 30px #078b8d21;background:linear-gradient(180deg,#f7fefe 0%,#fff 35%)}
+    .plan.b2bVipPlan{border:2px solid #ead8a0;background:linear-gradient(180deg,#fffdf6 0%,#fff 35%)}
+    .planBadges{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+    .trialRibbon{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:99px;background:linear-gradient(135deg,#8b5900,#c88913);color:#fff;font-size:11px;font-weight:950;letter-spacing:.02em}
+    .price{margin-bottom:4px;color:var(--deep);font-size:26px;font-weight:950}
+    .trialSubPrice{margin-bottom:10px;color:#8b5900;font-size:12px;font-weight:900;background:#fff8e4;display:inline-block;padding:3px 8px;border-radius:6px;border:1px solid #f0d68f}
+    .plan p{color:var(--muted);font-size:13px;line-height:1.45;margin:0}
+    .plan ul{display:grid;gap:7px;margin:12px 0 18px;padding-left:18px;color:var(--muted);font-size:13px;line-height:1.4}
+    .plan button{width:100%}
 
-        .content-layer {
-            position: relative;
-            z-index: 10;
-        }
+    /* Interactive 14-Day Free Trial Modal */
+    .modalBackdrop{position:fixed;inset:0;z-index:60;background:rgba(15,23,42,.62);backdrop-filter:blur(6px);display:grid;place-items:center;padding:18px}
+    .modalBackdrop[hidden]{display:none}
+    .trialModal{width:min(680px,100%);max-height:92vh;overflow-y:auto;border-radius:20px;background:#fff;border:1px solid #ead8a0;box-shadow:0 28px 70px rgba(5,8,22,.38);padding:26px;position:relative}
+    .modalClose{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:#f8fafc;color:var(--ink);font-size:18px;font-weight:900}
+    .modalPlanTabs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0}
+    .modalPlanTab{padding:10px 8px;border-radius:10px;border:1px solid var(--line);background:#f8fafc;color:var(--ink);font-size:12.5px;font-weight:900;text-align:center}
+    .modalPlanTab.active{border-color:#c88913;background:linear-gradient(135deg,#fff8e4,#fffdf6);color:#8b5900;box-shadow:0 4px 12px rgba(139,89,0,.12)}
+    .modalUnlockChips{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+    .modalUnlockChip{padding:5px 10px;border-radius:99px;background:#fff8e4;border:1px solid #ead8a0;color:#8b5900;font-size:11.5px;font-weight:900}
+    .modalTimelineBox{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0;padding:12px;border-radius:12px;background:#f7fcfc;border:1px solid var(--line)}
+    .modalTimelineItem{font-size:11.5px;line-height:1.4}
+    .modalTimelineItem b{display:block;color:var(--deep);font-size:12px}
+    .modalSuccessBox{margin-top:14px;padding:16px;border-radius:12px;background:#effdf7;border:1px solid #a8ead2;color:#063f36}
+    .modalSuccessBox[hidden]{display:none}
 
-        input[type=range] {
-            -webkit-appearance: none;
-            width: 100%;
-            background: transparent;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 24px;
-            width: 24px;
-            border-radius: 50%;
-            background: #0f766e;
-            cursor: pointer;
-            margin-top: -10px;
-            box-shadow: 0 2px 6px rgba(15, 118, 110, 0.4);
-            border: 4px solid #fff;
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 6px;
-            cursor: pointer;
-            background: #ccfbf1;
-            border-radius: 99px;
-        }
-        
-        .hide-scroll::-webkit-scrollbar {
-            display: none;
-        }
-        .hide-scroll {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-    </style>
+    .alert{display:grid;grid-template-columns:1fr auto;gap:22px;align-items:center;margin:22px auto;padding:24px;border-radius:16px;color:#fff;background:linear-gradient(135deg,#067b7f,#075a64);box-shadow:var(--shadow)}.alert h2{margin:0 0 8px;font-size:30px}.alert p{margin:0;max-width:720px;color:#ffffffe0;line-height:1.55}.signupBox{display:grid;gap:12px;min-width:min(440px,100%)}.email{display:flex;gap:10px}.email input{min-width:220px}.email button[disabled]{cursor:default;opacity:.72}.note{margin-top:10px;color:#ffffffe6;font-size:13px;font-weight:900}.signupSuccess{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;border:1px solid #bff7e4;border-radius:14px;padding:14px;background:#effdf7;color:#063f36;box-shadow:0 16px 34px #052f3333}.signupSuccess[hidden]{display:none}.successIcon{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;color:#fff;background:#078b6b;font-weight:950}.signupSuccess h3{margin:0 0 4px;font-size:18px}.signupSuccess p{margin:0;color:#285850;font-size:13px;font-weight:850;line-height:1.45}.signupEmail{display:block;margin-top:8px;color:#071323;font-size:14px;font-weight:950;word-break:break-word}.legal{padding:24px 0 44px;color:#66788a;font-size:12px;line-height:1.7}.legalDisclaimer{display:block;margin-top:6px}.legalLinks{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}.legalLinks a{color:var(--deep);font-weight:950;text-decoration:underline;text-underline-offset:3px}
+    .proofBar{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}.Demo{min-height:56px;padding:12px;border:1px solid #ffffff29;border-radius:12px;background:#ffffff14}.demoStack{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:20px}.demoCard{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid #ffffff29;border-radius:12px;padding:11px 12px;background:#ffffff14}.demoCard:nth-child(5){grid-column:1/-1}.demoPair{font-size:14px;font-weight:950;line-height:1.25}.demoHint{margin-top:3px;color:#ffffffc7;font-size:11px;font-weight:850;line-height:1.3}.demoStatus{justify-self:end;border-radius:999px;padding:5px 9px;color:#053b31;background:#bff7e4;font-size:11px;font-weight:950;white-space:nowrap}.demoStatus.wait{background:#fff0bd;color:#694509}.demoStatus.risk{background:#ffd7e0;color:#7d102a}.demoStatus.vip{background:linear-gradient(135deg,#8b5900,#c88913);color:#fff}.trustStrip{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}.trustStrip span{border:1px solid #ffffff26;border-radius:999px;padding:6px 10px;color:#ffffffd9;font-size:11px;font-weight:900}.ctaDisclaimer{width:100%;margin:6px 0 0;color:#ffffffcf;font-size:11px;font-weight:850;line-height:1.4}.mobileSticky{display:none}
+    @media(max-width:960px){.links{display:none}.hero,.below,.alert,.plans,.proofBar,.trialTimeline,.modalPlanTabs,.modalTimelineBox{grid-template-columns:1fr}.fomo{min-height:auto}}
+    @media(max-width:560px){body{padding-bottom:84px}.wrap{width:calc(100% - 28px)}.fomo{padding:24px}.lead{font-size:16px}.fomoBox{margin-top:16px;padding:13px}.demoStack,.grid,.stats,.example,.email{grid-template-columns:1fr}.demoCard:nth-child(5){grid-column:auto}.heroBtns a,.email button{width:100%;display:grid;place-items:center}.op{display:none}.decisionMain{align-items:flex-start}.icon{width:68px;height:68px;font-size:26px}.copy h2{font-size:25px}.watchItem{grid-template-columns:auto 1fr}.pill{grid-column:2;justify-self:start}.mobileSticky{position:fixed;left:14px;right:14px;bottom:14px;z-index:8;display:grid;place-items:center;min-height:52px;border-radius:12px;color:#fff;background:linear-gradient(135deg,var(--teal),#056b70);box-shadow:0 18px 38px #06182647;font-weight:950}.mobileSticky.done{display:none}}
+  </style>
 </head>
 <body>
-
-    <div class="mobile-mockup bg-white">
-        <!-- เอฟเฟกต์แสงพื้นหลัง -->
-        <div class="aura-teal"></div>
-        <div class="aura-gold"></div>
-
-        <div class="content-layer p-6 flex flex-col">
-            
-            <!-- SECTION 1: HERO -->
-            <div class="min-h-[800px] flex flex-col relative">
-                <!-- Navbar -->
-                <div class="flex justify-between items-center mb-8 pt-4">
-                    <div class="flex items-center gap-1.5">
-                        <div class="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center shadow-lg shadow-teal-600/30">
-                            <!-- Icon เปลี่ยนเป็นรูปคลื่นชีพจร -->
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                            </svg>
-                        </div>
-                        <div class="text-2xl font-bold text-slate-800 tracking-tighter">
-                            Save<span class="text-teal-600">Pulse</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ข้อความพาดหัว -->
-                <div class="mb-6">
-                    <div class="inline-block bg-teal-50 text-teal-700 text-[10px] font-bold px-3 py-1 rounded-full mb-4 tracking-wider uppercase">
-                        Data Analytics Platform
-                    </div>
-                    <h1 class="text-[32px] leading-[1.2] font-bold text-slate-900 mb-4">
-                        ปกป้องเงินของคุณให้ได้ <span class="text-teal-600">มูลค่าสูงสุด</span><br>จบปัญหาแลกเงินผิดจังหวะ
-                    </h1>
-                    <p class="text-slate-500 text-[13px] leading-relaxed pr-4">
-                        เช็ค 'สัญญาณสถิติ' ระดับสถาบันการเงิน ก่อนตัดสินใจแลกเงินไปเที่ยว สั่งของ หรือซื้อทองคำ
-                    </p>
-                </div>
-
-                <!-- การ์ดแสดงผลแนวนอน (ย่อเพื่อความกระชับของโค้ด) -->
-                <div class="flex overflow-x-auto hide-scroll gap-4 pb-6 -mx-6 px-6 mb-4 snap-x">
-                    
-                    <!-- 1. การ์ดญี่ปุ่น (ไฟเขียว) -->
-                    <div class="min-w-[280px] snap-center bg-white/80 backdrop-blur-xl rounded-3xl p-5 shadow-[0_8px_25px_rgb(0,0,0,0.04)] border border-slate-100 relative overflow-hidden">
-                        <div class="absolute top-0 left-0 w-1 h-full bg-teal-500"></div>
-                        <div class="flex justify-between items-start mb-3">
-                            <div class="flex items-center gap-3">
-                                <div class="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-xl shadow-sm">🇯🇵</div>
-                                <div>
-                                    <h3 class="font-bold text-slate-800 text-sm">เตรียมบินญี่ปุ่น</h3>
-                                    <p class="text-[10px] text-slate-400 font-medium">ถือเงินบาท &rarr; แลกเงินเยน</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-1.5 bg-teal-50/80 px-2 py-1 rounded-full border border-teal-100">
-                                <div class="w-2 h-2 rounded-full bg-teal-500 animate-pulse shadow-[0_0_8px_rgba(20,184,166,0.8)]"></div>
-                                <span class="text-[9px] font-bold text-teal-700 tracking-wide">ได้เปรียบสุดๆ</span>
-                            </div>
-                        </div>
-                        <div class="bg-slate-50 rounded-xl p-3 mt-4">
-                            <p class="text-[12px] text-slate-700 font-medium flex items-center gap-2">
-                                จังหวะคุ้มค่ามาก สถิติแนะนำให้แลกเก็บไว้เลย
-                            </p>
-                        </div>
-                    </div>
-
-                    <!-- 2. การ์ดทองคำ (ไฟแดง) -->
-                    <div class="min-w-[280px] snap-center bg-white/80 backdrop-blur-xl rounded-3xl p-5 shadow-[0_8px_25px_rgb(0,0,0,0.04)] border border-slate-100 relative overflow-hidden">
-                        <div class="absolute top-0 left-0 w-1 h-full bg-rose-400"></div>
-                        <div class="flex justify-between items-start mb-3">
-                            <div class="flex items-center gap-3">
-                                <div class="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-xl shadow-sm">🥇</div>
-                                <div>
-                                    <h3 class="font-bold text-slate-800 text-sm">ซื้อทองคำแท่งสะสม</h3>
-                                    <p class="text-[10px] text-slate-400 font-medium">เปลี่ยนเงินสด &rarr; ออมทอง</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-1.5 bg-rose-50/80 px-2 py-1 rounded-full border border-rose-100">
-                                <div class="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></div>
-                                <span class="text-[9px] font-bold text-rose-700 tracking-wide">ราคากำลังดุเดือด</span>
-                            </div>
-                        </div>
-                        <div class="bg-slate-50 rounded-xl p-3 mt-4">
-                            <p class="text-[12px] text-slate-700 font-medium flex items-center gap-2">
-                                ความเสี่ยงสูง สถิติชี้ว่าควรรอให้ราคาพักตัวก่อน
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- กล่อง Call to Action (แทรก MailerLite Form ตรงนี้) -->
-                <div class="mt-auto bg-slate-50 border border-slate-200 rounded-[2rem] p-6 shadow-xl relative overflow-hidden z-20 text-center">
-                    <h3 class="text-slate-900 font-bold mb-1 text-lg">ให้เราช่วยเฝ้าเรทเงินให้คุณ</h3>
-                    <p class="text-slate-500 text-xs mb-4">ลงทะเบียนรับสิทธิ์ใช้งานระบบแจ้งเตือนฟรี 1 เดือน</p>
-                    
-                    <!-- โค้ดฟอร์มของ MailerLite -->
-                    <div class="ml-embedded w-full" data-form="dndYkq"></div>
-                    
-                </div>
-
-            </div>
-        </div>
+  <div class="ticker"><div><span data-i="ticker1"></span><span data-i="ticker2"></span><span data-i="ticker3"></span><span data-i="ticker1"></span><span data-i="ticker2"></span><span data-i="ticker3"></span></div></div>
+  <header>
+    <div class="wrap nav">
+      <a class="brand" href="#top"><span class="mark">⌁</span><span>SavePulse</span></a>
+      <nav class="links">
+        <a href="#check" data-i="navCheck"></a>
+        <a href="#watch" data-i="navWatch"></a>
+        <a href="#pricing" data-i="navPricing"></a>
+        <a href="/for-business/" data-i="navB2B"></a>
+        <a href="#legal" data-i="navSafety"></a>
+      </nav>
+      <div class="actions">
+        <button class="btn" id="lang"><span id="langText">TH</span></button>
+        <button class="goldBtn" id="headerTrialBtn" type="button" data-i="navTrialCta"></button>
+        <a class="primary" href="#alerts" data-i="navCta"></a>
+      </div>
     </div>
+  </header>
+
+  <main id="top" class="wrap">
+    <!-- 14-Day Free Trial Interactive Bar -->
+    <section class="trialBar" aria-label="14-Day Free Trial Status">
+      <div class="trialBarLeft">
+        <span class="trialPill" id="trialStatusBadge" data-i="trialBadge"></span>
+        <span id="trialBarCopy" data-i="trialBarText"></span>
+      </div>
+      <div class="trialBarRight">
+        <button class="trialToggleBtn" id="toggleTrialPreviewBtn" type="button"></button>
+        <button class="trialStartMiniBtn" id="openTrialModalBtn" type="button" data-i="trialStartBtn"></button>
+      </div>
+    </section>
+
+    <section class="hero">
+      <article class="fomo">
+        <div class="live"><span class="dot"></span><span data-i="live"></span></div>
+        <h1 data-html="heroTitle"></h1>
+        <p class="lead" data-i="heroLead"></p>
+        <div class="fomoBox" data-i="heroFomo"></div>
+        <div class="demoStack" aria-label="SavePulse example observations">
+          <div class="demoCard"><div><div class="demoPair" data-i="demoUsdTitle"></div><div class="demoHint" data-i="demoUsd"></div></div><span class="demoStatus" data-i="demoWatch" data-demo="USDTHB" data-from="USD" data-to="THB"></span></div>
+          <div class="demoCard"><div><div class="demoPair" data-i="demoJpyTitle"></div><div class="demoHint" data-i="demoJpy"></div></div><span class="demoStatus wait" data-i="demoNotRush" data-demo="JPYTHB" data-from="THB" data-to="JPY"></span></div>
+          <div class="demoCard"><div><div class="demoPair" data-i="demoEurTitle"></div><div class="demoHint" data-i="demoEur"></div></div><span class="demoStatus" data-i="demoWatch" data-demo="EURTHB" data-from="THB" data-to="EUR"></span></div>
+          <div class="demoCard"><div><div class="demoPair" data-i="demoXauTitle"></div><div class="demoHint" data-i="demoXau"></div></div><span class="demoStatus vip" data-i="vipOnly"></span></div>
+          <div class="demoCard"><div><div class="demoPair" data-i="demoB2bTitle"></div><div class="demoHint" data-i="demoB2b"></div></div><span class="demoStatus vip" data-i="vipOnly"></span></div>
+        </div>
+        <div class="heroBtns">
+          <a class="light" href="#check" data-i="primaryAction"></a>
+          <button class="goldBtn" id="heroTrialBtn" type="button" data-i="heroTrialAction"></button>
+        </div>
+        <div class="trustStrip"><span data-i="trust1"></span><span data-i="trust2"></span><span data-i="trust3"></span></div>
+      </article>
+      <div id="check">
+        <section class="panel pad">
+          <div class="title"><div><h2 data-i="checkTitle"></h2><p data-i="checkSub"></p></div><span class="badge" data-i="private"></span></div>
+          <div class="grid">
+            <div class="field"><label for="from" data-i="from"></label><select id="from"></select></div>
+            <div class="field"><label for="to" data-i="to"></label><select id="to"></select></div>
+            <div class="field"><label for="amount" data-i="amount"></label><input id="amount" type="number" min="1" value="10000"></div>
+            <div class="field"><label data-i="conversionLabel"></label><div class="conversion" id="conversionBox"><small id="rateText"></small><b id="convertedText"></b><span id="rateNote"></span></div></div>
+            <div class="field wide"><label for="need" data-i="need"></label><select id="need"><option data-i="week"></option><option data-i="month"></option><option data-i="flex"></option></select></div>
+          </div>
+          <button class="primary full" id="checkButton" data-i="checkButton"></button>
+          <div class="mini"><span data-i="noSignup"></span><span data-i="window"></span></div>
+        </section>
+        <section class="panel pad decision" id="decisionCard" tabindex="-1">
+          <div class="decisionTop"><div class="decisionMain"><div class="icon" id="statusIcon">Ⅱ</div><div class="copy"><h2 id="headline"></h2><p id="decisionCopy"></p></div></div><span class="badge" data-i="updated"></span></div>
+          <div>
+            <div class="metric"><span class="micon">%</span><span id="scoreLabel"></span><b id="scoreValue"></b></div>
+            <div class="metric"><span class="micon">5</span><span id="watchLabel"></span><b id="watchValue"></b></div>
+            <div class="metric"><span class="micon">✓</span><span id="confidenceLabel"></span><b><span class="dots"><span></span><span></span><span></span><span></span></span></b></div>
+          </div>
+          <button class="vipUnlockCta" id="decisionTrialBtn" type="button" data-i="decisionTrialBtn"></button>
+          <div class="notice" id="resultNotice"></div>
+          <div class="nudge" id="nudge"></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="below">
+      <article class="panel story">
+        <div class="title"><div><h2 data-i="storyTitle"></h2><p data-i="storySub"></p></div><span class="badge" data-i="example"></span></div>
+        <div class="example">
+          <div><div class="small" data-i="ifEarlier"></div><div class="num" id="pastValue"></div></div>
+          <div class="op">-</div>
+          <div><div class="small" data-i="ifToday"></div><div class="num" id="todayValue"></div></div>
+          <div class="op">=</div>
+          <div><div class="small" data-i="difference"></div><div class="num save" id="differenceValue"></div></div>
+        </div>
+        <div class="nudge" data-i="storyFomo"></div>
+      </article>
+      <article class="panel watch" id="watch">
+        <div class="title"><div><h2 data-i="watchTitle"></h2><p data-i="watchSub"></p></div><span class="badge">16 <span data-i="items"></span></span></div>
+        <div class="list" id="watchList"></div>
+      </article>
+    </section>
+
+    <section class="alert" id="alerts">
+      <div><h2 data-i="alertTitle"></h2><p data-i="alertSub"></p><div class="note" id="subNote" data-i="note"></div></div>
+      <div class="signupBox">
+        <form class="email" id="form">
+          <input id="email" type="email" placeholder="you@email.com" required>
+          <button class="light" id="joinButton" type="submit" data-i="join"></button>
+          <p class="ctaDisclaimer" data-i="ctaDisclaimer"></p>
+        </form>
+        <div class="signupSuccess" id="signupSuccess" hidden><span class="successIcon">✓</span><div><h3 id="signupTitle"></h3><p id="signupBody"></p><strong class="signupEmail" id="signupEmail"></strong></div></div>
+      </div>
+    </section>
+
+    <!-- Pricing with 14-Day Free Trial UX/UI -->
+    <section class="panel pricing" id="pricing">
+      <div class="title">
+        <div>
+          <h2 data-i="pricingTitle"></h2>
+          <p data-i="pricingSub"></p>
+        </div>
+        <span class="trialRibbon" style="font-size:12.5px;padding:7px 14px" data-i="pricingTrialBadge"></span>
+      </div>
+
+      <!-- 3-Step 14-Day Free Trial Timeline -->
+      <div class="trialTimeline" aria-label="How your 14-day free trial works">
+        <div class="tStep">
+          <span class="tStepNum">1</span>
+          <div>
+            <b data-i="tStep1Title"></b>
+            <span data-i="tStep1Desc"></span>
+          </div>
+        </div>
+        <div class="tStep">
+          <span class="tStepNum">12</span>
+          <div>
+            <b data-i="tStep2Title"></b>
+            <span data-i="tStep2Desc"></span>
+          </div>
+        </div>
+        <div class="tStep">
+          <span class="tStepNum">14</span>
+          <div>
+            <b data-i="tStep3Title"></b>
+            <span data-i="tStep3Desc"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="plans" id="plans"></div>
+    </section>
+  </main>
+
+  <!-- Interactive 14-Day Free Trial Onboarding Modal -->
+  <div class="modalBackdrop" id="trialModalBackdrop" hidden role="dialog" aria-modal="true" aria-labelledby="modalHeading">
+    <div class="trialModal">
+      <button class="modalClose" id="closeTrialModalBtn" type="button" aria-label="Close">×</button>
+      <span class="trialRibbon" data-i="modalEyebrow"></span>
+      <h2 id="modalHeading" style="margin:10px 0 6px;font-size:26px;color:var(--deep)" data-i="modalTitle"></h2>
+      <p style="margin:0;color:var(--muted);font-size:14px" data-i="modalSub"></p>
+
+      <div class="modalPlanTabs" id="modalPlanTabs"></div>
+
+      <div class="modalUnlockChips">
+        <span class="modalUnlockChip">Cu · High Grade Copper (VIP)</span>
+        <span class="modalUnlockChip">🛢 · Brent &amp; WTI Crude Oil (VIP)</span>
+        <span class="modalUnlockChip">🔥 · Natural Gas (VIP)</span>
+        <span class="modalUnlockChip">Al · Primary Aluminum (VIP)</span>
+        <span class="modalUnlockChip">🍬 · Raw Sugar &amp; Palm Oil (VIP)</span>
+        <span class="modalUnlockChip">◉ · Gold &amp; ₿ Bitcoin (VIP)</span>
+      </div>
+
+      <div class="modalTimelineBox">
+        <div class="modalTimelineItem">
+          <b id="modalDay1Title"></b>
+          <span data-i="modalDay1Sub"></span>
+        </div>
+        <div class="modalTimelineItem">
+          <b id="modalDay12Title"></b>
+          <span data-i="modalDay12Sub"></span>
+        </div>
+        <div class="modalTimelineItem">
+          <b id="modalDay14Title"></b>
+          <span data-i="modalDay14Sub"></span>
+        </div>
+      </div>
+
+      <form id="trialModalForm" style="display:grid;gap:10px;margin-top:14px">
+        <label for="trialModalEmail" data-i="modalEmailLabel"></label>
+        <input id="trialModalEmail" type="email" placeholder="you@company.com" required>
+        <button class="goldBtn" id="trialModalSubmit" type="submit" style="min-height:52px;font-size:15.5px" data-i="modalSubmitBtn"></button>
+        <small style="color:var(--muted);font-size:12px;font-weight:700;text-align:center" data-i="modalFootNote"></small>
+      </form>
+
+      <div class="modalSuccessBox" id="trialModalSuccess" hidden>
+        <strong style="display:block;font-size:16px" id="trialModalSuccessTitle"></strong>
+        <p style="margin:6px 0 0;font-size:13.5px;font-weight:700" id="trialModalSuccessBody"></p>
+      </div>
+    </div>
+  </div>
+
+  <footer class="wrap legal" id="legal">
+    <strong data-i="legalTitle"></strong> <span class="legalDisclaimer" data-i="legal"></span>
+    <nav class="legalLinks" aria-label="Legal links">
+      <a href="/for-business/">B2B Procurement Suite</a>
+      <a href="/admin/">Admin Console</a>
+      <a href="/terms.html">Terms</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/risk-disclosure.html">Risk Disclosure</a>
+      <a href="/refund.html">Refund Policy</a>
+      <a href="mailto:support@savepulse.cloud">Contact</a>
+    </nav>
+  </footer>
+  <a class="mobileSticky" href="#pricing" data-i="stickyCta"></a>
+  <script>
+    const pairs=[
+      "USDTHB","JPYTHB","EURTHB","XAUTHB","BTCTHB","USDJPY","EURUSD","XAUUSD","BTCUSD",
+      "COPPERUSD","BRENTUSD","WTIUSD","NGUSD","ALUMINUMUSD","SUGARUSD","FCPO"
+    ];
+    const b2bKeys=["COPPERUSD","BRENTUSD","WTIUSD","NGUSD","ALUMINUMUSD","SUGARUSD","FCPO"];
+    const money={
+      THB:["เงินบาท","Thai baht"],
+      USD:["เงินดอลลาร์สหรัฐ","US dollars"],
+      JPY:["เงินเยน","Japanese yen"],
+      EUR:["เงินยูโร","Euros"],
+      XAU:["ทองคำ (กรัม)","Gold (grams)"],
+      BTC:["บิตคอยน์","Bitcoin"],
+      COPPER:["ทองแดงเกรดอุตสาหกรรม (B2B VIP)","High Grade Copper (B2B VIP)"],
+      BRENT:["น้ำมันดิบเบรนท์ (B2B VIP)","Brent Crude Oil (B2B VIP)"],
+      WTI:["น้ำมันดิบ WTI (B2B VIP)","WTI Crude Oil (B2B VIP)"],
+      NG:["ก๊าซธรรมชาติ (B2B VIP)","Natural Gas (B2B VIP)"],
+      ALUMINUM:["อะลูมิเนียมบริสุทธิ์ (B2B VIP)","Primary Aluminum (B2B VIP)"],
+      SUGAR:["น้ำตาลทรายดิบ (B2B VIP)","Raw Sugar (B2B VIP)"],
+      FCPO:["น้ำมันปาล์มดิบ (B2B VIP)","Crude Palm Oil (B2B VIP)"]
+    };
+    const icons={
+      THB:"฿",USD:"$",JPY:"¥",EUR:"€",XAU:"◉",BTC:"₿",
+      COPPER:"Cu",BRENT:"🛢",WTI:"🛢",NG:"🔥",ALUMINUM:"Al",SUGAR:"🍬",FCPO:"🌴"
+    };
+    const pairMap={
+      USDTHB:["USD","THB","คนมีเงินดอลลาร์ อยากแลกกลับเป็นเงินบาท","Holding US dollars, want Thai baht"],
+      JPYTHB:["THB","JPY","คนมีเงินบาท อยากแลกเป็นเงินเยน","Holding Thai baht, want Japanese yen"],
+      EURTHB:["THB","EUR","คนมีเงินบาท อยากแลกเป็นเงินยูโร","Holding Thai baht, want Euros"],
+      XAUTHB:["THB","XAU","คนมีเงินบาท อยากเปลี่ยนเป็นทองคำ","Holding Thai baht, want gold exposure"],
+      BTCTHB:["THB","BTC","คนมีเงินบาท อยากเปลี่ยนเป็นบิตคอยน์","Holding Thai baht, want bitcoin exposure"],
+      USDJPY:["USD","JPY","คนมีเงินดอลลาร์ อยากแลกเป็นเงินเยน","Holding US dollars, want Japanese yen"],
+      EURUSD:["USD","EUR","คนมีเงินดอลลาร์ อยากแลกเป็นเงินยูโร","Holding US dollars, want Euros"],
+      XAUUSD:["USD","XAU","คนมีเงินดอลลาร์ อยากเปลี่ยนเป็นทองคำ","Holding US dollars, want gold exposure"],
+      BTCUSD:["USD","BTC","คนมีเงินดอลลาร์ อยากเปลี่ยนเป็นบิตคอยน์","Holding US dollars, want bitcoin exposure"],
+      COPPERUSD:["USD","COPPER","สินค้า B2B: ทองแดงเกรดอุตสาหกรรม (สายไฟฟ้า ท่อแอร์ ชิ้นส่วนไฟฟ้า)","B2B Product: High Grade Copper (Power Cables, Tubing & Electricals)"],
+      BRENTUSD:["USD","BRENT","สินค้า B2B: น้ำมันดิบเบรนท์ (เม็ดพลาสติก ปิโตรเคมี และขนส่งทางเรือ)","B2B Product: Brent Crude Oil (Plastics, Resins & Marine Fuel)"],
+      WTIUSD:["USD","WTI","สินค้า B2B: น้ำมันดิบ WTI (น้ำมันหล่อลื่น เบสออยล์ และเคมีภัณฑ์)","B2B Product: WTI Crude Oil (Lubricants, Base Oils & Chemicals)"],
+      NGUSD:["USD","NG","สินค้า B2B: ก๊าซธรรมชาติ (เชื้อเพลิงความร้อนโรงงานและสาธารณูปโภค)","B2B Product: Natural Gas (Factory Heating & Industrial Utilities)"],
+      ALUMINUMUSD:["USD","ALUMINUM","สินค้า B2B: อะลูมิเนียมบริสุทธิ์ (ชิ้นส่วนยานยนต์ งานรีดขึ้นรูป และบรรจุภัณฑ์)","B2B Product: Primary Aluminum (Auto Parts, Extrusions & Packaging)"],
+      SUGARUSD:["USD","SUGAR","สินค้า B2B: น้ำตาลทรายดิบ (โรงงานอาหาร เครื่องดื่ม และแปรรูป)","B2B Product: Raw Sugar (Food & Beverage Manufacturing)"],
+      FCPO:["USD","FCPO","สินค้า B2B: น้ำมันปาล์มดิบ (โอลีโอเคมี สบู่ และอุตสาหกรรมอาหาร)","B2B Product: Crude Palm Oil (Oleochemicals, Soap & Food Processing)"]
+    };
+    const demo={USDTHB:74,JPYTHB:68,EURTHB:55,XAUTHB:82,BTCTHB:47,USDJPY:71,EURUSD:63,XAUUSD:84,BTCUSD:58,COPPERUSD:76,BRENTUSD:66,WTIUSD:62,NGUSD:71,ALUMINUMUSD:64,SUGARUSD:59,FCPO:69};
+    const fallbackPrices={USDTHB:35.65,JPYTHB:0.232,EURTHB:38.50,XAUTHB:95200,BTCTHB:3150000,USDJPY:153.6,EURUSD:1.08,XAUUSD:2670,BTCUSD:88500,COPPERUSD:4.35,BRENTUSD:84.50,WTIUSD:80.20,NGUSD:2.85,ALUMINUMUSD:2520,SUGARUSD:0.204,FCPO:4080};
+    const th={
+      ticker1:"ทดลองใช้ฟรี 14 วันครบทุกแพ็กเกจ (Free, Plus, Pro, Business VIP)",ticker2:"ปลดล็อกสัญญาณ VIP ทั้งทองคำ บิตคอยน์ และสินค้าวัตถุดิบ B2B ทั้ง 7 รายการทันที ($0 วันนี้)",ticker3:"รับอีเมลแจ้งเตือนล่วงหน้า 2 วันก่อนครบกำหนด ยกเลิกออนไลน์ได้ตลอดเวลา",navCheck:"เช็กเรท",navWatch:"รายการที่ดูได้",navPricing:"แพ็กเกจ (ฟรี 14 วัน)",navB2B:"สำหรับธุรกิจ B2B",navSafety:"ความปลอดภัย",navTrialCta:"ทดลองใช้ฟรี 14 วัน",navCta:"รับ Daily Pulse ฟรี",
+      trialBadge:"ทดลองใช้ฟรี 14 วัน",trialBadgeActive:"VIP Trial ทำงานอยู่ (เหลือ 14 วัน)",trialBarText:"ทดลองใช้ฟรี 14 วันในทุกแพ็กเกจ ($0 วันนี้) — ปลดล็อกทองคำ บิตคอยน์ และวัตถุดิบ B2B ครบทั้ง 7 รายการทันที",trialBarActiveText:"เปิดใช้งานสิทธิ์ทดลองใช้ฟรี 14 วันแล้ว — ปลดล็อกมุมมอง VIP ครบทั้ง 16 รายการเรียบร้อย",trialStartBtn:"เริ่มทดลองใช้ฟรี 14 วัน →",trialPreviewOn:"พรีวิว: โหมดสมาชิกทดลองฟรี 14 วัน (ปลดล็อก VIP)",trialPreviewOff:"พรีวิว: โหมดผู้เยี่ยมชมทั่วไป (ล็อก VIP)",
+      live:"ผู้ช่วยเช็กก่อนแลกเงินและจัดซื้อวัตถุดิบ B2B · ทดลองใช้ฟรี 14 วัน",heroTitle:"เช็กก่อนแลก<br><span>ลดโอกาสเสียเปรียบจากจังหวะเรทเงิน</span>",heroLead:"SavePulse ช่วยดูข้อสังเกตจากข้อมูลย้อนหลังของค่าเงิน ทอง BTC และวัตถุดิบ B2B เพื่อให้คุณตัดสินใจได้อย่างมีข้อมูลมากขึ้น พร้อมสิทธิ์ทดลองใช้ฟรี 14 วันทุกแพ็กเกจ",heroFomo:"เงินก้อนเดียวกัน อาจได้มูลค่าไม่เท่ากัน ถ้าจังหวะเรทต่างกันเพียงไม่กี่เปอร์เซ็นต์",demoUsdTitle:"มีดอลลาร์ อยากแลกเป็นเงินบาท",demoJpyTitle:"มีเงินบาท อยากแลกเป็นเงินเยน",demoEurTitle:"มีเงินบาท อยากแลกเป็นเงินยูโร",demoXauTitle:"มีเงินบาท อยากดูจังหวะทอง",demoBtcTitle:"มีเงินบาท อยากดูจังหวะ BTC",demoB2bTitle:"สินค้าวัตถุดิบสำหรับธุรกิจ B2B (7 รายการ)",demoUsd:"วันนี้อยู่ในโซนที่น่าดูต่อ",demoJpy:"ยังไม่ต้องตัดสินใจจากความรู้สึก",demoEur:"วันนี้อยู่ในโซนที่น่าดูต่อ",demoXau:"ปลดล็อกฟรี 14 วันด้วยแพ็กเกจ Pro/VIP",demoBtc:"เหมาะกับการเฝ้าดู ไม่ใช่รีบตัดสินใจ",demoB2b:"ทองแดง น้ำมันดิบ ก๊าซ อะลูมิเนียม น้ำตาล น้ำมันปาล์ม (ฟรี 14 วัน)",demoGood:"เรทค่อนข้างดี",demoWatch:"เริ่มน่าจับตา",demoWait:"รอก่อน",demoCareful:"อยู่ในโซนที่ควรระวัง",demoNotRush:"ยังไม่ต้องรีบ",trust1:"ไม่ใช่บริการรับแลกเงิน",trust2:"ไม่ใช่คำแนะนำการลงทุน",trust3:"ไม่รับประกันผลลัพธ์หรือเรทในอนาคต",primaryAction:"เช็กของฉันตอนนี้",heroTrialAction:"เริ่มทดลองใช้ฟรี 14 วัน ($0 วันนี้)",secondaryAction:"รับ Daily Pulse ฟรี",stat1:"คนกำลังเช็กวันนี้",stat2:"วันทำการหลังจังหวะน่าสนใจ",stat3:"รายการฟรีที่เฝ้าให้คุณ",checkTitle:"วันนี้ควรทำอะไร?",checkSub:"ตอบเป็นภาษาคนด้วยข้อสังเกตจากข้อมูลย้อนหลัง ไม่ต้องอ่านกราฟ",private:"ข้อมูลของคุณเป็นส่วนตัว",from:"คุณมี",to:"คุณต้องการ",amount:"จำนวนเงิน",conversionLabel:"ค่าเงินปัจจุบัน",rateLabel:"เรทล่าสุด",convertedLabel:"ประมาณ",rateUnavailable:"รอข้อมูลราคาล่าสุด",rateNote:"คำนวณจากราคาล่าสุดที่ระบบได้รับ",need:"ต้องใช้เมื่อไหร่",week:"ภายในสัปดาห์นี้",month:"ภายในเดือนนี้",flex:"ยังรอจังหวะได้",checkButton:"ดูข้อสังเกตวันนี้",noSignup:"ดูสถานะพื้นฐานได้โดยไม่ต้องสมัคร",window:"ใช้หน้าต่าง 5 วันทำการ",updated:"อัปเดตล่าสุด",resultReady:"คำนวณมุมมองวันนี้แล้ว ดูผลลัพธ์ด้านบนได้เลย",sameTitle:"เลือกให้ต่างกันก่อน",sameBody:"เลือกสินทรัพย์ที่คุณมีและสิ่งที่ต้องการให้ต่างกัน แล้วกดดูข้อสังเกตอีกครั้ง",vipOnly:"VIP only",vipUnlockedBadge:"VIP ปลดล็อก (ฟรี 14 วัน)",vipSub:"ปลดล็อกสถานะทองคำและบิตคอยน์ (ทดลองใช้ฟรี 14 วัน)",vipB2bSub:"ปลดล็อกสถานะสินค้าวัตถุดิบ B2B (ทดลองใช้ฟรี 14 วัน)",b2bDividerTitle:"รายการสินค้าวัตถุดิบสำหรับธุรกิจ B2B (7 รายการ)",b2bDividerBadge:"VIP เท่านั้น",vipTitle:"VIP only",vipBody:"ทองคำ บิตคอยน์ และสินค้าวัตถุดิบสำหรับธุรกิจ B2B ถูกล็อกมุมมองละเอียดไว้สำหรับสมาชิก VIP — คุณสามารถเริ่มทดลองใช้ฟรี 14 วัน ($0 วันนี้) เพื่อปลดล็อกทันที",vipNudge:"กดปุ่มด้านบนเพื่อเริ่มทดลองใช้ฟรี 14 วัน และดูสถานะ VIP ทั้งหมดทันที",vipReady:"เริ่มทดลองใช้ฟรี 14 วันเพื่อปลดล็อกมุมมอง VIP แบบละเอียด",decisionTrialBtn:"🎁 ปลดล็อกรายการนี้ด้วยสิทธิ์ทดลองใช้ฟรี 14 วัน ($0 วันนี้)",
+      scoreLabel:"ถูกกว่าช่วง 90 วันที่ผ่านมา",watchLabel:"ช่วงที่ควรจับตา",confidenceLabel:"ความมั่นใจ",watchValue:"5 วันทำการ",goodH:"เรทค่อนข้างดี",waitH:"ยังไม่ต้องรีบ",riskH:"อยู่ในโซนที่ควรระวัง",expiredH:"จังหวะที่น่าสนใจรอบก่อนผ่านไปแล้ว",good:"เรทวันนี้ดูค่อนข้างดีเมื่อเทียบกับข้อมูลย้อนหลัง หากคุณจำเป็นต้องใช้เร็ว ๆ นี้ อาจใช้ข้อมูลนี้ประกอบการตัดสินใจได้",wait:"ตอนนี้ยังไม่ใช่จังหวะที่ควรรีบ ถ้ารอได้ ให้ตั้งเตือนแล้วปล่อยให้ระบบเฝ้าแทน",risk:"ราคาอยู่ในโซนที่ควรระวังเมื่อเทียบกับข้อมูลย้อนหลัง หากยังไม่รีบ อาจติดตามจังหวะต่อก่อนตัดสินใจ",expired:"หน้าต่าง 5 วันทำการหลังจังหวะน่าสนใจผ่านไปแล้ว ตอนนี้ให้กลับมาอยู่โหมดรอก่อน",nGood:"เรทที่ต่างกันเล็กน้อย อาจกระทบต้นทุนมากกว่าที่คิด",nWait:"ตั้งแจ้งเตือนไว้ก่อนช่วงที่น่าสนใจผ่านไป เพื่อไม่ต้องนั่งเฝ้าทุกวัน",nRisk:"เงินก้อนใหญ่ไม่ควรตัดสินใจจากความกังวลอย่างเดียว",storyTitle:"เรทต่างกันเล็กน้อย อาจกระทบต้นทุนมากกว่าที่คิด",storySub:"ตัวอย่างจากข้อมูลย้อนหลัง ไม่ใช่การคาดการณ์อนาคต",example:"ตัวอย่าง",ifEarlier:"ถ้าเช็กเร็วกว่านี้",ifToday:"ถ้าตัดสินใจวันนี้",difference:"ส่วนต่างโดยประมาณ",storyFomo:"อย่ารู้ตัวหลังจากแลกไปแล้วว่าเรทดีขึ้น เพราะเงินก้อนเดียวกันอาจได้มูลค่าไม่เท่ากัน",watchTitle:"รายการที่ SavePulse เฝ้าให้",watchSub:"ก่อนแลก USD, JPY, EUR, ทอง, BTC หรือสั่งซื้อวัตถุดิบ B2B ให้เช็กโซนราคาก่อน",items:"รายการ",sGood:"เรทค่อนข้างดี",sWait:"ยังไม่ต้องรีบ",sRisk:"อยู่ในโซนที่ควรระวัง",sub:"ใช้ประกอบการตัดสินใจก่อนแลก",alertTitle:"รับ Daily Pulse ฟรีทางอีเมล",alertSub:"สรุปข้อสังเกตที่ควรรู้ก่อนตัดสินใจแลกเงินก้อนใหญ่ ส่งเป็นภาษาอ่านง่าย ไม่ใช่คำสั่งให้แลก",note:"SavePulse เป็นเครื่องมือช่วยประกอบการตัดสินใจจากข้อมูลอัตราแลกเปลี่ยนและราคาย้อนหลัง ไม่ใช่คำแนะนำการลงทุน ไม่ใช่คำสั่งซื้อขาย ไม่ใช่บริการรับแลกเงิน และไม่รับประกันผลลัพธ์หรือเรทในอนาคต",ctaDisclaimer:"ไม่ใช่คำแนะนำการลงทุน / ไม่รับประกันผลลัพธ์หรือเรทในอนาคต",stickyCta:"ทดลองใช้ฟรี 14 วัน ($0 วันนี้)",loading:"กำลังสมัคร...",joined:"สมัครเรียบร้อยแล้ว",alreadyTitle:"อีเมลนี้อยู่ในรายการ Daily Pulse แล้ว",alreadyBody:"เราจะไม่สมัครซ้ำให้คุณ และจะใช้รายการเดิมสำหรับ Daily Pulse Free",successTitle:"สมัครสำเร็จแล้ว",successBody:"เราเพิ่มอีเมลนี้เข้า Daily Pulse Free แล้ว คุณจะได้รับข้อสังเกตจากข้อมูลย้อนหลังทางอีเมลเมื่อระบบเริ่มรอบส่งอัตโนมัติ",failClear:"สมัครไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",join:"รับ Daily Pulse ฟรี",
+      pricingTitle:"แพ็กเกจสมาชิก — ทดลองใช้ฟรี 14 วันทุกแพ็กเกจ",pricingSub:"เริ่มต้นที่ $0 วันนี้ ทดลองใช้งานฟีเจอร์เต็มรูปแบบและปลดล็อกสัญญาณ VIP นาน 14 วันเต็ม ยกเลิกออนไลน์ได้ในคลิกเดียว",pricingTrialBadge:"🎁 ทดลองใช้ฟรี 14 วัน ($0 วันนี้)",
+      tStep1Title:"วันที่ 1 (วันนี้ · ชำระ $0)",tStep1Desc:"ปลดล็อกทุกฟีเจอร์ของแพ็กเกจที่เลือกและรับอีเมลสรุปประจำวันทันทีโดยไม่มีค่าใช้จ่าย",
+      tStep2Title:"วันที่ 12 (แจ้งเตือนล่วงหน้า 48 ชม.)",tStep2Desc:"ระบบส่งอีเมลแจ้งเตือนล่วงหน้า 2 วันก่อนครบกำหนดทดลองใช้ฟรี ไม่มีค่าใช้จ่ายแอบแฝง",
+      tStep3Title:"วันที่ 14 (เลือกต่ออายุหรือยกเลิกได้ทันที)",tStep3Desc:"เลือกใช้งานต่อตามแพ็กเกจ หรือปรับกลับเป็นแผน Free ได้ในคลิกเดียว",
+      trialRibbonText:"ทดลองใช้ฟรี 14 วัน",
+      modalEyebrow:"14-DAY VIP FREE TRIAL · ชำระ $0 วันนี้",
+      modalTitle:"เริ่มทดลองใช้ฟรี 14 วัน",
+      modalSub:"เลือกแพ็กเกจที่คุณต้องการทดลองใช้ฟรี 14 วัน เพื่อปลดล็อกสัญญาณ VIP บนหน้าเว็บและรับสรุปรายวันทางอีเมลทันที",
+      modalDay1Sub:"ปลดล็อกสัญญาณ VIP ครบทุกตัวทันที ($0 วันนี้)",
+      modalDay12Sub:"รับอีเมลแจ้งเตือนล่วงหน้า 48 ชม.",
+      modalDay14Sub:"สิ้นสุดช่วงทดลองฟรี เลือกต่อหรือยกเลิกได้เอง",
+      modalEmailLabel:"อีเมลสำหรับเปิดสิทธิ์ทดลองใช้ฟรี 14 วัน",
+      modalSubmitBtn:"เปิดสิทธิ์ทดลองใช้ฟรี 14 วันทันที ($0 วันนี้)",
+      modalFootNote:"ไม่มีการเรียกเก็บเงินในวันนี้ · ยกเลิกออนไลน์ได้ตลอดเวลาภายใน 14 วัน",
+      legalTitle:"ประกาศสำคัญ:",legal:"SavePulse เป็นเครื่องมือช่วยประกอบการตัดสินใจจากข้อมูลอัตราแลกเปลี่ยนและราคาย้อนหลัง ไม่ใช่คำแนะนำการลงทุน ไม่ใช่คำสั่งซื้อขาย ไม่ใช่บริการรับแลกเงิน และไม่รับประกันผลลัพธ์หรือเรทในอนาคต",ok:"สมัครเรียบร้อยแล้ว เราจะเฝ้ารายการนี้ให้ใน Free tier",fail:"ยังสมัครไม่ได้ กรุณาตรวจอีเมลแล้วลองอีกครั้ง",chooseFree:"เริ่มทดลองฟรี 14 วัน",choosePaid:"เริ่มทดลองฟรี 14 วัน",payNeed:"กรอกอีเมลด้านบนก่อน เพื่อบันทึกสิทธิ์ทดลองใช้ฟรี 14 วันของคุณ",payMissing:"เปิดสิทธิ์ทดลองใช้ฟรี 14 วันเรียบร้อยแล้ว ($0 วันนี้)",payOpen:"เปิดสิทธิ์ทดลองใช้ฟรี 14 วันแล้ว",
+      plans:[
+        ["Free","$0 / เดือน","ทดลองฟีเจอร์ VIP ฟรี 14 วันแรก|Daily Pulse Lite ทางอีเมล|เฝ้าดูค่าเงินพื้นฐาน 1 รายการ|ดูข้อสังเกตอัตราแลกเปลี่ยนย้อนหลัง|ฟรีตลอดชีพหลังครบ 14 วัน","เริ่มทดลองฟรี 14 วัน","ฟรีตลอดชีพ + โบนัส 14 วัน","$0 วันนี้ · ฟรีตลอดชีพ"],
+        ["Plus","$5 / เดือน","สำหรับคนแลกเงินและเดินทางบ่อย|ทดลองใช้ฟรี 14 วัน ($0 วันนี้)|Daily Decision Card รายวัน|เฝ้าดูได้สูงสุด 5 รายการ|แจ้งเตือนทางอีเมลในหน้าต่าง 5 วันทำการ","เริ่มทดลองฟรี 14 วัน","","$0 นาน 14 วัน · จากนั้น $5/เดือน"],
+        ["Pro","$15 / เดือน","สำหรับคนตาม FX ทองคำ และ BTC|ทดลองใช้ฟรี 14 วัน ($0 วันนี้)|ปลดล็อก VIP ทองคำ (กรัม) + บิตคอยน์|Full Daily Radar ครบทุกกลุ่ม|ดูย้อนหลังเปรียบเทียบสูงสุด 20 รายการ","เริ่มทดลองฟรี 14 วัน","ยอดนิยม","$0 นาน 14 วัน · จากนั้น $15/เดือน"],
+        ["Business","$59 / เดือน","สำหรับฝ่ายจัดซื้อ ผู้นำเข้า และ CFO|ทดลองใช้ฟรี 14 วัน ($0 วันนี้)|ปลดล็อกสินค้าวัตถุดิบ B2B ครบทั้ง 7 รายการ (VIP)|ครบทั้ง 16 รายการ (B2B + FX + ทอง + BTC)|สมัครและจัดการออนไลน์ได้ด้วยตนเอง","เริ่มทดลองฟรี 14 วัน","B2B VIP","$0 นาน 14 วัน · จากนั้น $59/เดือน"]
+      ]
+    };
+    const en={
+      ...th,
+      ticker1:"14-Day Free Trial available across all packages (Free, Plus, Pro & Business VIP)",ticker2:"Unlock VIP Gold, Bitcoin & all 7 B2B Raw-Material Commodity signals for 14 days ($0 today)",ticker3:"48-hour reminder email before trial ends · Cancel online in 1 click anytime",navCheck:"Check rates",navWatch:"Assets",navPricing:"Pricing (14D Free)",navB2B:"For Business (B2B)",navSafety:"Safety",navTrialCta:"14-Day Free Trial",navCta:"Get Daily Pulse",
+      trialBadge:"14-Day Free Trial",trialBadgeActive:"VIP Trial Active (14 Days Left)",trialBarText:"Try any package free for 14 days ($0 today) — Unlock Gold, Bitcoin & all 7 B2B Raw-Material VIP signals immediately.",trialBarActiveText:"14-Day VIP Free Trial is Active — All 16 FX, Gold, Bitcoin & B2B Commodity VIP views are unlocked.",trialStartBtn:"Start 14-Day Free Trial →",trialPreviewOn:"Preview: Active 14-Day VIP Trial (Unlocked)",trialPreviewOff:"Preview: Guest View (VIP Locked)",
+      live:"Exchange-rate & B2B procurement assistant · 14-Day Free Trial",heroTitle:"Check before<br><span>you exchange</span>",heroLead:"SavePulse helps you review exchange-rate, gold, BTC, and B2B raw-material reference data before making large currency and purchasing decisions. Try any package free for 14 days.",heroFomo:"Reduce the chance of being disadvantaged by exchange-rate or raw-material timing before you move a large amount.",demoUsdTitle:"Have USD, want Thai baht",demoJpyTitle:"Have Thai baht, want yen",demoEurTitle:"Have Thai baht, want euros",demoXauTitle:"Have Thai baht, watching gold",demoBtcTitle:"Have Thai baht, watching BTC",demoB2bTitle:"B2B Raw-Material Commodities (7 items)",demoUsd:"Worth watching today",demoJpy:"No need to decide by instinct",demoEur:"Worth watching today",demoXau:"Unlock free for 14 days with Pro/VIP",demoBtc:"Better to monitor than rush",demoB2b:"Copper, Crude Oil, Natural Gas, Aluminum, Sugar & Palm Oil (14D Free Trial)",demoGood:"Relatively favorable",demoWatch:"Worth watching",demoWait:"Wait for now",demoCareful:"Use caution",demoNotRush:"No rush",trust1:"Not a money exchange service",trust2:"Not investment advice",trust3:"No guarantee of future rates",primaryAction:"Check mine now",heroTrialAction:"Start 14-Day Free Trial ($0 Today)",secondaryAction:"Get Daily Pulse",stat1:"people checking today",stat2:"business days after an interesting window",stat3:"free goal watched for you",checkTitle:"What should you do today?",checkSub:"Plain language first. No charts. No market jargon.",private:"Your data is private",from:"You have",to:"You want",amount:"Amount",conversionLabel:"Current rate",rateLabel:"Latest rate",convertedLabel:"Approx.",rateUnavailable:"Waiting for latest rate",rateNote:"Calculated from the latest received price",need:"When do you need it?",week:"This week",month:"This month",flex:"I can wait",checkButton:"See today’s view",noSignup:"Basic status without sign-up",window:"Uses a 5 business-day window",updated:"Updated just now",resultReady:"Today’s view is ready. See the result above.",sameTitle:"Choose two different assets",sameBody:"Choose what you have and what you want, then check again.",vipOnly:"VIP only",vipUnlockedBadge:"VIP Unlocked (14D Trial)",vipSub:"Unlock gold and bitcoin timing status with a 14-day free trial (Pro/VIP).",vipB2bSub:"Unlock B2B raw-material timing status with a 14-day free trial (Business/VIP).",b2bDividerTitle:"B2B Raw-Material & Procurement Products (7 items)",b2bDividerBadge:"VIP ONLY",vipTitle:"VIP only",vipBody:"Gold, bitcoin, and B2B raw-material commodities draw heavier demand and move faster. Start your 14-day free trial ($0 today) to unlock detailed VIP views immediately.",vipNudge:"Click the button above to start your 14-day free trial and unlock all VIP signals right away.",vipReady:"Start your 14-day free trial ($0 today) to see detailed VIP views.",decisionTrialBtn:"🎁 Unlock This VIP Signal — Start 14-Day Free Trial ($0 Today)",
+      scoreLabel:"Cheaper than the last 90 days",watchLabel:"Window to watch",confidenceLabel:"Confidence",watchValue:"5 business days",goodH:"Relatively favorable",waitH:"No rush yet",riskH:"Use caution",expiredH:"The last watch window has passed",good:"Today’s rate looks relatively favorable compared with recent historical data. If you need to exchange soon, use this as decision-support before acting.",wait:"This is not a moment to rush. If you can wait, set an alert and let SavePulse watch it for you.",risk:"This rate is in a zone to watch carefully compared with recent historical data. If it is not urgent, you may keep monitoring before deciding.",expired:"The 5-business-day window after the interesting setup has passed. Move back into wait mode for now.",nGood:"A small rate difference can affect cost more than expected.",nWait:"Set an alert so you do not need to watch rates every day.",nRisk:"Large exchanges should not be decided from anxiety alone.",storyTitle:"A small rate gap can affect cost more than expected",storySub:"Historical example only. Not a prediction of future rates.",example:"Example",ifEarlier:"If checked earlier",ifToday:"If decided today",difference:"Approximate difference",storyFomo:"Do not realize only after exchanging that the rate improved. The same money can convert to a different value.",watchTitle:"What SavePulse watches",watchSub:"Before exchanging USD, JPY, EUR, gold, BTC, or purchasing B2B raw materials, check the current zone first.",items:"items",sGood:"Relatively favorable",sWait:"No rush",sRisk:"Use caution",sub:"Decision support before exchanging",alertTitle:"Get Daily Pulse free by email",alertSub:"A simple daily summary of observations worth checking before a large exchange. No exchange instructions.",note:"SavePulse provides decision-support information based on historical exchange-rate and price data. It is not financial advice, investment advice, trading instruction, a money exchange service, or a guarantee of future rates or outcomes.",ctaDisclaimer:"Not financial advice / no guarantee of future rates or outcomes.",stickyCta:"Start 14-Day Free Trial ($0 Today)",loading:"Activating...",joined:"Trial Active",alreadyTitle:"This email is already on SavePulse",alreadyBody:"We kept your existing subscription and activated your 14-day free trial access.",successTitle:"Signed up",successBody:"We added this email to SavePulse and activated your 14-day free trial.",failClear:"Could not sign up. Please try again.",join:"Get Daily Pulse",
+      pricingTitle:"14-Day Free Trial on Every Package",pricingSub:"Pay $0 today. Experience full VIP access across FX, Gold, Bitcoin, and all 7 B2B raw-material commodities for 14 days. Cancel in 1 click anytime.",pricingTrialBadge:"🎁 14-Day Free Trial ($0 Today)",
+      tStep1Title:"Day 1: Instant Full VIP Access ($0 Today)",tStep1Desc:"Unlock every feature in your chosen package plus daily morning email briefings immediately.",
+      tStep2Title:"Day 12: Friendly 48-Hour Reminder",tStep2Desc:"We send a transparent email reminder 2 days before your 14-day trial ends—no surprise charges.",
+      tStep3Title:"Day 14: Keep Plan or Cancel in 1 Click",tStep3Desc:"Continue seamlessly on your chosen tier or switch back to Free with zero obligation.",
+      trialRibbonText:"14-Day Free Trial",
+      modalEyebrow:"14-DAY VIP FREE TRIAL · $0 TODAY",
+      modalTitle:"Activate Your 14-Day Free Trial",
+      modalSub:"Choose any package below to unlock all VIP signals on the website and receive daily morning briefings for 14 days completely free.",
+      modalDay1Sub:"Instant VIP access unlocked ($0 charged today)",
+      modalDay12Sub:"Friendly 48-hour reminder email sent",
+      modalDay14Sub:"Trial ends — keep plan or cancel in 1 click",
+      modalEmailLabel:"Enter your email to activate your 14-day free trial",
+      modalSubmitBtn:"Activate 14-Day Free Trial ($0 Today)",
+      modalFootNote:"$0 due today · No hidden fees · 1-click self-serve cancellation anytime during the 14 days",
+      legalTitle:"Important notice:",legal:"SavePulse provides decision-support information based on historical exchange-rate and price data. It is not financial advice, investment advice, trading instruction, a money exchange service, or a guarantee of future rates or outcomes.",ok:"You are signed up. Your 14-day free trial is now active.",fail:"Could not subscribe yet. Please check your email and try again.",chooseFree:"Start 14-Day Free Trial",choosePaid:"Start 14-Day Free Trial",payNeed:"Enter your email to activate your 14-day free trial.",payMissing:"14-Day Free Trial activated ($0 today). Full VIP views are now unlocked.",payOpen:"14-Day Free Trial activated",
+      plans:[
+        ["Free","$0/mo","Includes 14-day VIP trial bonus|Daily Pulse Lite|1 watchlist after trial|Basic exchange-rate observations|Email summary","Start 14-Day Free Trial","","$0 today · Free forever after"],
+        ["Plus","$5/mo","For personal currency decisions|14-day free trial ($0 today)|Daily Decision Card|Up to 5 watchlists|5-business-day observation window","Start 14-Day Free Trial","","$0 for 14 days · Then $5/mo"],
+        ["Pro","$15/mo","For FX, gold, and BTC watchers|14-day free trial ($0 today)|Full Daily Radar (FX + Gold + BTC)|Replay from historical observations|Up to 20 tracked assets","Start 14-Day Free Trial","Most Popular","$0 for 14 days · Then $15/mo"],
+        ["Business VIP","$59/mo","For importers, procurement & finance teams|14-day free trial ($0 today)|All 7 B2B Raw-Material Commodities (VIP)|Foreign-currency invoice & PO risk brief|Self-serve online subscription","Start 14-Day Free Trial","B2B VIP","$0 for 14 days · Then $59/mo"]
+      ]
+    };
+
+    const langPrefKey="savepulse_lang_en_first",trialStoreKey="savepulse_trial_state",storedLang=()=>{try{return localStorage.getItem(langPrefKey)}catch(e){return null}},initialLang=()=>["en","th"].includes(storedLang())?storedLang():"en",rememberLang=v=>{try{localStorage.setItem(langPrefKey,v)}catch(e){}};
+    const loadTrialState=()=>{try{const raw=localStorage.getItem(trialStoreKey);return raw?JSON.parse(raw):null}catch(e){return null}};
+    const saveTrialState=v=>{try{if(v)localStorage.setItem(trialStoreKey,JSON.stringify(v));else localStorage.removeItem(trialStoreKey)}catch(e){}};
+    const $=id=>document.getElementById(id);
+    let st={lang:initialLang(),from:"USD",to:"THB",key:"USDTHB",assets:[],signup:null,trial:loadTrialState(),modalPlan:"business"};
+    const marketMap={
+      USDTHB:["USD","THB"],JPYTHB:["JPY","THB"],EURTHB:["EUR","THB"],XAUTHB:["XAU","THB"],BTCTHB:["BTC","THB"],USDJPY:["USD","JPY"],EURUSD:["EUR","USD"],XAUUSD:["XAU","USD"],BTCUSD:["BTC","USD"],
+      COPPERUSD:["COPPER","USD"],BRENTUSD:["BRENT","USD"],WTIUSD:["WTI","USD"],NGUSD:["NG","USD"],ALUMINUMUSD:["ALUMINUM","USD"],SUGARUSD:["SUGAR","USD"],FCPO:["FCPO","USD"]
+    };
+    const zone={strong:["STRONG","BUY"].join("_"),buy:["BUY","ZONE"].join("_"),wait:["WAIT","ZONE"].join("_"),sell:["SELL","ZONE"].join("_")},invertMap={[zone.strong]:zone.sell,[zone.buy]:zone.sell,[zone.wait]:zone.wait,[zone.sell]:zone.buy};
+    const tx=()=>st.lang==="th"?th:en,tr=k=>tx()[k]||th[k]||k,name=c=>money[c]?money[c][st.lang==="th"?0:1]:c,asset=k=>st.assets.find(a=>a.symbol===k);
+    const isB2B=k=>b2bKeys.includes(k)||["COPPER","BRENT","WTI","NG","ALUMINUM","SUGAR","FCPO"].includes(pairMap[k]?.[1]);
+    const decisionAction=(k,from=pairMap[k]?.[0],to=pairMap[k]?.[1])=>{const a=asset(k),act=a?.action||zone.wait,[base,quote]=marketMap[k]||[];if(from===base&&to===quote)return act;if(from===quote&&to===base)return invertMap[act]||zone.wait;return zone.wait};
+    const toneFor=(k,from=pairMap[k]?.[0],to=pairMap[k]?.[1])=>{
+      if(asset(k)?.decisionWindowExpired)return"expired";
+      if(isB2B(k)){
+        const sc=asset(k)?.percentile?.percent??demo[k]??65;
+        return sc>=70?"good":sc<=50?"risk":"wait";
+      }
+      return [zone.strong,zone.buy].includes(decisionAction(k,from,to))?"good":decisionAction(k,from,to)===zone.sell?"risk":"wait";
+    };
+    const vip=k=>["XAU","BTC","COPPER","BRENT","WTI","NG","ALUMINUM","SUGAR","FCPO"].includes(pairMap[k]?.[1]);
+    const isTrialUnlocked=()=>Boolean(st.trial&&st.trial.active);
+
+    function pairFor(a,b){return pairs.find(k=>pairMap[k][0]===a&&pairMap[k][1]===b)||pairs.find(k=>pairMap[k][0]===b&&pairMap[k][1]===a)||pairs.find(k=>pairMap[k][1]===b)||null}
+    function opts(){
+      const fromKeys=["THB","USD","JPY","EUR","XAU","BTC"];
+      $("from").innerHTML=fromKeys.map(c=>`<option value="${c}">${icons[c]} ${name(c)}</option>`).join("");
+      $("to").innerHTML=Object.keys(money).map(c=>`<option value="${c}">${icons[c]} ${name(c)}</option>`).join("");
+      if(!fromKeys.includes(st.from))st.from="USD";
+      $("from").value=st.from;$("to").value=st.to;
+      $("need").querySelectorAll("option").forEach(n=>n.textContent=tr(n.dataset.i));
+    }
+    function copy(t){return{good:["goodH","good","nGood","✓"],wait:["waitH","wait","nWait","Ⅱ"],risk:["riskH","risk","nRisk","!"],expired:["expiredH","expired","nWait","⌛"]}[t]||["waitH","wait","nWait","Ⅱ"]}
+    function render(){
+      st.key=pairFor(st.from,st.to)||"JPYTHB";
+      conversion();
+      const trialBtn=$("decisionTrialBtn");
+      if(st.from===st.to){
+        if(trialBtn)trialBtn.classList.remove("show");
+        setDecision("wait",tr("sameTitle"),tr("sameBody"),tr("nWait"),"Ⅱ",0,null);
+        return;
+      }
+      const a=asset(st.key),t=toneFor(st.key,st.from,st.to),[h,b,n,i]=copy(t),score=a?.percentile?.percent??demo[st.key]??64,days=a?.businessDaysElapsed;
+      if(vip(st.key)&&!isTrialUnlocked()){
+        if(trialBtn){
+          trialBtn.classList.add("show");
+          trialBtn.onclick=()=>openTrialModal(isB2B(st.key)?"business":"pro");
+        }
+        setDecision("vip",tr("vipTitle"),tr("vipBody"),tr("vipNudge"),"VIP",0,null);
+        story();
+        return;
+      }
+      if(trialBtn)trialBtn.classList.remove("show");
+      const headlineText=vip(st.key)&&isTrialUnlocked()?`${tr(h)} · ${tr("vipUnlockedBadge")}`:tr(h);
+      setDecision(t,headlineText,tr(b),tr(n),i,score,days);
+      story();
+    }
+    function setDecision(t,h,b,n,i,s,d){$("statusIcon").className="icon "+(t==="good"?"good":t==="risk"?"risk":t==="vip"?"vip":"");$("statusIcon").textContent=i;$("headline").textContent=h;$("decisionCopy").textContent=b;$("nudge").textContent=n;$("scoreLabel").textContent=tr("scoreLabel");$("scoreValue").textContent=s?s+"%":"--";$("watchLabel").textContent=tr("watchLabel");$("watchValue").textContent=d?Math.min(5,d)+"/5":tr("watchValue");$("confidenceLabel").textContent=tr("confidenceLabel");$("resultNotice").textContent=i==="VIP"?tr("vipReady"):tr("resultReady")}
+    async function applyBackendDecision(){if(st.from===st.to||(vip(st.key)&&!isTrialUnlocked()))return;try{const r=await fetch(`/api/v1/status?symbol=${encodeURIComponent(st.key)}&from=${encodeURIComponent(st.from)}&to=${encodeURIComponent(st.to)}`);if(!r.ok)return;const j=await r.json(),u=j.userFacing,lang=st.lang==="th"?"th":"en";if(!u?.label||!u?.copy)return;const h=u.label[lang],b=u.copy[lang];if(h)$("headline").textContent=h;if(b)$("decisionCopy").textContent=b}catch(e){}}
+    async function showDecision(){render();await applyBackendDecision();const c=$("decisionCard");$("resultNotice").classList.add("show");c.classList.add("focused");c.scrollIntoView({behavior:"smooth",block:"center"});c.focus({preventScroll:true});clearTimeout(window.__pulse);window.__pulse=setTimeout(()=>c.classList.remove("focused"),1700)}
+    function decimals(c){return c==="BTC"?6:c==="XAU"?2:["THB","JPY"].includes(c)?0:2}
+    function moneyText(v,c){if(!Number.isFinite(v))return"--";const d=decimals(c);return `${icons[c]||""}${v.toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:d===0?0:2})} ${c}`}
+    function rateNumber(v){return v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:6})}
+    function pairRate(k,from=st.from,to=st.to){const a=asset(k),price=Number(a?.price)||fallbackPrices[k],[base,quote]=marketMap[k]||[];if(!Number.isFinite(price)||price<=0||!base||!quote)return null;if(from===base&&to===quote)return{rate:price,base,quote};if(from===quote&&to===base)return{rate:1/price,base:quote,quote:base};if(isB2B(k))return{rate:1/price,base:from,quote:to};return null}
+    function conversion(){const amt=Number($("amount").value||0),r=pairRate(st.key);if(!r||!Number.isFinite(amt)||amt<=0){$("rateText").textContent=tr("rateUnavailable");$("convertedText").textContent="--";$("rateNote").textContent="";return}const out=amt*r.rate;$("rateText").textContent=`${tr("rateLabel")}: 1 ${r.base} ≈ ${icons[r.quote]||""}${rateNumber(r.rate)} ${r.quote}`;$("convertedText").textContent=`${tr("convertedLabel")}: ${moneyText(amt,st.from)} ≈ ${moneyText(out,st.to)}`;$("rateNote").textContent=tr("rateNote")}
+    function story(){const amt=Number($("amount").value||10000),target=st.to,sym=target==="THB"?"฿":target==="USD"?"$":target==="EUR"?"€":"",base=Math.max(1200,amt*.092),d=Math.max(28,Math.round(base*.031)),p=Math.round(base);$("pastValue").textContent=sym+p.toLocaleString();$("todayValue").textContent=sym+Math.max(1,p-d).toLocaleString();$("differenceValue").textContent=sym+d.toLocaleString()}
+    function demoCards(){document.querySelectorAll("[data-demo]").forEach(n=>{const t=toneFor(n.dataset.demo,n.dataset.from,n.dataset.to),k=t==="good"?"demoGood":t==="risk"?"demoCareful":"demoNotRush";n.textContent=tr(k);n.className="demoStatus "+(t==="risk"?"risk":t==="good"?"":"wait")})}
+    function renderTrialBar(){
+      const unlocked=isTrialUnlocked();
+      const badge=$("trialStatusBadge"),copyEl=$("trialBarCopy"),toggleBtn=$("toggleTrialPreviewBtn"),startBtn=$("openTrialModalBtn");
+      if(!badge||!copyEl||!toggleBtn||!startBtn)return;
+      badge.textContent=unlocked?tr("trialBadgeActive"):tr("trialBadge");
+      badge.className="trialPill"+(unlocked?" active":"");
+      copyEl.textContent=unlocked?tr("trialBarActiveText"):tr("trialBarText");
+      toggleBtn.textContent=unlocked?tr("trialPreviewOff"):tr("trialPreviewOn");
+      startBtn.style.display=unlocked?"none":"inline-flex";
+    }
+    function watch(){
+      const rows=[];
+      const unlocked=isTrialUnlocked();
+      pairs.forEach(k=>{
+        if(k==="COPPERUSD"){
+          rows.push(`<div class="b2bGroupDivider"><span>${tr("b2bDividerTitle")}</span><span class="vipStamp">VIP · 14D FREE TRIAL</span></div>`);
+        }
+        const l=vip(k),b2b=isB2B(k),t=toneFor(k,pairMap[k][0],pairMap[k][1]),target=pairMap[k][1];
+        const showLocked=l&&!unlocked;
+        const pk=showLocked?"vipOnly":t==="good"?"sGood":t==="risk"?"sRisk":"sWait";
+        const pill=showLocked?"vip":t==="good"?"good":t==="risk"?"risk":"wait";
+        const title=st.lang==="th"?pairMap[k][2]:pairMap[k][3];
+        const sub=showLocked?(b2b?tr("vipB2bSub"):tr("vipSub")):tr("sub");
+        const vipStampHtml=l?`<span class="vipStamp ${unlocked?"unlocked":""}">${unlocked?"VIP · UNLOCKED":"VIP"}</span>`:"";
+        const cardCls=showLocked?"locked":(l&&unlocked?"unlockedVip":"");
+        rows.push(`<article class="watchItem ${cardCls}" data-k="${k}"><span class="assetIcon">${icons[target]}</span><div><div class="watchTitle"><span>${title}</span>${vipStampHtml}</div><div class="watchSub">${sub}</div></div><span class="pill ${pill}">${tr(pk)}</span></article>`);
+      });
+      $("watchList").innerHTML=rows.join("");
+      document.querySelectorAll(".watchItem").forEach(x=>x.onclick=()=>{[st.from,st.to]=pairMap[x.dataset.k];opts();showDecision();scrollTo({top:0,behavior:"smooth"})});
+    }
+    function plans(){
+      const ids=["free","plus","pro","business"];
+      $("plans").innerHTML=tr("plans").map((p,i)=>{
+        const features=String(p[2]||"").split("|").map(x=>`<li>${x}</li>`).join("");
+        const badge=p[4]?`<span class="badge">${p[4]}</span>`:"";
+        const trialSub=p[5]?`<div class="trialSubPrice">${p[5]}</div>`:"";
+        const cardExtraCls=i===2?"hot":i===3?"b2bVipPlan":"";
+        return`<article class="plan ${cardExtraCls}"><div><div class="planBadges"><span class="trialRibbon">🎁 ${tr("trialRibbonText")}</span>${badge}</div><h3>${p[0]}</h3><div class="price">${p[1]}</div>${trialSub}<ul>${features}</ul></div><button class="${i?"primary":"btn"}" data-plan="${ids[i]}">${p[3]||(i?tr("choosePaid"):tr("chooseFree"))}</button></article>`;
+      }).join("");
+      document.querySelectorAll("[data-plan]").forEach(b=>b.onclick=()=>openTrialModal(b.dataset.plan));
+    }
+    function formatShortDate(offsetDays){
+      const d=new Date(Date.now()+offsetDays*86400000);
+      try{return d.toLocaleDateString(st.lang==="th"?"th-TH":"en-US",{month:"short",day:"numeric"})}catch(e){return`+${offsetDays}d`}
+    }
+    function renderModalTabs(){
+      const tabs=[
+        {id:"free",label:"Free (+14D VIP)"},
+        {id:"plus",label:"Plus ($0 / 14D)"},
+        {id:"pro",label:"Pro ($0 / 14D)"},
+        {id:"business",label:"Business VIP ($0 / 14D)"}
+      ];
+      const box=$("modalPlanTabs");
+      if(!box)return;
+      box.innerHTML=tabs.map(t=>`<button type="button" class="modalPlanTab ${st.modalPlan===t.id?"active":""}" data-modal-plan="${t.id}">${t.label}</button>`).join("");
+      box.querySelectorAll("[data-modal-plan]").forEach(b=>b.onclick=()=>{st.modalPlan=b.dataset.modalPlan;renderModalTabs()});
+      if($("modalDay1Title"))$("modalDay1Title").textContent=`Day 1 (${formatShortDate(0)})`;
+      if($("modalDay12Title"))$("modalDay12Title").textContent=`Day 12 (${formatShortDate(12)})`;
+      if($("modalDay14Title"))$("modalDay14Title").textContent=`Day 14 (${formatShortDate(14)})`;
+    }
+    function openTrialModal(plan="business"){
+      st.modalPlan=plan||"business";
+      renderModalTabs();
+      const backdrop=$("trialModalBackdrop");
+      if(!backdrop)return;
+      $("trialModalSuccess").hidden=true;
+      backdrop.hidden=false;
+      const prefill=$("email")?.value?.trim();
+      if(prefill&&!$("trialModalEmail").value)$("trialModalEmail").value=prefill;
+      setTimeout(()=>$("trialModalEmail")?.focus(),60);
+    }
+    function closeTrialModal(){
+      const backdrop=$("trialModalBackdrop");
+      if(backdrop)backdrop.hidden=true;
+    }
+    async function choosePlan(plan){
+      openTrialModal(plan);
+    }
+    function showSignup(kind,email,scroll=true){st.signup=kind==="fail"?null:{kind,email};const ok=kind!=="fail";$("signupSuccess").hidden=!ok;$("signupTitle").textContent=tr(kind==="already"?"alreadyTitle":"successTitle");$("signupBody").textContent=tr(kind==="already"?"alreadyBody":"successBody");$("signupEmail").textContent=email||"";$("subNote").textContent=ok?tr(kind==="already"?"alreadyTitle":"successTitle"):tr("failClear");$("joinButton").textContent=ok?tr("joined"):tr("join");$("joinButton").disabled=ok;document.querySelector(".mobileSticky").textContent=ok?tr("joined"):tr("stickyCta");document.querySelector(".mobileSticky").classList.toggle("done",ok);if(ok&&scroll)$("signupSuccess").scrollIntoView({behavior:"smooth",block:"center"})}
+    function patchFileLinks(){
+      if(location.protocol!=="file:")return;
+      document.querySelectorAll("a[href]").forEach(a=>{
+        const h=a.getAttribute("href");
+        if(h==="/for-business/")a.setAttribute("href","for-business/index.html");
+        else if(h==="/admin/")a.setAttribute("href","admin/index.html");
+        else if(h&&h.startsWith("/")&&!h.startsWith("//"))a.setAttribute("href",h.slice(1));
+      });
+    }
+    function lang(){document.documentElement.lang=st.lang;$("langText").textContent=st.lang==="th"?"EN":"TH";document.querySelectorAll("[data-i]").forEach(n=>n.textContent=tr(n.dataset.i));document.querySelectorAll("[data-html]").forEach(n=>n.innerHTML=tr(n.dataset.html));opts();renderTrialBar();watch();plans();demoCards();render();patchFileLinks();if(st.signup)showSignup(st.signup.kind,st.signup.email,false)}async function load(){lang();try{const r=await fetch("/api/v1/assets");if(!r.ok)throw Error("assets_unavailable");const j=await r.json();st.assets=j.assets||[]}catch(e){st.assets=[]}lang()}$("lang").onclick=()=>{st.lang=st.lang==="th"?"en":"th";rememberLang(st.lang);lang()};["from","to"].forEach(id=>$(id).onchange=e=>{st[id]=e.target.value;render()});$("amount").oninput=render;$("need").onchange=render;$("checkButton").onclick=showDecision;
+    $("openTrialModalBtn").onclick=()=>openTrialModal("business");
+    $("headerTrialBtn").onclick=()=>openTrialModal("business");
+    $("heroTrialBtn").onclick=()=>openTrialModal("business");
+    $("closeTrialModalBtn").onclick=closeTrialModal;
+    $("trialModalBackdrop").onclick=e=>{if(e.target===$("trialModalBackdrop"))closeTrialModal()};
+    $("toggleTrialPreviewBtn").onclick=()=>{
+      if(isTrialUnlocked()){
+        st.trial=null;
+        saveTrialState(null);
+      }else{
+        st.trial={active:true,plan:"business",trialDays:14,startedAt:new Date().toISOString(),endsAt:new Date(Date.now()+14*86400000).toISOString()};
+        saveTrialState(st.trial);
+      }
+      renderTrialBar();
+      watch();
+      render();
+    };
+    $("trialModalForm").onsubmit=async e=>{
+      e.preventDefault();
+      const email=$("trialModalEmail").value.trim().toLowerCase();
+      if(!email)return;
+      const plan=st.modalPlan||"business";
+      const trialObj={active:true,plan,trialDays:14,email,startedAt:new Date().toISOString(),endsAt:new Date(Date.now()+14*86400000).toISOString()};
+      st.trial=trialObj;
+      saveTrialState(trialObj);
+      try{
+        await fetch("/api/v1/subscribe",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email,locale:st.lang,plan:"free",trialPlan:plan,startTrial:true,trialDays:14,watchlist:[st.key],interest:`${plan}_14d_free_trial`})});
+      }catch(err){}
+      $("trialModalSuccessTitle").textContent=st.lang==="th"?`เปิดสิทธิ์ทดลองใช้ฟรี 14 วัน (${plan.toUpperCase()}) สำเร็จแล้ว!`:`14-Day Free Trial (${plan.toUpperCase()}) Activated!`;
+      $("trialModalSuccessBody").textContent=st.lang==="th"?`ปลดล็อกสัญญาณ VIP ทั้ง 16 รายการให้ ${email} เรียบร้อยแล้ว ใช้ฟรีถึงวันที่ ${formatShortDate(14)}`:`All 16 VIP signals are now unlocked for ${email} through ${formatShortDate(14)} ($0 charged today).`;
+      $("trialModalSuccess").hidden=false;
+      renderTrialBar();
+      watch();
+      render();
+    };
+    $("form").onsubmit=async e=>{e.preventDefault();if($("joinButton").disabled)return;const email=$("email").value.trim().toLowerCase();if(localStorage.getItem(`savepulse_subscribed_${email}`)){showSignup("already",email);return}$("joinButton").disabled=true;$("joinButton").textContent=tr("loading");$("signupSuccess").hidden=true;try{const r=await fetch("/api/v1/subscribe",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email,locale:st.lang,plan:"free",startTrial:true,trialDays:14,watchlist:[st.key],interest:"free_14d_trial"})});if(!r.ok)throw Error();localStorage.setItem(`savepulse_subscribed_${email}`,"1");showSignup("success",email)}catch(err){$("joinButton").disabled=false;showSignup("fail",email)}};load();
+  </script>
+  <script>
+    const GOLD_GRAMS_PER_TROY_OUNCE=31.1034768;
+    function moneyText(v,c){
+      if(!Number.isFinite(v))return"--";
+      if(c==="XAU"){
+        const grams=v*GOLD_GRAMS_PER_TROY_OUNCE,formatted=grams.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:2});
+        return st.lang==="th"?`ทองคำ ${formatted} กรัม`:`${formatted} grams of gold`;
+      }
+      const d=decimals(c),formatted=v.toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:d===0?0:2});
+      const units=st.lang==="th"?{THB:"บาท",USD:"ดอลลาร์สหรัฐ",JPY:"เยน",EUR:"ยูโร",BTC:"BTC",COPPER:"ปอนด์ (ทองแดง)",BRENT:"บาร์เรล (น้ำมันดิบเบรนท์)",WTI:"บาร์เรล (น้ำมันดิบ WTI)",NG:"MMBtu (ก๊าซธรรมชาติ)",ALUMINUM:"ตัน (อะลูมิเนียม)",SUGAR:"ปอนด์ (น้ำตาลทรายดิบ)",FCPO:"ตัน (น้ำมันปาล์มดิบ)"}:{THB:"Thai baht",USD:"US dollars",JPY:"Japanese yen",EUR:"euros",BTC:"BTC",COPPER:"lbs of copper",BRENT:"barrels of Brent crude",WTI:"barrels of WTI crude",NG:"MMBtu of natural gas",ALUMINUM:"tonnes of aluminum",SUGAR:"lbs of raw sugar",FCPO:"tonnes of palm oil"};
+      return `${icons[c]||""}${formatted} ${units[c]||c}`;
+    }
+    function conversion(){
+      const amt=Number($("amount").value||0),r=pairRate(st.key);
+      if(!r||!Number.isFinite(amt)||amt<=0){
+        $("rateText").textContent=tr("rateUnavailable");
+        $("convertedText").textContent="--";
+        $("rateNote").textContent="";
+        return;
+      }
+      const sourceAmount=st.from==="XAU"?amt/GOLD_GRAMS_PER_TROY_OUNCE:amt,out=sourceAmount*r.rate,isGold=st.from==="XAU"||st.to==="XAU";
+      if(isGold){
+        const pricePerOunce=r.base==="XAU"?r.rate:1/r.rate,currency=r.base==="XAU"?r.quote:r.base,pricePerGram=pricePerOunce/GOLD_GRAMS_PER_TROY_OUNCE;
+        $("rateText").textContent=st.lang==="th"?`ราคาทองคำอ้างอิงล่าสุด: ${moneyText(pricePerGram,currency)} ต่อกรัม`:`Latest reference gold price: ${moneyText(pricePerGram,currency)} per gram`;
+        $("convertedText").textContent=st.lang==="th"?`ประมาณ: ${moneyText(sourceAmount,st.from)} ≈ ${moneyText(out,st.to)}`:`Approx.: ${moneyText(sourceAmount,st.from)} ≈ ${moneyText(out,st.to)}`;
+        $("rateNote").textContent=st.lang==="th"?"อิงราคาทองคำสากล 1 ทรอยออนซ์ = 31.10 กรัม ไม่รวมค่าธรรมเนียมและส่วนต่างราคาของผู้ให้บริการ":"Based on the international gold reference: 1 troy ounce = 31.10 grams. Provider fees and spreads are not included.";
+        return;
+      }
+      if(isB2B(st.key)){
+        const unitPrice=Number(asset(st.key)?.price)||fallbackPrices[st.key];
+        const unitLabel=st.key==="FCPO"?"MYR / metric tonne":st.key==="SUGARUSD"?"$0.204 / pound":`$${unitPrice.toLocaleString()} per unit`;
+        $("rateText").textContent=st.lang==="th"?`ราคาอ้างอิงล่าสุด (${name(st.to)}): ${unitLabel} · สถานะ VIP`:`Latest reference price (${name(st.to)}): ${unitLabel} · VIP only`;
+        $("convertedText").textContent=st.lang==="th"?`ประมาณ: ${moneyText(amt,st.from)} ≈ ${moneyText(out,st.to)}`:`Approx.: ${moneyText(amt,st.from)} ≈ ${moneyText(out,st.to)}`;
+        $("rateNote").textContent=tr("rateNote");
+        return;
+      }
+      $("rateText").textContent=`${tr("rateLabel")}: 1 ${name(r.base)} ≈ ${moneyText(r.rate,r.quote)}`;
+      $("convertedText").textContent=`${tr("convertedLabel")}: ${moneyText(amt,st.from)} ≈ ${moneyText(out,st.to)}`;
+      $("rateNote").textContent=tr("rateNote");
+    }
+  </script>
 </body>
 </html>
