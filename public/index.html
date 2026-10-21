@@ -393,7 +393,7 @@
     const loadTrialState=()=>null;
     const saveTrialState=()=>{};
     const $=id=>document.getElementById(id);
-    let st={lang:initialLang(),from:"USD",to:"THB",key:"USDTHB",assets:[],signup:null,trial:loadTrialState(),modalPlan:"business"};
+    let st={lang:initialLang(),from:"USD",to:"THB",key:"USDTHB",assets:[],plans:[],signup:null,trial:loadTrialState(),modalPlan:"business"};
     const marketMap={
       USDTHB:["USD","THB"],JPYTHB:["JPY","THB"],EURTHB:["EUR","THB"],XAUTHB:["XAU","THB"],BTCTHB:["BTC","THB"],USDJPY:["USD","JPY"],EURUSD:["EUR","USD"],XAUUSD:["XAU","USD"],BTCUSD:["BTC","USD"],
       COPPERUSD:["COPPER","USD"],BRENTUSD:["BRENT","USD"],WTIUSD:["WTI","USD"],NGUSD:["NG","USD"],ALUMINUMUSD:["ALUMINUM","USD"],SUGARUSD:["SUGAR","USD"],FCPO:["FCPO","USD"]
@@ -508,7 +508,9 @@
       document.querySelectorAll(".watchItem").forEach(x=>x.onclick=()=>{[st.from,st.to]=pairMap[x.dataset.k];opts();showDecision();scrollTo({top:0,behavior:"smooth"})});
     }
     function plans(){
-      $("plans").innerHTML=`<article class="plan"><h3>14-day website Pro trial</h3><div class="price">$0 · No card</div><p>Currency, gold and bitcoin views. No automatic payment. At expiry, return to Free.</p><p>ทดลอง 14 วัน ไม่ใช้บัตร ครบกำหนดกลับ Free ไม่มีการเรียกเก็บอัตโนมัติ</p><a class="btn" href="/trial/">Start or manage trial</a></article><article class="plan"><h3>Paid plans</h3><p>Paid upgrades require a separate choice. Published plan prices are being reconciled; no paid checkout is offered through this trial.</p><p>Business procurement tools remain a research preview. Commodity benchmarks do not include commercial alert delivery.</p></article>`;
+      const paid=(st.plans||[]).filter(p=>["plus","pro","business"].includes(p.id)&&Number.isFinite(p.prices?.usdMonthly)&&p.prices.usdMonthly>0);
+      const cards=paid.map(p=>`<article class="plan"><h3>${({plus:"Plus",pro:"Pro",business:"Business"})[p.id]}</h3><div class="price">$${p.prices.usdMonthly} USD / ${st.lang==="th"?"เดือน":"month"}</div><p>${st.lang==="th"?"ราคาสมาชิกที่กำหนดไว้ ยังไม่เปิดชำระเงินออนไลน์":"Approved membership price. Online paid checkout is not open yet."}</p>${p.id==="business"?`<p>${st.lang==="th"?"เครื่องมือ Business ยังอยู่ระหว่างวิจัย ไม่รวมใน trial และยังไม่เปิดให้ซื้อ":"Business tools remain under research, are excluded from the trial and are not available to purchase."}</p>`:""}</article>`).join("");
+      $("plans").innerHTML=`<article class="plan"><h3>14-day website Pro trial</h3><div class="price">$0 · No card</div><p>Currency, gold and bitcoin views. No automatic payment. At expiry, return to Free.</p><p>ทดลอง 14 วัน ไม่ใช้บัตร ครบกำหนดกลับ Free ไม่มีการเรียกเก็บอัตโนมัติ</p><a class="btn" href="/trial/">Start or manage trial</a></article>${cards||`<article class="plan"><h3>Paid plans</h3><p>${st.lang==="th"?"ยังโหลดราคาจากเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่ภายหลัง":"Plan prices are unavailable. Please try again later."}</p></article>`}`;
     }
     function formatShortDate(offsetDays){
       const d=new Date(Date.now()+offsetDays*86400000);
@@ -547,7 +549,7 @@
         else if(h&&h.startsWith("/")&&!h.startsWith("//"))a.setAttribute("href",h.slice(1));
       });
     }
-    function lang(){document.documentElement.lang=st.lang;$("langText").textContent=st.lang==="th"?"EN":"TH";document.querySelectorAll("[data-i]").forEach(n=>n.textContent=tr(n.dataset.i));document.querySelectorAll("[data-html]").forEach(n=>n.innerHTML=tr(n.dataset.html));opts();renderTrialBar();watch();plans();demoCards();render();patchFileLinks();if(st.signup)showSignup(st.signup.kind,st.signup.email,false)}async function load(){lang();try{const r=await fetch("/api/v1/assets");if(!r.ok)throw Error("assets_unavailable");const j=await r.json();st.assets=j.assets||[]}catch(e){st.assets=[]}await refreshAccess();lang()}$("lang").onclick=()=>{st.lang=st.lang==="th"?"en":"th";rememberLang(st.lang);lang()};["from","to"].forEach(id=>$(id).onchange=e=>{st[id]=e.target.value;render()});$("amount").oninput=render;$("need").onchange=render;$("checkButton").onclick=showDecision;
+    function lang(){document.documentElement.lang=st.lang;$("langText").textContent=st.lang==="th"?"EN":"TH";document.querySelectorAll("[data-i]").forEach(n=>n.textContent=tr(n.dataset.i));document.querySelectorAll("[data-html]").forEach(n=>n.innerHTML=tr(n.dataset.html));opts();renderTrialBar();watch();plans();demoCards();render();patchFileLinks();if(st.signup)showSignup(st.signup.kind,st.signup.email,false)}async function load(){lang();try{const r=await fetch("/api/v1/assets");if(!r.ok)throw Error("assets_unavailable");const j=await r.json();st.assets=j.assets||[];st.plans=Array.isArray(j.plans)?j.plans:[]}catch(e){st.assets=[]}await refreshAccess();lang()}$("lang").onclick=()=>{st.lang=st.lang==="th"?"en":"th";rememberLang(st.lang);lang()};["from","to"].forEach(id=>$(id).onchange=e=>{st[id]=e.target.value;render()});$("amount").oninput=render;$("need").onchange=render;$("checkButton").onclick=showDecision;
     $("openTrialModalBtn").onclick=()=>openTrialModal("business");
     $("headerTrialBtn").onclick=()=>openTrialModal("business");
     $("heroTrialBtn").onclick=()=>openTrialModal("business");

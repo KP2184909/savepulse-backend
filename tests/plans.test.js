@@ -26,7 +26,7 @@ test("public plans expose the SavePulse pricing ladder", () => {
     ["free", "plus", "pro", "business"]
   );
   assert.equal(plans.find((plan) => plan.id === "plus").prices.thbMonthly, 199);
-  assert.equal(plans.find((plan) => plan.id === "business").prices.usdMonthly, 49);
+  assert.deepEqual(plans.map(plan => [plan.id, plan.prices.usdMonthly]), [["free", 0], ["plus", 5], ["pro", 15], ["business", 59]]);
 });
 
 test("free watchlist is capped to one fiat asset", () => {

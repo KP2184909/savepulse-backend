@@ -17,15 +17,11 @@ The in-process worker checks once a minute while awake. The GitHub `Wake trial r
 
 Resend retains idempotency keys for 24 hours: https://resend.com/docs/dashboard/emails/idempotency-keys . Ambiguous jobs older than 23 hours become needs_review instead of risking a duplicate after provider retention expires. Expired, cancelled and paid accounts are skipped. Provider acceptance is not proof of inbox delivery. Operators must review failed/needs_review jobs. Expiry is computed on every access request and does not depend on a worker or email delivery. No production clock or customer expiry override exists.
 
-## Price reconciliation (unchanged canonical prices)
+## Approved USD prices (21 October 2026)
 
-| Plan | Existing frontend USD/month | Backend USD/month | Status |
-|---|---:|---:|---|
-| Plus | 5 | 7 | Owner decision required before paid offer |
-| Pro | 15 | 19 | Owner decision required before paid offer |
-| Business | 59 | 49 | Owner decision and Business readiness required |
+The owner selected the former frontend USD/month prices: Plus **5**, Pro **15**, Business **59**. `src/plans.js` is the canonical catalog; the homepage renders USD prices from the backend assets response rather than maintaining a separate price list. If the catalog is unavailable, it does not invent a price.
 
-This change does not choose or change Stripe price IDs or backend prices. The trial page does not offer paid checkout; the homepage removes contradictory paid offers and states that upgrades are separate. Existing paid subscription cancellation/refund terms remain distinct from immediate online trial cancellation.
+Existing THB catalog values (199/499/1990) are unchanged: no new THB amount or exchange rate was approved. Stripe Price IDs and existing subscriptions are unchanged. Online paid checkout remains closed pending payment configuration verification; displaying these prices does not enable purchases or trial auto-renewal. Business remains a research preview, not an available paid product. Existing paid subscription cancellation/refund terms remain distinct from immediate online trial cancellation.
 
 ## Verification
 `node --test` runs isolated clocks, data stores and mocked transactional mail. HTTP integration tests exercise actual route/auth enforcement and static routes. Browser-script tests exercise failed requests, newsletter-only responses, status restoration and cancellation. Production verification must separately confirm the readiness handshake, delivery only to savepulse.cloud@gmail.com, verification by the user in the secure page, activation, reload, premium access, cancellation, duplicate protection, cron runs and all seven data sources. Do not shorten a real trial or alter the production clock to test expiry/reminders.
