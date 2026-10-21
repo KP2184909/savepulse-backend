@@ -1,0 +1,17 @@
+name: Wake trial reminders
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: trial-reminders
+  cancel-in-progress: false
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wake the durable reminder queue (no recipient or clock overrides)
+        run: curl --fail-with-body --retry 2 --max-time 110 -X POST -H 'Content-Type:application/json' -d '{}' https://savepulse-backend.onrender.com/api/v1/trial/tick

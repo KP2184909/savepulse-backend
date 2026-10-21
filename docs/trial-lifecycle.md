@@ -1,0 +1,33 @@
+# No-card website Pro trial
+
+## Scope
+Email verification, then an explicit start action grants website Pro access for exactly 14 × 24 hours. No Stripe call, card, renewal, invoice or payment obligation is created. Paid memberships are read from Supabase and never overwritten by trial actions. Plus members retain Plus; existing Pro/Business retain their paid plan. A cancelled or expired trial cannot restart. Gmail/Googlemail dot and plus aliases share trial history; other providers retain their exact mailbox identity. This cannot prevent one person with unrelated mailboxes from trying multiple accounts.
+
+The trial does not promise Business procurement tools, commodity commercial delivery, LINE/Telegram integration, or daily marketing emails. Seven commodity pages are neutral continuous-futures benchmarks, with quoted units and timestamps. They are not FX pairs, supplier prices or evidence of cheap purchasing windows. No quantity conversion is attempted, including USD to FCPO/MYR. Missing/stale data is explicitly unavailable, never replaced by demo prices.
+
+## Persistence and security
+Uses the existing RLS-protected `scheduler_state(key text primary key,value jsonb,updated_at)` table; no schema migration is needed. Trial rows are namespaced `trial:v1:<canonical-email SHA256>`, sessions `trial-session:<token SHA256>`, rate limits `trial-rate:*`. A trial's timestamps and cancellation history are permanent. All identity/access writes await database acknowledgement. Unique inserts and version-conditional PATCHes implement optimistic concurrency. JSON mirror/local files are never authoritative for trial access.
+
+Requires SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY and FROM_EMAIL on the server. Startup verifies insert → versioned update → read before enabling trial requests. TRIAL_ENABLED=false disables enrollment/management routes; no browser or local fallback is used. Public `/api/v1/trial/readiness` reveals only readiness, release and scheduler timestamp. Keep Supabase service-role and email keys server-only. Never enable anonymous RLS policies for these rows.
+
+Codes are six random digits, expire after 15 minutes, allow five attempts and can be used once. Only a digest and random nonce are stored. New codes have a 60-second cooldown. Persistent global hourly/daily, client and canonical-email quotas bound delivery abuse. Provider acceptance is stored; a failed send cannot be verified. Sessions use 256 random bits, expire after 30 days, store only a server-side digest, and logout revokes them. Browser storage holds the opaque login token, never authoritative entitlements. API status/access responses are no-store. All premium status requests require the verified session and current server entitlement. Newsletter signup cannot modify or expose an existing paid record.
+
+## Reminders
+The in-process worker checks once a minute while awake. The GitHub `Wake trial reminders` workflow wakes the Free Render service every 15 minutes (best effort; schedule delays/outages are possible). No paid cron or hosting upgrade is added. `/api/v1/trial/tick` accepts no recipient/time overrides and returns aggregate counts only. A persistent scheduler lease and per-account lease avoid concurrent sends. Sent/failed status, attempt count, provider ID, sent timestamp and retry time are stored inside each trial's reminder record. Successful reminders are never resent. Failures retry after 15 minutes with a stable provider idempotency key and identical message body.
+
+Resend retains idempotency keys for 24 hours: https://resend.com/docs/dashboard/emails/idempotency-keys . Ambiguous jobs older than 23 hours become needs_review instead of risking a duplicate after provider retention expires. Expired, cancelled and paid accounts are skipped. Provider acceptance is not proof of inbox delivery. Operators must review failed/needs_review jobs. Expiry is computed on every access request and does not depend on a worker or email delivery. No production clock or customer expiry override exists.
+
+## Price reconciliation (unchanged canonical prices)
+
+| Plan | Existing frontend USD/month | Backend USD/month | Status |
+|---|---:|---:|---|
+| Plus | 5 | 7 | Owner decision required before paid offer |
+| Pro | 15 | 19 | Owner decision required before paid offer |
+| Business | 59 | 49 | Owner decision and Business readiness required |
+
+This change does not choose or change Stripe price IDs or backend prices. The trial page does not offer paid checkout; the homepage removes contradictory paid offers and states that upgrades are separate. Existing paid subscription cancellation/refund terms remain distinct from immediate online trial cancellation.
+
+## Verification
+`node --test` runs isolated clocks, data stores and mocked transactional mail. HTTP integration tests exercise actual route/auth enforcement and static routes. Browser-script tests exercise failed requests, newsletter-only responses, status restoration and cancellation. Production verification must separately confirm the readiness handshake, delivery only to savepulse.cloud@gmail.com, verification by the user in the secure page, activation, reload, premium access, cancellation, duplicate protection, cron runs and all seven data sources. Do not shorten a real trial or alter the production clock to test expiry/reminders.
+
+`POST /api/v1/trial/qa-reminder` requires a verified session for exactly savepulse.cloud@gmail.com. It uses a separate date-prefixed database keyspace and an injected virtual clock; the real trial/customer records are never modified. It sends at most one accepted [TEST] reminder per UTC day, records the provider result, and performs a second pass to verify duplicate suppression. The test account's trial page exposes the QA button only to that mailbox. It cannot choose any other recipient or alter production time/expiry.
