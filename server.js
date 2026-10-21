@@ -1187,6 +1187,12 @@ async function handleWebhook(req, res) {
 
 async function handleSubscribe(req, res) {
   const body = await parseBody(req);
+  // Newsletter signup is not a trial entitlement. Reject before changing a
+  // subscriber or sending email until a durable trial lifecycle exists.
+  if (body.startTrial || body.trialPlan || body.trialDays) {
+    sendJson(res, 503, { error: "trial_not_available", trialActivated: false });
+    return;
+  }
   const email = String(body.email || "").trim().toLowerCase();
 
   if (!emailIsValid(email)) {
