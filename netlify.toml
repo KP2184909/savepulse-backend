@@ -2,6 +2,16 @@
   publish = "public"
 
 [[redirects]]
+  from = "/terms"
+  to = "/terms.html"
+  status = 200
+
+[[redirects]]
+  from = "/refund"
+  to = "/refund.html"
+  status = 200
+
+[[redirects]]
   from = "/email-preview/*"
   to = "https://savepulse-backend.onrender.com/email-preview/:splat"
   status = 200

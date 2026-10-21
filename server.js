@@ -29,6 +29,24 @@ const {
   subscriberEntitlements
 } = require("./src/plans");
 
+const { createTrialStore, createTrialMailer, createTrialLifecycle } = require("./src/trialLifecycle");
+const trialStore = createTrialStore();
+const trialConfigured = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.RESEND_API_KEY && process.env.FROM_EMAIL && process.env.TRIAL_ENABLED !== "false");
+let trialDatabaseReady = false;
+const trialProbe = (async () => {
+  if (!trialConfigured) return;
+  try {
+    const key = `trial-readiness:${crypto.randomUUID()}`;
+    if (!await trialStore.insert(key, { version: 1, probe: true })) return;
+    if (!await trialStore.cas(key, 1, { version: 2, probe: true })) return;
+    trialDatabaseReady = (await trialStore.get(key))?.version === 2;
+  } catch (_) { trialDatabaseReady = false; }
+})();
+const trials = createTrialLifecycle({ store: trialStore, send: createTrialMailer(), enabled: trialConfigured });
+async function requireTrialReady() {
+  await trialProbe;
+  if (!trialDatabaseReady) throw Object.assign(new Error("trial_not_available"), { status: 503 });
+}
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || (process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1");
 const DATA_DIR = path.resolve(__dirname, process.env.DATA_DIR || "state");
@@ -79,7 +97,8 @@ function sendJson(res, statusCode, payload) {
     "access-control-allow-origin": "*",
     "access-control-allow-methods": "GET,HEAD,POST,OPTIONS",
     "access-control-allow-headers": "content-type,authorization,x-savepulse-secret,x-savepulse-admin-key,x-admin-key",
-    "content-type": "application/json; charset=utf-8"
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store"
   });
   res.end(body);
 }
@@ -183,6 +202,11 @@ function publicSignal(signal) {
 }
 
 function userFacingSignal(signal, userFromCurrency, userToCurrency) {
+  if (COMMODITY_ASSETS[signal.symbol]) return {
+    supported: true, kind: "commodity_reference", inverted: false,
+    label: { en: "Commodity reference benchmark", th: "ข้อมูลราคาอ้างอิงวัตถุดิบ" },
+    copy: { en: "Continuous futures reference only. EMA direction does not establish cheap prices or cost savings. This is not a currency conversion or a supplier quote.", th: "ราคาอ้างอิงสัญญาซื้อขายล่วงหน้าต่อเนื่องเท่านั้น EMA ไม่ยืนยันว่าราคาถูกหรือประหยัดต้นทุน ไม่ใช่การแปลงสกุลเงินหรือราคาจากผู้ขาย" }
+  };
   const resolved = userFacingActionForDirection({
     symbol: signal.symbol,
     action: signal.action,
@@ -686,6 +710,7 @@ function buildSubscriberRecord(email, body, existing, plan) {
 
   return {
     record: {
+      ...existing,
       id: existing?.id || crypto.randomUUID(),
       email,
       locale: body.locale === "th" ? "th" : body.locale === "en" ? "en" : existing?.locale || "en",
@@ -1107,7 +1132,7 @@ function contentTypeFor(filePath) {
 }
 
 function serveStatic(req, res, pathname) {
-  const safePath = pathname === "/" ? "/index.html" : pathname;
+  const safePath = ["/terms", "/refund"].includes(pathname) ? `${pathname}.html` : pathname === "/trial" ? "/trial/index.html" : pathname.endsWith("/") ? `${pathname}index.html` : pathname;
   const filePath = path.normalize(path.join(PUBLIC_DIR, safePath));
 
   if (!filePath.startsWith(PUBLIC_DIR)) {
@@ -1187,6 +1212,12 @@ async function handleWebhook(req, res) {
 
 async function handleSubscribe(req, res) {
   const body = await parseBody(req);
+  // Newsletter signup is not a trial entitlement. Reject before changing a
+  // subscriber or sending email until a durable trial lifecycle exists.
+  if (body.startTrial || body.trialPlan || body.trialDays) {
+    sendJson(res, 503, { error: "trial_not_available", trialActivated: false });
+    return;
+  }
   const email = String(body.email || "").trim().toLowerCase();
 
   if (!emailIsValid(email)) {
@@ -1195,11 +1226,16 @@ async function handleSubscribe(req, res) {
   }
 
   const existing = subscribers.find((subscriber) => subscriber.email === email);
+  if (!hasMasterSecret(req, body) && (existing || (persistence.enabled && await trialStore.paidPlan(email) !== "free"))) {
+    // Email alone must neither expose nor modify an existing account.
+    sendJson(res, 202, { subscribed: true, message: "Request received. Use verified account access to manage an existing membership." });
+    return;
+  }
   const existingPlan = normalizePlan(existing?.plan || "free");
   const requestedPlan = body.plan === undefined ? existingPlan : normalizePlan(body.plan);
   const isPlanChange = requestedPlan !== existingPlan;
   const canSetRequestedPlan = requestedPlan === "free" || !isPlanChange || hasMasterSecret(req, body);
-  const plan = canSetRequestedPlan ? requestedPlan : existingPlan;
+  const plan = existingPlan !== "free" && !hasMasterSecret(req, body) ? existingPlan : canSetRequestedPlan ? requestedPlan : existingPlan;
   const upgradeRequired = requestedPlan !== plan && requestedPlan !== "free";
   const { record, watchlistResult } = buildSubscriberRecord(email, body, existing, plan);
 
@@ -1434,6 +1470,34 @@ async function handleRequest(req, res) {
   }
 
   try {
+    if (url.pathname.startsWith("/api/v1/trial/")) {
+      res.setHeader("cache-control", "no-store");
+      if (req.method === "GET" && url.pathname === "/api/v1/trial/readiness") {
+        await trialProbe;
+        const scheduler = trialDatabaseReady ? await trialStore.get("trial-tick-lock") : null;
+        sendJson(res, 200, { ready: trialDatabaseReady, database: trialDatabaseReady ? "verified" : "unavailable", emailConfigured: trialConfigured, lastSchedulerRun: scheduler?.until ? new Date(scheduler.until - 60000).toISOString() : null, release: process.env.RENDER_GIT_COMMIT || "local", autoRenew: false });
+        return;
+      }
+      await requireTrialReady();
+      const token = bearerToken(req);
+      if (req.method === "GET" && url.pathname === "/api/v1/trial/status") {
+        sendJson(res, 200, await trials.status(token)); return;
+      }
+      if (req.method === "POST") {
+        const body = await parseBody(req);
+        let result;
+        if (url.pathname === "/api/v1/trial/code") result = await trials.requestCode(body.email, process.env.NODE_ENV === "production" ? String(req.headers["x-forwarded-for"] || req.socket.remoteAddress).split(",").at(-1).trim() : req.socket.remoteAddress);
+        else if (url.pathname === "/api/v1/trial/verify") result = await trials.verify(body.email, body.code);
+        else if (url.pathname === "/api/v1/trial/start") result = await trials.start(token);
+        else if (url.pathname === "/api/v1/trial/cancel") result = await trials.cancel(token);
+        else if (url.pathname === "/api/v1/trial/logout") result = await trials.logout(token);
+        else if (url.pathname === "/api/v1/trial/tick") result = await trials.tick();
+        else if (url.pathname === "/api/v1/trial/qa-reminder") result = await trials.qaReminder(token);
+        else { sendJson(res, 404, { error: "not_found" }); return; }
+        sendJson(res, 200, result); return;
+      }
+      sendJson(res, 405, { error: "method_not_allowed" }); return;
+    }
     if (req.method === "HEAD" && url.pathname === "/api/v1/health") {
       sendEmpty(res, 200);
       return;
@@ -1459,7 +1523,7 @@ async function handleRequest(req, res) {
 
     if (req.method === "GET" && url.pathname === "/api/v1/assets") {
       sendJson(res, 200, {
-        assets: listAssets(),
+        assets: listAssets().map(asset => ["XAUTHB", "BTCTHB", "XAUUSD", "BTCUSD"].includes(asset.symbol) ? { symbol: asset.symbol, price: asset.price, receivedAt: asset.receivedAt, premium: true } : asset),
         quota: quotaSnapshot(),
         plans: publicPlans(),
         generatedAt: new Date().toISOString()
@@ -1480,6 +1544,10 @@ async function handleRequest(req, res) {
       }
 
       const symbol = normalizeSymbol(rawSymbol);
+      if (["XAUTHB", "BTCTHB", "XAUUSD", "BTCUSD"].includes(symbol)) {
+        const access = await trials.status(bearerToken(req));
+        if (!["pro", "business"].includes(access.plan)) { sendJson(res, 403, { error: "premium_access_required" }); return; }
+      }
       const signal = signalsBySymbol[symbol] || createDefaultSignal(symbol);
 
       const userFromCurrency =
@@ -1586,11 +1654,15 @@ async function handleRequest(req, res) {
 
     sendJson(res, 405, { error: "method_not_allowed" });
   } catch (error) {
-    sendJson(res, 400, { error: error.message });
+    sendJson(res, error.status || 400, { error: error.message });
   }
 }
 
 const server = http.createServer(handleRequest);
+const trialTimer = setInterval(() => {
+  if (trialDatabaseReady) trials.tick().catch(() => console.warn("Trial scheduler failed; retry pending."));
+}, 60000);
+trialTimer.unref();
 const notificationTimer = setInterval(() => {
   flushNotificationQueue().catch((error) => {
     console.warn(`Notification queue flush failed: ${error.message}`);
