@@ -3,7 +3,8 @@ const $ = (id) => document.getElementById(id);
 let token = localStorage.getItem("savepulse_session") || "",
   verifiedEmail = "",
   company = null,
-  busy = false;
+  busy = false,
+  sandboxReady = false;
 const labels = {
   pressure_up: "แรงกดดันราคาสูงขึ้น",
   easing: "ผ่อนคลาย",
@@ -41,11 +42,18 @@ async function api(path, body, auth = true) {
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
-  const data = await r.json();
+  let data;
+  try {
+    data = await r.json();
+  } catch (_) {
+    throw Error("ยังไม่เชื่อมระบบสมาชิกทดสอบใน Preview นี้");
+  }
   if (!r.ok)
     throw Error(
       {
         freight_sandbox_disabled: "ระบบสมาชิกทดสอบยังไม่เปิดบน environment นี้",
+        sandbox_test_mailbox_required:
+          "การทดสอบอีเมลจำกัดเฉพาะ savepulse.cloud@gmail.com",
         authentication_required: "กรุณายืนยันอีเมลก่อน",
         freight_membership_required:
           "ยังไม่มีสิทธิ์ FreightPulse ที่ตรวจยืนยันแล้ว สิทธิ์ SavePulse ไม่เปิด FreightPulse ให้อัตโนมัติ",
@@ -178,12 +186,8 @@ $("emailForm").onsubmit = (e) => {
   e.preventDefault();
   act(async () => {
     verifiedEmail = $("email").value.trim().toLowerCase();
-    const r = await fetch("/api/v1/trial/code", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: verifiedEmail }),
-    });
-    if (!r.ok) throw Error("ยังส่งรหัสยืนยันไม่ได้ กรุณาลองใหม่ภายหลัง");
+    if (!sandboxReady) throw Error("ยังไม่เชื่อมระบบสมาชิกทดสอบใน Preview นี้");
+    await api("auth/code", { email: verifiedEmail }, false);
     $("codeForm").hidden = false;
     message(
       "ตรวจอีเมลและกรอกรหัสในหน้านี้ การยืนยันอีเมลไม่เริ่ม trial ของบริการใด",
@@ -193,14 +197,14 @@ $("emailForm").onsubmit = (e) => {
 $("codeForm").onsubmit = (e) => {
   e.preventDefault();
   act(async () => {
-    const r = await fetch("/api/v1/trial/verify", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: verifiedEmail, code: $("code").value }),
-    });
-    const d = await r.json();
+    if (!sandboxReady) throw Error("ยังไม่เชื่อมระบบสมาชิกทดสอบใน Preview นี้");
+    const d = await api(
+      "auth/verify",
+      { email: verifiedEmail, code: $("code").value },
+      false,
+    );
     $("code").value = "";
-    if (!r.ok || !d.token) throw Error("รหัสไม่ถูกต้องหรือหมดอายุ");
+    if (!d.token) throw Error("รหัสไม่ถูกต้องหรือหมดอายุ");
     token = d.token;
     localStorage.setItem("savepulse_session", token);
     drawAccount((await api("account")).company);
@@ -247,6 +251,21 @@ for (const action of ["checkout", "portal"])
     });
 act(async () => {
   render(await loadDemo());
+  try {
+    sandboxReady =
+      (await api("catalog", undefined, false)).sandboxEnabled === true;
+  } catch (_) {
+    sandboxReady = false;
+  }
+  document
+    .querySelectorAll("#emailForm input,#emailForm button")
+    .forEach((n) => {
+      n.disabled = !sandboxReady;
+    });
+  if (!sandboxReady) {
+    message("Demo เท่านั้น ระบบสมาชิก sandbox ยังไม่เชื่อมใน Preview นี้");
+    return;
+  }
   if (token) {
     try {
       drawAccount((await api("account")).company);

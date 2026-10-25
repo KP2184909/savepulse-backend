@@ -56,7 +56,7 @@ const freightStripe = process.env.FREIGHTPULSE_SANDBOX_ENABLED === "true" ? crea
 let freightRules = {};
 try { freightRules = JSON.parse(process.env.FREIGHT_TEST_RULES_JSON || "{}"); } catch (_) { /* No approved versions/freshness => fail closed. */ }
 const freight = createFreightService({ store: createFreightStore(), identity: async token => { await requireTrialReady(); return trials.identity(token); }, stripe: freightStripe, send: createTrialMailer(), enabled: process.env.FREIGHTPULSE_SANDBOX_ENABLED === "true", mailEnabled: process.env.FREIGHT_TEST_EMAIL_ENABLED === "true", rules: freightRules });
-const freightHttp = createFreightHttp({ service: freight, stripe: freightStripe, parseBody, readRawBody, sendJson, demo: demoReport });
+const freightHttp = createFreightHttp({ service: freight, stripe: freightStripe, auth: { code: async (email, req) => { await requireTrialReady(); return trials.requestCode(email, req.socket.remoteAddress); }, verify: async (email, code) => { await requireTrialReady(); return trials.verify(email, code); } }, parseBody, readRawBody, sendJson, demo: demoReport });
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || (process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1");
 const DATA_DIR = path.resolve(__dirname, process.env.DATA_DIR || "state");

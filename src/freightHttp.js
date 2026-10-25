@@ -10,6 +10,7 @@ function constantEqual(left, right) {
 function createFreightHttp({
   service,
   stripe,
+  auth,
   env = process.env,
   parseBody,
   readRawBody,
@@ -25,6 +26,7 @@ function createFreightHttp({
       sendJson(res, 200, {
         price: PRICE,
         mode: "development",
+        sandboxEnabled: env.FREIGHTPULSE_SANDBOX_ENABLED === "true",
         liveSales: false,
         feedContract: "draft",
         discord: "not_enabled",
@@ -37,6 +39,29 @@ function createFreightHttp({
     }
     if (env.FREIGHTPULSE_SANDBOX_ENABLED !== "true") {
       sendJson(res, 503, { error: "freight_sandbox_disabled" });
+      return true;
+    }
+    if (req.method === "POST" && ["auth/code", "auth/verify"].includes(path)) {
+      const body = await parseBody(req);
+      if (
+        String(body.email || "")
+          .trim()
+          .toLowerCase() !== "savepulse.cloud@gmail.com"
+      ) {
+        sendJson(res, 403, { error: "sandbox_test_mailbox_required" });
+        return true;
+      }
+      if (!auth) {
+        sendJson(res, 503, { error: "sandbox_identity_not_configured" });
+        return true;
+      }
+      sendJson(
+        res,
+        200,
+        path === "auth/code"
+          ? await auth.code(body.email, req)
+          : await auth.verify(body.email, body.code),
+      );
       return true;
     }
     if (req.method === "POST" && path === "billing/webhook") {

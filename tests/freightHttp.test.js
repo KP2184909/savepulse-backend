@@ -148,3 +148,22 @@ test("feed/job authentication are separate; real ingestion is closed", async () 
   );
   assert.equal((await fetch(base + "signals/live", req)).status, 503);
 });
+
+test("sandbox auth never forwards arbitrary customer email to the shared identity provider", async () => {
+  const r = await fetch(base + "auth/code", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: "customer@example.invalid" }),
+  });
+  assert.equal(r.status, 403);
+  const t = await fetch(base + "auth/code", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: "savepulse.cloud@gmail.com" }),
+  });
+  assert.equal(t.status, 503);
+  assert.equal(
+    (await (await fetch(base + "catalog")).json()).sandboxEnabled,
+    true,
+  );
+});

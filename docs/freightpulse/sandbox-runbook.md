@@ -42,3 +42,5 @@ Use sandbox test payment methods only. Do not enter a real card or buy a live su
 - Email queue delivery records and company history are separate CAS records; staging fault-injection/recovery review remains required before operational notifications are enabled commercially.
 - No rate limiting added for verified owner/company creation beyond the existing OTP limits; sandbox-only scope must remain enforced pending an API abuse review.
 - Public copy, real route names, commercial data rights and CS/BDI Pine semantics remain launch gates. No automated cold email or CRM changes.
+
+Preview identity guard: email controls are disabled until the dedicated FreightPulse catalog confirms sandboxEnabled. Auth requests use /freightpulse/auth/code and auth/verify (never the Production trial endpoint); the sandbox route restricts recipients to the authorized test mailbox.

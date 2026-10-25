@@ -14,7 +14,7 @@ See implementation-plan.md for inspected architecture, storage isolation and com
 
 | Status | Layer | Scenario / evidence |
 |---|---|---|
-| PASS | Local automated tests | Entire suite: 120 tests, including 22 added FreightPulse/isolation cases; original SavePulse tests retained |
+| PASS | Local automated tests | Entire suite: 121 tests, including 23 added FreightPulse/isolation cases; original SavePulse tests retained |
 | PASS | Local HTTP + database/provider mocks | Email code verification → company creation → account reload; no auto trial or free paid access; logout revokes company access |
 | PASS | Local subscription adapter mocks | Checkout, renewal, payment failure/recovery, cancel-at-period-end, end-of-period access expiry; same owner can keep SavePulse separately |
 | PASS | Local real Stripe SDK signature verifier + HTTP | Valid signature over original raw bytes accepted; tampered bytes and timestamp replay rejected; live events rejected |
@@ -43,3 +43,5 @@ Chrome's controlled tab remained blank despite HTTP 200 for HTML/CSS/JS/API; aft
 ## Before enabling sales
 
 Reauthenticate/select the Stripe sandbox; run provision-freight-sandbox.js and complete provider lifecycle/portal tests. Select isolated staging storage and verify restart/outage/CAS behavior. Agree the Pine contract with the FreightPulse author and obtain commercial data rights. Decide team membership, trial/discounts, tax registration/handling, grace/dunning and re-subscription policy. Replace the prototype key/value financial ledger with normalized transactional tables before commercial scale. Do not enable live payments or real ingestion from this patch.
+
+Preview identity guard: email controls are disabled until the dedicated FreightPulse catalog confirms sandboxEnabled. Auth requests use /freightpulse/auth/code and auth/verify (never the Production trial endpoint); the sandbox route restricts recipients to the authorized test mailbox.
