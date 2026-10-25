@@ -33,3 +33,11 @@ Sandbox ingestion: `POST /api/v1/freightpulse/signals/test`, authenticated by a 
 - Freshness SLA must be configured per symbol. Missing SLA means no current status. Both source update and bar close must be recent; receipt time cannot revive old data. Stale cards hide signalStatus/window and retain timestamps/source for inspection.
 - CS five-bar prototype is not calculated or copied from SavePulse here. No implied consecutive rises, EMA14 prerequisite, restart or cancellation rule. These remain Pine-author decisions with fixtures required.
 - No CS/BDI/ZIM signal is used as an actual booking quote. Rollover, data delay, source licensing and market calendars remain explicit review gates.
+
+## Coordination result, 2026-10-25 — draft v2 proposed, not connected
+
+The owner-authorized FreightPulse chat verified exchange-qualified symbols NYMEX:CS11! through NYMEX:CS61!, INDEX:BDI and NYSE:ZIM. Container directions agree with the CME regional mapping now displayed on the site. BDI search succeeded but batch quotes did not, so actual BDI retrieval remains unverified.
+
+Before connecting Pine, revise this v1 sandbox-only contract to v2: container route should use FBX benchmark ID with an explicit normalized symbol mapping; BDI/ZIM route null; separate windowState (inactive/active/expired/invalidated) from signalStatus. Expiry on day six must not imply easing. Accept unknown sourceUpdatedAt with sourceFreshness=unknown for ingestion testing only, always suppress current status and notification. Pine time/time_close describe bars, not the market publisher's update time; timenow must never substitute for source freshness. Remove the v1 sourceUpdatedAt>=barCloseTime assumption: real source publication can precede bar close. Source-specific age and market calendars remain required.
+
+The deployed preview remains Demo; the v1 test endpoint rejects unrecognized payloads and live ingestion stays disabled. Proposed v2 is NOT implemented or accepted by this endpoint yet. CS cancellation/restart/rollover rules, BDI rules, ZIM source version and commercial rights still await agreement. Do not configure TradingView alerts against the v1 endpoint assuming compatibility with the proposed v2.
