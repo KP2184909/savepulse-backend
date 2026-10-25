@@ -4,6 +4,7 @@ const { createTrialStore } = require("./trialLifecycle");
 const hash = (value) => crypto.createHash("sha256").update(value).digest("hex");
 const fail = (code, status = 422) => Object.assign(new Error(code), { status });
 const ROUTES = require("../public/freightpulse/routes");
+const { contextView } = require("../public/freightpulse/context-copy");
 const CONTAINERS = ["CS11!", "CS21!", "CS31!", "CS41!", "CS51!", "CS61!"];
 const SYMBOLS = [...CONTAINERS, "BDI", "ZIM"];
 const STATES = ["pressure_up", "easing", "unclear"];
@@ -478,7 +479,7 @@ function createFreightService({
       company: accountView(company),
       generatedAt: new Date(now()).toISOString(),
       routes: views.filter((x) => x.family === "container"),
-      context: views.filter((x) => x.family !== "container"),
+      context: views.filter((x) => x.family !== "container").map(contextView),
       history: (company.history || []).slice(-50).reverse(),
     };
   }

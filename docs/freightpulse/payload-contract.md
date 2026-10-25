@@ -56,3 +56,9 @@ Ended: “สิ้นสุดช่วงพิจารณาล็อกค�
 ## Unresolved and disabled
 
 Cancellation on a subsequent decline, cycle restart, rollover, independent BDI rules, ZIM adapter/source version and commercial data rights require agreement. Do not create live alerts or send actual notifications for this rule. Coordinate the exact payload with the owner-authorized FreightPulse Pine chat before connection.
+
+## BDI/ZIM presentation agreement
+
+BDI: Dry Bulk Market Conditions. Demo copy palette: Dry Bulk Market Strengthening / Dry Bulk Market Softening / Dry Bulk Market Direction Unclear, with owner-provided Thai equivalents. BDI calculation rules remain undecided. ZIM: Shipping Equity Context; demo palette Positive Shipping Equity Signal / Weakening Shipping Equity Signal / Shipping Equity Signal Unclear. Existing SavePulse script semantics must be reviewed before a ZIM adapter is approved. BUY/SELL are not mapped automatically to either freight booking decisions or the copy palette.
+
+Non-demo member reports force BDI/ZIM assessments to not_enabled and clear signalStatus/current/window fields, even with fresh test data. Data-quality statuses remain visible: stale/missing/unknown timestamps do not become an assessment. Demo palette is explicitly synthetic copy, not source mapping approval. Neither context carries a CS day counter, and no composite score or automatic joint decision is generated. Actual notifications remain disabled for these contexts; no new rules or Production deployment are authorized by this wording update.

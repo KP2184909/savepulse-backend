@@ -11,6 +11,7 @@ const labels = {
   unclear: "ยังไม่ชัดเจน",
 };
 const statusLabels = {
+  context_mapping_pending: "ยังไม่ยืนยันความหมายสถานะจากสคริปต์",
   source_freshness_unknown: "ไม่ทราบเวลาอัปเดตต้นทาง · ไม่แสดงสัญญาณปัจจุบัน",
   stale: "ข้อมูลเก่า · ไม่แสดงสัญญาณปัจจุบัน",
   missing: "ยังไม่มีข้อมูล",
@@ -84,11 +85,14 @@ function el(tag, text, cls) {
   return n;
 }
 function card(row) {
+  row = contextView(row);
+  const context = contextCopy(row);
   const node = el("article", undefined, "card");
   node.append(
     el("span", row.dataMode === "demo" ? "DEMO" : "TEST DATA", "badge demo"),
-    el("h3", FREIGHT_ROUTES[row.symbol]?.name || row.symbol),
+    el("h3", context?.title || FREIGHT_ROUTES[row.symbol]?.name || row.symbol),
   );
+  if (context) node.append(el("small", `${row.symbol} · ${context.en}`));
   if (row.family === "container")
     node.append(
       el(
@@ -100,11 +104,26 @@ function card(row) {
     el(
       "p",
       row.current
-        ? labels[row.signalStatus] || "ยังไม่ชัดเจน"
-        : statusLabels[row.dataStatus] || "ยังไม่มีข้อมูล",
+        ? context?.statusTh || labels[row.signalStatus] || "ยังไม่ชัดเจน"
+        : row.dataStatus === "assessment_pending"
+          ? context.pending
+          : statusLabels[row.dataStatus] || "ยังไม่มีข้อมูล",
       "status " + (row.current ? row.signalStatus : row.dataStatus),
     ),
   );
+  if (context) {
+    if (context.statusEn) node.append(el("small", context.statusEn));
+    node.append(el("p", context.explanation));
+    if (row.dataMode === "demo")
+      node.append(
+        el(
+          "small",
+          "ตัวอย่างข้อความเท่านั้น — ยังไม่เปิดใช้การประเมินจากข้อมูลจริง",
+        ),
+      );
+    else if (row.dataStatus !== "assessment_pending")
+      node.append(el("small", context.pending));
+  }
   const windowCopy =
     row.family === "container" && row.current ? csWindowCopy(row) : null;
   if (windowCopy) {

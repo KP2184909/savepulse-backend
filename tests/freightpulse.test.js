@@ -847,3 +847,109 @@ test("demo includes next-four active and ended windows while BDI/ZIM remain cont
     ),
   );
 });
+
+test("BDI and ZIM have distinct bilingual context copy without CS windows", () => {
+  const {
+    contextCopy,
+    contextView,
+  } = require("../public/freightpulse/context-copy");
+  const expected = {
+    BDI: [
+      "Dry Bulk Market Strengthening",
+      "Dry Bulk Market Softening",
+      "Dry Bulk Market Direction Unclear",
+    ],
+    ZIM: [
+      "Positive Shipping Equity Signal",
+      "Weakening Shipping Equity Signal",
+      "Shipping Equity Signal Unclear",
+    ],
+  };
+  for (const symbol of ["BDI", "ZIM"]) {
+    ["pressure_up", "easing", "unclear"].forEach((signalStatus, i) => {
+      const row = {
+        symbol,
+        dataMode: "demo",
+        current: true,
+        dataStatus: "current",
+        signalStatus,
+        windowDay: 2,
+        windowState: "active",
+        windowStart: "invalid-context-window",
+      };
+      assert.equal(contextCopy(row).statusEn, expected[symbol][i]);
+      const view = contextView(row);
+      assert.equal(view.windowDay, null);
+      assert.equal(view.windowState, null);
+      assert.equal(view.windowStart, null);
+      const raw = contextView({ ...row, dataMode: "test" });
+      assert.equal(raw.current, false);
+      assert.equal(raw.signalStatus, null);
+      assert.equal(raw.dataStatus, "assessment_pending");
+      assert.equal(contextCopy({ ...row, dataMode: "test" }).statusTh, null);
+    });
+    for (const dataStatus of [
+      "stale",
+      "missing",
+      "source_freshness_unknown",
+      "freshness_policy_pending",
+    ]) {
+      const row = {
+        symbol,
+        dataMode: "demo",
+        current: false,
+        dataStatus,
+        signalStatus: null,
+      };
+      assert.equal(contextCopy(row).statusEn, null);
+      assert.equal(
+        contextView({ ...row, dataMode: "test" }).dataStatus,
+        dataStatus,
+      );
+    }
+    for (const signalStatus of ["BUY", "SELL"]) {
+      assert.equal(
+        contextView({
+          symbol,
+          dataMode: "demo",
+          current: true,
+          dataStatus: "current",
+          signalStatus,
+        }).current,
+        false,
+      );
+      assert.equal(
+        contextCopy({ symbol, dataMode: "demo", current: true, signalStatus })
+          .statusTh,
+        null,
+      );
+    }
+  }
+  const cs = { symbol: "CS11!", current: true, windowDay: 2 };
+  assert.deepEqual(contextView(cs), cs);
+});
+test("member report never publishes unapproved BDI/ZIM assessments even with fresh test inputs", async () => {
+  const h = setup();
+  await activate(h);
+  for (const symbol of ["BDI", "ZIM"])
+    await h.service.ingest(
+      signal({
+        symbol,
+        route: symbol,
+        family: symbol === "BDI" ? "bulk" : "context",
+        signalStatus: "pressure_up",
+        windowDay: null,
+        windowStart: null,
+      }),
+    );
+  const rows = (await h.service.report("verified")).context;
+  assert.ok(
+    rows.every(
+      (x) =>
+        x.current === false &&
+        x.signalStatus === null &&
+        x.windowDay === null &&
+        x.assessmentStatus === "not_enabled",
+    ),
+  );
+});
