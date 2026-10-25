@@ -105,22 +105,22 @@ function card(row) {
       "status " + (row.current ? row.signalStatus : row.dataStatus),
     ),
   );
-  if (row.current && row.windowDay) {
+  const windowCopy =
+    row.family === "container" && row.current ? csWindowCopy(row) : null;
+  if (windowCopy) {
     node.append(
-      el(
-        "div",
-        `ช่วงพิจารณา · วันที่ ${row.windowDay}/5 แท่งที่มีข้อมูล\nเริ่ม ${date(row.windowStart)} · แท่งล่าสุด ${date(row.barTime)}`,
-        "window",
-      ),
+      el("div", windowCopy.th, "window"),
+      el("small", windowCopy.en),
+      el("p", windowCopy.explanation),
     );
+    if (row.windowState === "active")
+      node.append(
+        el(
+          "small",
+          `Window start: ${date(row.windowStart)} · Confirmation: ${date(row.confirmationBarTime)} · Latest bar: ${date(row.barTime)}`,
+        ),
+      );
   }
-  if (row.current && row.windowState === "expired")
-    node.append(
-      el(
-        "small",
-        "ช่วงพิจารณาเดิมหมดอายุแล้ว — ไม่ได้หมายความว่าค่าระวางเริ่มลดลง",
-      ),
-    );
   if (row.current && row.windowState === "invalidated")
     node.append(el("small", "ช่วงพิจารณาเดิมถูกยกเลิกแล้ว"));
   node.append(
@@ -143,6 +143,16 @@ function render(data) {
     `ประมวลผลรายงาน: ${date(data.generatedAt)} · ตรวจความสดจากเวลาต้นทาง แยกจากเวลารับ webhook`;
   $("routes").replaceChildren(...data.routes.map(card));
   $("context").replaceChildren(...data.context.map(card));
+  let preview = $("notificationPreview");
+  if (!preview) {
+    preview = el("p", undefined);
+    preview.id = "notificationPreview";
+    $("history").before(preview);
+  }
+  const copy = data.notificationPreview;
+  preview.textContent = copy?.demo
+    ? `DEMO · ตัวอย่างแจ้งเตือนเท่านั้น ยังไม่ส่งจริง: ${copy.th} / ${copy.en} — ${copy.explanation}`
+    : "";
   $("history").replaceChildren(
     ...(data.history || []).map((h) =>
       el(

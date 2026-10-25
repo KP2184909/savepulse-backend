@@ -37,13 +37,17 @@ const rules = {
   maxAgeSeconds: Object.fromEntries(SYMBOLS.map((s) => [s, 36 * 3600])),
 };
 function signal(changes = {}) {
-  return {
-    contractVersion: "freightpulse.draft.v1",
+  const value = {
+    contractVersion: "freightpulse.draft.v2",
+    ruleVersion: "freightpulse.cs.rebound-next-4.v1",
+    confirmationBarTime: new Date(NOW - 3 * DAY).toISOString(),
+    sourceFreshness: "known",
+    windowState: "active",
     scriptVersion: "test-v1",
     eventId: "test_1",
     symbol: "CS11!",
     family: "container",
-    route: "CS11!",
+    route: "FBX01",
     timeframe: "1D",
     barTime: new Date(NOW - DAY).toISOString(),
     barCloseTime: new Date(NOW - 3600000).toISOString(),
@@ -56,6 +60,17 @@ function signal(changes = {}) {
     dataMode: "test",
     ...changes,
   };
+  if (value.family !== "container") {
+    delete value.ruleVersion;
+    delete value.confirmationBarTime;
+    if (!changes.contractVersion) {
+      value.contractVersion = "freightpulse.draft.v1";
+      delete value.sourceFreshness;
+      delete value.windowState;
+    }
+  } else if (changes.windowDay === null && !changes.windowState)
+    value.windowState = "inactive";
+  return value;
 }
 function setup() {
   let time = NOW;
@@ -318,7 +333,11 @@ test("simultaneous ingestion, duplicate event IDs and equivalent timezone timest
   await assert.rejects(
     () =>
       h.service.ingest(
-        signal({ barTime: new Date(NOW - 2 * DAY).toISOString() }),
+        signal({
+          barTime: new Date(NOW - 2 * DAY).toISOString(),
+          windowStart: new Date(NOW - 3 * DAY).toISOString(),
+          confirmationBarTime: new Date(NOW - 4 * DAY).toISOString(),
+        }),
       ),
     /out_of_order_bar/,
   );
@@ -332,6 +351,7 @@ test("fresh receipt never revives stale source; stale and missing SLA hide signa
       barCloseTime: new Date(NOW - 5 * DAY).toISOString(),
       sourceUpdatedAt: new Date(NOW - 5 * DAY).toISOString(),
       windowStart: new Date(NOW - 7 * DAY).toISOString(),
+      confirmationBarTime: new Date(NOW - 8 * DAY).toISOString(),
     }),
   );
   const row = (await h.service.report("verified")).routes[0];
@@ -358,6 +378,8 @@ test("preferences, email retry, durable duplicate prevention and stable provider
   const h = setup();
   await activate(h);
   await h.service.ingest(signal());
+  h.store.rows.get("freight:signal:test:CS11!").ruleVersion =
+    "legacy-worker-fixture-only";
   await h.service.preferences("verified", { routes: ["CS11!"], email: true });
   h.failMail(true);
   assert.deepEqual(await h.service.notifications(), { sent: 0, failed: 1 });
@@ -378,6 +400,8 @@ test("ambiguous send older than provider idempotency retention requires review",
   const h = setup();
   await activate(h);
   await h.service.ingest(signal());
+  h.store.rows.get("freight:signal:test:CS11!").ruleVersion =
+    "legacy-worker-fixture-only";
   await h.service.preferences("verified", { routes: ["CS11!"], email: true });
   h.failMail(true);
   await h.service.notifications();
@@ -725,4 +749,101 @@ test("v2 rejects wrong exchange, wrong route, future source and invalid windows"
     rules,
   );
   assert.equal(bdi.symbol, "BDI");
+});
+
+test("new CS window accepts days 1–4 only and excludes the confirmation bar", () => {
+  for (let day = 1; day <= 4; day++) {
+    const bar = new Date(NOW - DAY).toISOString();
+    const start = new Date(NOW - day * DAY).toISOString();
+    const s = validateSignal(
+      signal({
+        windowDay: day,
+        windowStart: start,
+        confirmationBarTime: new Date(NOW - (day + 1) * DAY).toISOString(),
+        barTime: bar,
+      }),
+      NOW,
+      rules,
+    );
+    assert.equal(s.windowDay, day);
+  }
+  for (const change of [
+    { windowDay: 5 },
+    { ruleVersion: "old-five-bar-rule" },
+    { contractVersion: "freightpulse.draft.v1" },
+    { confirmationBarTime: new Date(NOW - 2 * DAY).toISOString() },
+    { windowDay: 1 },
+  ])
+    assert.throws(() => validateSignal(signal(change), NOW, rules));
+});
+test("single-cycle reference waits through flat bars and starts next available daily bar", () => {
+  const { firstCsWindow } = require("../src/freightCsDemoRule");
+  const offsets = [0, 1, 2, 5, 6, 9, 10, 11, 14, 15, 16];
+  const closes = [100, 99, 99, 98, 100, 99, 98, 101, 102, 90, 110];
+  const bars = offsets.map((n, i) => ({
+    time: new Date(NOW + n * DAY).toISOString(),
+    close: closes[i],
+    closed: true,
+  }));
+  const rows = firstCsWindow(bars);
+  assert.equal(rows[4].confirmationBarTime, bars[4].time);
+  assert.equal(rows[4].windowDay, null);
+  assert.deepEqual(
+    rows.slice(5, 9).map((x) => x.windowDay),
+    [1, 2, 3, 4],
+  );
+  assert.equal(rows[5].windowStart, bars[5].time);
+  assert.equal(rows[9].windowState, "expired");
+  assert.equal(rows[10].windowState, "expired"); // restart remains undecided
+  assert.throws(() => firstCsWindow([{ ...bars[0], closed: false }]));
+  assert.throws(() => firstCsWindow([bars[1], bars[0]]));
+});
+test("approved CS wording is shared with notification previews and never sends actual email", async () => {
+  const { csWindowCopy } = require("../public/freightpulse/cs-window-copy");
+  for (let day = 1; day <= 4; day++) {
+    const copy = csWindowCopy(signal({ windowDay: day }));
+    assert.equal(copy.en, `Favourable Rate-Locking Window — Day ${day} of 4`);
+    assert.match(copy.th, new RegExp(`${day}/4$`));
+  }
+  const ended = csWindowCopy(
+    signal({ windowState: "expired", windowDay: null, windowStart: null }),
+  );
+  assert.equal(ended.en, "Rate-Locking Window Ended");
+  const h = setup();
+  await activate(h);
+  await h.service.preferences("verified", { routes: ["CS11!"], email: true });
+  await h.service.ingest(signal());
+  assert.deepEqual(await h.service.notifications(), { sent: 0, failed: 0 });
+  assert.equal(h.mail.length, 0);
+  assert.equal(csWindowCopy({ ruleVersion: "old" }), null);
+});
+
+test("demo includes next-four active and ended windows while BDI/ZIM remain context fixtures", () => {
+  const report = require("../src/freightDemo").demoReport(NOW);
+  assert.equal(report.routes[0].windowDay, 2);
+  assert.equal(
+    report.routes[0].ruleVersion,
+    "freightpulse.cs.rebound-next-4.v1",
+  );
+  assert.ok(
+    Date.parse(report.routes[0].confirmationBarTime) <
+      Date.parse(report.routes[0].windowStart),
+  );
+  assert.equal(report.routes[3].windowState, "expired");
+  assert.equal(report.routes[3].signalStatus, "pressure_up");
+  assert.equal(report.routes[3].windowDay, null);
+  assert.equal(report.notificationPreview.sent, false);
+  assert.equal(
+    report.notificationPreview.en,
+    "Favourable Rate-Locking Window — Day 2 of 4",
+  );
+  assert.deepEqual(
+    report.context.map((x) => x.symbol),
+    ["BDI", "ZIM"],
+  );
+  assert.ok(
+    report.context.every(
+      (x) => x.ruleVersion === undefined && x.windowDay === null,
+    ),
+  );
 });

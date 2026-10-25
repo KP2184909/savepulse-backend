@@ -7,6 +7,7 @@ const ROUTES = require("../public/freightpulse/routes");
 const CONTAINERS = ["CS11!", "CS21!", "CS31!", "CS41!", "CS51!", "CS61!"];
 const SYMBOLS = [...CONTAINERS, "BDI", "ZIM"];
 const STATES = ["pressure_up", "easing", "unclear"];
+const CS_RULE_VERSION = "freightpulse.cs.rebound-next-4.v1";
 const PRICE = Object.freeze({
   service: "freightpulse",
   amount: 9900,
@@ -70,6 +71,8 @@ function validateSignal(input, now, rules) {
     "sourceUpdatedAt",
     "source",
     "dataMode",
+    "ruleVersion",
+    "confirmationBarTime",
     ...(v2 ? ["sourceFreshness", "windowState"] : []),
   ];
   if (
@@ -106,6 +109,11 @@ function validateSignal(input, now, rules) {
     throw fail("script_version_not_approved");
   if (input.timeframe !== "1D" || input.barClosed !== true)
     throw fail("closed_daily_bar_required");
+  if (
+    input.family === "container" &&
+    (!v2 || input.ruleVersion !== CS_RULE_VERSION)
+  )
+    throw fail("cs_rule_version_required");
   for (const k of ["eventId", "source"])
     if (
       typeof input[k] !== "string" ||
@@ -157,16 +165,33 @@ function validateSignal(input, now, rules) {
     if (
       !Number.isInteger(input.windowDay) ||
       input.windowDay < 1 ||
-      input.windowDay > 5 ||
+      input.windowDay > 4 ||
       !Number.isFinite(Date.parse(input.windowStart)) ||
-      Date.parse(input.windowStart) > bar
+      Date.parse(input.windowStart) > bar ||
+      typeof input.confirmationBarTime !== "string" ||
+      !Number.isFinite(Date.parse(input.confirmationBarTime)) ||
+      Date.parse(input.confirmationBarTime) >= Date.parse(input.windowStart) ||
+      (input.windowDay === 1 && Date.parse(input.windowStart) !== bar) ||
+      (input.windowDay > 1 && Date.parse(input.windowStart) >= bar)
     )
       throw fail("invalid_window");
   } else if (input.windowDay !== null || input.windowStart !== null)
     throw fail("window_not_applicable");
   const clean = Object.fromEntries(fields.map((k) => [k, input[k]]));
-  for (const k of ["barTime", "barCloseTime", "sourceUpdatedAt", "windowStart"])
-    if (clean[k] !== null) clean[k] = new Date(clean[k]).toISOString();
+  if (
+    input.confirmationBarTime != null &&
+    (!Number.isFinite(Date.parse(input.confirmationBarTime)) ||
+      Date.parse(input.confirmationBarTime) > bar)
+  )
+    throw fail("invalid_confirmation_time");
+  for (const k of [
+    "barTime",
+    "barCloseTime",
+    "sourceUpdatedAt",
+    "windowStart",
+    "confirmationBarTime",
+  ])
+    if (clean[k] != null) clean[k] = new Date(clean[k]).toISOString();
   return clean;
 }
 function signalView(signal, now, maxAgeSeconds) {
@@ -472,6 +497,8 @@ function createFreightService({
       for (const symbol of company.preferences.routes) {
         const signal = await store.get(`freight:signal:test:${symbol}`),
           view = signalView(signal, now(), rules.maxAgeSeconds?.[symbol]);
+        // New CS rule is demo/sandbox only: no real email delivery until separately approved.
+        if (signal?.ruleVersion === CS_RULE_VERSION) continue;
         if (!view.current || view.signalStatus === "unclear") continue;
         const id = hash(`${company.id}:${symbol}:${signal.barTime}`),
           key = `freight:mail:${id}`,

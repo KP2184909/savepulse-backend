@@ -1,51 +1,58 @@
-# Draft Pine contract — NOT approved for real integration
+# FreightPulse sandbox payload — CS next-four rule
 
-Route names and semantics must be agreed with the FreightPulse chat. No messages have been sent there without owner authorization. Do not deploy this contract as a live feed until approved.
+## Current rule (owner confirmed 2026-10-25)
 
-Sandbox ingestion: `POST /api/v1/freightpulse/signals/test`, authenticated by a separate `FREIGHT_TEST_FEED_SECRET` bearer header. Never reuse SavePulse's feed secret, paste it into examples, or save raw request bodies/credentials. Real feed endpoint returns 503 regardless of configuration.
+CS ruleVersion: `freightpulse.cs.rebound-next-4.v1`. This replaces the old five-bar prototype. After a daily close falls below the preceding close, wait until a subsequent daily bar closes above its predecessor. That is the confirmation bar, outside the window. The next available closed daily bar starts day 1. Count four data-bearing daily bars total, without an EMA14 prerequisite or consecutive-rise requirement. Flat bars while waiting do not cancel the wait. The reference evaluator in src/freightCsDemoRule.js covers one cycle only; it does not invent cancellation, restart or rollover decisions.
+
+The backend accepts explicit window fields from allowlisted test scripts; it cannot prove adjacent data-bearing bar sequence from one webhook. Pine agreement and sequential fixtures are required before integration. Arbitrary UTC calendar-day differences must not stand in for actual source daily bars.
+
+## Endpoint and example (synthetic test data)
+
+POST `/api/v1/freightpulse/signals/test` requires its separate bearer secret, never included in examples or logs. Live ingestion remains disabled. New CS rules never send actual email, even when the sandbox email worker is enabled. The frontend includes a Demo notification-text preview only.
 
 ```json
 {
-  "contractVersion": "freightpulse.draft.v1",
-  "scriptVersion": "container-test-v1",
-  "eventId": "test-CS11-2026-10-23",
-  "symbol": "CS11!",
+  "contractVersion": "freightpulse.draft.v2",
+  "ruleVersion": "freightpulse.cs.rebound-next-4.v1",
+  "scriptVersion": "freightpulse.container.next4.demo.v1",
+  "eventId": "fixture-next4-day2",
+  "symbol": "NYMEX:CS11!",
   "family": "container",
-  "route": "CS11!",
+  "route": "FBX01",
   "timeframe": "1D",
   "barTime": "2026-10-23T00:00:00Z",
   "barCloseTime": "2026-10-24T00:00:00Z",
   "barClosed": true,
   "signalStatus": "pressure_up",
+  "windowState": "active",
   "windowDay": 2,
   "windowStart": "2026-10-22T00:00:00Z",
-  "sourceUpdatedAt": "2026-10-24T00:00:00Z",
+  "confirmationBarTime": "2026-10-21T00:00:00Z",
+  "sourceUpdatedAt": null,
+  "sourceFreshness": "unknown",
   "source": "test-fixture",
   "dataMode": "test"
 }
 ```
 
-- Families: container (`CS11!`, `CS21!`, `CS31!`, `CS41!`, `CS51!`, `CS61!`); bulk (`BDI`); context (`ZIM`). No assumed geographic route mappings. Each source/script has an explicit version allowlist.
-- Status enum is a DRAFT: `pressure_up`, `easing`, `unclear`. For container pressure_up only, windowDay must be integer 1–5 and windowStart must be a valid time no later than barTime. Others require both fields null. BDI and ZIM do not inherit container windows.
-- All timestamps are RFC3339/UTC strings. barTime is opening time; barCloseTime is the actual end time of the confirmed bar. sourceUpdatedAt must be the market-data update time, NOT timenow/webhook send time. Provider/script must establish what this represents before agreement. If unavailable, withhold the current signal; do not fabricate now.
-- Closed 1D bars only. Future timestamps and source-update times older than barCloseTime are rejected in this draft convention (review with Pine author).
-- Canonical timestamp comparisons reject older bars and conflicting same-bar updates. Exact same-bar replays are idempotent even with a different eventId. receivedAt is assigned by server and does not affect freshness.
-- Freshness SLA must be configured per symbol. Missing SLA means no current status. Both source update and bar close must be recent; receipt time cannot revive old data. Stale cards hide signalStatus/window and retain timestamps/source for inspection.
-- CS five-bar prototype is not calculated or copied from SavePulse here. No implied consecutive rises, EMA14 prerequisite, restart or cancellation rule. These remain Pine-author decisions with fixtures required.
-- No CS/BDI/ZIM signal is used as an actual booking quote. Rollover, data delay, source licensing and market calendars remain explicit review gates.
+- CS requires v2 plus the exact ruleVersion. Older CS window contracts are rejected. Explicit source/script allowlists still apply; the example script is not implicitly approved for ingestion.
+- windowState remains independent of signalStatus. active: integer windowDay 1–4, windowStart is day-1 opening time; confirmationBarTime must precede it. Day 1 windowStart equals barTime; later days start earlier. inactive/expired/invalidated: windowDay/windowStart null. Expiry never changes pressure_up into easing.
+- Symbol normalization accepts only explicit NYMEX CS mappings, INDEX:BDI and NYSE:ZIM. CS route IDs match FBX01/02/03/11/12/13 as displayed on the website. BDI/ZIM use route null in v2, windowState inactive, and no CS ruleVersion or confirmation field; their existing v1 context fixtures remain supported. Their strategy rules are unchanged.
+- barTime/time_close represent actual source daily-bar boundaries in UTC. Do not assume every bar lasts 24 hours. receivedAt is generated by the server.
+- sourceUpdatedAt must represent actual source publication/update time, never Pine timenow or a fabricated time_close. When unknown, use null with sourceFreshness unknown: ingest for testing, but suppress current signal/window and notifications. When available, use ISO timestamp and sourceFreshness known; known means timestamp availability, not independently verified provenance. Source time may precede bar close; future times are rejected.
+- Freshness requires configured source-specific age limits; both source update and bar close must be recent. Receipt time never revives old data. Market calendars, publisher timestamp semantics and commercial rights remain unresolved launch gates.
+- Canonical payload dedup ignores eventId; replay does not notify twice. Conflicting same-bar and older-bar updates are rejected rather than replacing the latest signal silently.
 
-## Coordination result, 2026-10-25 — draft v2 proposed, not connected
+## Display/notification wording
 
-The owner-authorized FreightPulse chat verified exchange-qualified symbols NYMEX:CS11! through NYMEX:CS61!, INDEX:BDI and NYSE:ZIM. Container directions agree with the CME regional mapping now displayed on the site. BDI search succeeded but batch quotes did not, so actual BDI retrieval remains unverified.
+Active Thai: “ช่วงน่าพิจารณาล็อกค่าระวาง — วันที่ N/4”
 
-Before connecting Pine, revise this v1 sandbox-only contract to v2: container route should use FBX benchmark ID with an explicit normalized symbol mapping; BDI/ZIM route null; separate windowState (inactive/active/expired/invalidated) from signalStatus. Expiry on day six must not imply easing. Accept unknown sourceUpdatedAt with sourceFreshness=unknown for ingestion testing only, always suppress current status and notification. Pine time/time_close describe bars, not the market publisher's update time; timenow must never substitute for source freshness. Remove the v1 sourceUpdatedAt>=barCloseTime assumption: real source publication can precede bar close. Source-specific age and market calendars remain required.
+Active English: “Favourable Rate-Locking Window — Day N of 4”
 
-The deployed preview remains Demo; the v1 test endpoint rejects unrecognized payloads and live ingestion stays disabled. Proposed v2 is NOT implemented or accepted by this endpoint yet. CS cancellation/restart/rollover rules, BDI rules, ZIM source version and commercial rights still await agreement. Do not configure TradingView alerts against the v1 endpoint assuming compatibility with the proposed v2.
+Explanation: “ระบบพบสัญญาณเริ่มกลับขึ้นของค่าระวาง เป็นช่วงที่น่าพิจารณาขอราคาและล็อกเงื่อนไขการจอง โดยฝ่ายจัดซื้อควรประเมินร่วมกับใบเสนอราคาปัจจุบัน พื้นที่เรือ และกำหนดส่งสินค้า”
 
-### Sandbox implementation follow-up
+Ended: “สิ้นสุดช่วงพิจารณาล็อกค่าระวาง” / “Rate-Locking Window Ended”. Ending does not imply falling prices. No best-price or savings guarantee.
 
-The proposed v2 parser is now implemented for test/demo ingestion, with regression tests. Both v1 fixtures and v2 draft are accepted; live dataMode remains rejected. Qualified symbols are normalized only through the explicit NYMEX/INDEX/NYSE mapping above, and v2 routes must match their FBX ID (BDI/ZIM use null). v2 requires windowState; active CS windows carry days 1–5, other states carry null windowDay/windowStart, and BDI/ZIM must use inactive. Window state does not recalculate signalStatus.
+## Unresolved and disabled
 
-For v2 source freshness: use `sourceUpdatedAt: null, sourceFreshness: "unknown"` when publisher update time is unavailable. When a genuine source timestamp is available use `sourceFreshness: "known"` with an ISO timestamp; this label only describes timestamp availability in this test contract, not independently authenticated market provenance. Unknown timestamps suppress current status, window and all notifications even with a new receivedAt. Future timestamps remain rejected; a source timestamp preceding barCloseTime is permitted. Received time remains server generated. Source rights, publication semantics and source-specific market calendars are still launch gates, not implied by parser acceptance.
-
-This supersedes the earlier note that v2 had not yet been implemented. No TradingView alert or live feed has been connected, and cancellation/restart/BDI strategy rules remain undecided.
+Cancellation on a subsequent decline, cycle restart, rollover, independent BDI rules, ZIM adapter/source version and commercial data rights require agreement. Do not create live alerts or send actual notifications for this rule. Coordinate the exact payload with the owner-authorized FreightPulse Pine chat before connection.

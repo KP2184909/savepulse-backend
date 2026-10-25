@@ -1,5 +1,7 @@
 "use strict";
 const { CONTAINERS, signalView } = require("./freightpulse");
+const ROUTES = require("../public/freightpulse/routes");
+const { csWindowCopy } = require("../public/freightpulse/cs-window-copy");
 function demoReport(now = Date.now()) {
   const hour = 3600000,
     iso = (t) => new Date(t).toISOString();
@@ -26,8 +28,14 @@ function demoReport(now = Date.now()) {
       };
     const signal = {
       ...common,
+      contractVersion: "freightpulse.draft.v2",
+      ruleVersion: "freightpulse.cs.rebound-next-4.v1",
+      scriptVersion: "freightpulse.container.next4.demo.v1",
+      sourceFreshness: "known",
+      windowState: "inactive",
+      confirmationBarTime: null,
       symbol,
-      route: symbol,
+      route: ROUTES[symbol].benchmark,
       family: "container",
       signalStatus:
         index % 3 === 0
@@ -37,8 +45,10 @@ function demoReport(now = Date.now()) {
             : "unclear",
     };
     if (signal.signalStatus === "pressure_up") {
-      signal.windowDay = 2;
-      signal.windowStart = iso(now - 49 * hour);
+      signal.windowState = index === 3 ? "expired" : "active";
+      signal.windowDay = index === 3 ? null : 2;
+      signal.windowStart = index === 3 ? null : iso(now - 49 * hour);
+      signal.confirmationBarTime = iso(now - 73 * hour);
     }
     if (index === 4) {
       signal.sourceUpdatedAt = iso(now - 120 * hour);
@@ -56,6 +66,11 @@ function demoReport(now = Date.now()) {
     mode: "demo",
     generatedAt: iso(now),
     routes,
+    notificationPreview: {
+      demo: true,
+      sent: false,
+      ...csWindowCopy(routes[0]),
+    },
     context: ["BDI", "ZIM"].map((symbol) => ({
       symbol,
       family: symbol === "BDI" ? "bulk" : "context",

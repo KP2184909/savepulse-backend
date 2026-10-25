@@ -26,7 +26,7 @@ Status: development only. No production deployment, no live payments, no invitat
 - Tax jurisdiction/registrations, inclusive/exclusive handling, supported billing locations and exact checkout tax disclosure. No assumption that $99 is tax-inclusive, tax-free or that automatic_tax alone establishes registration.
 - Rights to distribute/use each source commercially, attribution and delay requirements. TradingView access is not resale permission.
 - Canonical route names and source tickers; CS11!/CS21!/CS31!/CS41!/CS51!/CS61! kept as identifiers until agreed.
-- CS cancellation/restart, missing-bar calendar and window expiry; independent BDI script/rules; accepted ZIM context version. Draft CS prototype: close[t] > close[t-1] after close[t-1] < close[t-2], five data-bearing daily bars including day one, no EMA prerequisite. Backend does not invent these unresolved rules.
+- CS rule freightpulse.cs.rebound-next-4.v1: after a decline wait for a higher close; exclude that confirmation bar, then count the next four data-bearing daily bars. No EMA prerequisite. Cancellation, restart and rollover remain undecided; BDI/ZIM rules are unchanged. New-rule actual email and live ingestion remain disabled.
 - Per-source freshness SLA, source-update meaning, bar timestamp convention and script versions, agreed with FreightPulse chat before real integration.
 - Stripe sandbox selection and provider tests; live payments, customer-facing publication and production storage migration require a separate readiness review.
 
