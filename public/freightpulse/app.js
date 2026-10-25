@@ -11,6 +11,7 @@ const labels = {
   unclear: "ยังไม่ชัดเจน",
 };
 const statusLabels = {
+  source_freshness_unknown: "ไม่ทราบเวลาอัปเดตต้นทาง · ไม่แสดงสัญญาณปัจจุบัน",
   stale: "ข้อมูลเก่า · ไม่แสดงสัญญาณปัจจุบัน",
   missing: "ยังไม่มีข้อมูล",
   freshness_policy_pending: "ยังไม่ยืนยันเกณฑ์ความสด",
@@ -113,6 +114,15 @@ function card(row) {
       ),
     );
   }
+  if (row.current && row.windowState === "expired")
+    node.append(
+      el(
+        "small",
+        "ช่วงพิจารณาเดิมหมดอายุแล้ว — ไม่ได้หมายความว่าค่าระวางเริ่มลดลง",
+      ),
+    );
+  if (row.current && row.windowState === "invalidated")
+    node.append(el("small", "ช่วงพิจารณาเดิมถูกยกเลิกแล้ว"));
   node.append(
     el("small", `ต้นทางอัปเดต: ${date(row.sourceUpdatedAt)}`),
     el("small", `รับ webhook: ${date(row.receivedAt)}`),

@@ -642,3 +642,87 @@ test("container route metadata preserves the six directional FBX benchmarks", ()
   assert.equal(routes.BDI, undefined);
   assert.equal(routes.ZIM, undefined);
 });
+
+function signalV2(changes = {}) {
+  return signal({
+    contractVersion: "freightpulse.draft.v2",
+    symbol: "NYMEX:CS11!",
+    route: "FBX01",
+    sourceFreshness: "known",
+    windowState: "active",
+    ...changes,
+  });
+}
+test("v2 accepts unknown publisher freshness without granting current status", async () => {
+  const s = validateSignal(
+    signalV2({ sourceUpdatedAt: null, sourceFreshness: "unknown" }),
+    NOW,
+    rules,
+  );
+  assert.equal(s.symbol, "CS11!");
+  const view = signalView(s, NOW, 36 * 3600);
+  assert.equal(view.dataStatus, "source_freshness_unknown");
+  assert.equal(view.current, false);
+  assert.equal(view.signalStatus, null);
+  assert.equal(view.windowDay, null);
+  const h = setup();
+  await activate(h);
+  await h.service.preferences("verified", { routes: ["CS11!"], email: true });
+  await h.service.ingest(
+    signalV2({ sourceUpdatedAt: null, sourceFreshness: "unknown" }),
+  );
+  assert.deepEqual(await h.service.notifications(), { sent: 0, failed: 0 });
+  assert.equal(h.mail.length, 0);
+  assert.equal(
+    (
+      await h.service.ingest(
+        signalV2({
+          eventId: "another-id",
+          sourceUpdatedAt: null,
+          sourceFreshness: "unknown",
+        }),
+      )
+    ).duplicate,
+    true,
+  );
+});
+test("publisher time can precede daily bar close and expiry does not imply easing", () => {
+  const s = validateSignal(
+    signalV2({
+      sourceUpdatedAt: new Date(NOW - 2 * 3600000).toISOString(),
+      windowState: "expired",
+      windowDay: null,
+      windowStart: null,
+    }),
+    NOW,
+    rules,
+  );
+  assert.equal(signalView(s, NOW, 36 * 3600).signalStatus, "pressure_up");
+  assert.equal(s.windowState, "expired");
+  assert.equal(s.windowDay, null);
+});
+test("v2 rejects wrong exchange, wrong route, future source and invalid windows", () => {
+  for (const changes of [
+    { symbol: "FAKE:CS11!" },
+    { route: "FBX02" },
+    { sourceFreshness: "unknown" },
+    { sourceUpdatedAt: null, sourceFreshness: "known" },
+    { sourceUpdatedAt: new Date(NOW + 1).toISOString() },
+    { windowState: "expired" },
+    { windowState: "active", windowDay: 6 },
+  ])
+    assert.throws(() => validateSignal(signalV2(changes), NOW, rules));
+  const bdi = validateSignal(
+    signalV2({
+      symbol: "INDEX:BDI",
+      route: null,
+      family: "bulk",
+      windowState: "inactive",
+      windowDay: null,
+      windowStart: null,
+    }),
+    NOW,
+    rules,
+  );
+  assert.equal(bdi.symbol, "BDI");
+});

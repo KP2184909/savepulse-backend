@@ -52,6 +52,7 @@ function createFreightStore(env = process.env, fetchImpl = globalThis.fetch) {
   };
 }
 function validateSignal(input, now, rules) {
+  const v2 = input?.contractVersion === "freightpulse.draft.v2";
   const fields = [
     "contractVersion",
     "scriptVersion",
@@ -69,6 +70,7 @@ function validateSignal(input, now, rules) {
     "sourceUpdatedAt",
     "source",
     "dataMode",
+    ...(v2 ? ["sourceFreshness", "windowState"] : []),
   ];
   if (
     !input ||
@@ -78,14 +80,23 @@ function validateSignal(input, now, rules) {
   )
     throw fail("invalid_payload_fields");
   if (
-    input.contractVersion !== "freightpulse.draft.v1" ||
+    !["freightpulse.draft.v1", "freightpulse.draft.v2"].includes(
+      input.contractVersion,
+    ) ||
     !["demo", "test"].includes(input.dataMode)
   )
     throw fail("real_feed_contract_not_approved", 503);
+  // Normalize only explicitly mapped instruments; never strip arbitrary exchanges.
+  const qualified = Object.fromEntries(
+    CONTAINERS.map((s) => [`NYMEX:${s}`, s]),
+  );
+  Object.assign(qualified, { "INDEX:BDI": "BDI", "NYSE:ZIM": "ZIM" });
+  if (v2) input = { ...input, symbol: qualified[input.symbol] || input.symbol };
   if (
     !SYMBOLS.includes(input.symbol) ||
     input.family !== family(input.symbol) ||
-    input.route !== input.symbol
+    input.route !==
+      (v2 ? ROUTES[input.symbol]?.benchmark || null : input.symbol)
   )
     throw fail("symbol_route_family_mismatch");
   if (
@@ -101,7 +112,15 @@ function validateSignal(input, now, rules) {
       !/^[A-Za-z0-9_:./! -]{1,120}$/.test(input[k])
     )
       throw fail("invalid_signal_identifier");
-  for (const k of ["barTime", "barCloseTime", "sourceUpdatedAt"])
+  const unknownSource =
+    v2 && input.sourceUpdatedAt === null && input.sourceFreshness === "unknown";
+  if (v2 && !unknownSource && input.sourceFreshness !== "known")
+    throw fail("invalid_source_freshness");
+  for (const k of [
+    "barTime",
+    "barCloseTime",
+    ...(unknownSource ? [] : ["sourceUpdatedAt"]),
+  ])
     if (
       typeof input[k] !== "string" ||
       !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(
@@ -113,15 +132,28 @@ function validateSignal(input, now, rules) {
     close = Date.parse(input.barCloseTime),
     source = Date.parse(input.sourceUpdatedAt);
   if (
-    ![bar, close, source].every(Number.isFinite) ||
+    ![bar, close, ...(unknownSource ? [] : [source])].every(Number.isFinite) ||
     bar >= close ||
     close > now ||
-    source > now ||
-    source < close
+    (!unknownSource && source > now)
   )
     throw fail("invalid_source_or_bar_time");
   if (!STATES.includes(input.signalStatus)) throw fail("invalid_signal_status");
-  if (input.family === "container" && input.signalStatus === "pressure_up") {
+  if (
+    v2 &&
+    !["inactive", "active", "expired", "invalidated"].includes(
+      input.windowState,
+    )
+  )
+    throw fail("invalid_window_state");
+  if (v2 && input.family !== "container" && input.windowState !== "inactive")
+    throw fail("window_not_applicable");
+  const hasWindow =
+    input.family === "container" &&
+    (v2
+      ? input.windowState === "active"
+      : input.signalStatus === "pressure_up");
+  if (hasWindow) {
     if (
       !Number.isInteger(input.windowDay) ||
       input.windowDay < 1 ||
@@ -146,21 +178,28 @@ function signalView(signal, now, maxAgeSeconds) {
       windowDay: null,
     };
   const configured = Number.isFinite(maxAgeSeconds) && maxAgeSeconds > 0;
+  const sourceKnown =
+    typeof signal.sourceUpdatedAt === "string" &&
+    Number.isFinite(Date.parse(signal.sourceUpdatedAt));
   const age = now - Date.parse(signal.sourceUpdatedAt);
   const current =
     configured &&
+    sourceKnown &&
     age >= 0 &&
     age <= maxAgeSeconds * 1000 &&
     now - Date.parse(signal.barCloseTime) <= maxAgeSeconds * 1000;
   return {
     ...signal,
     current,
-    dataStatus: !configured
-      ? "freshness_policy_pending"
-      : current
-        ? "current"
-        : "stale",
+    dataStatus: !sourceKnown
+      ? "source_freshness_unknown"
+      : !configured
+        ? "freshness_policy_pending"
+        : current
+          ? "current"
+          : "stale",
     signalStatus: current ? signal.signalStatus : null,
+    windowState: current ? signal.windowState || null : null,
     windowDay: current ? signal.windowDay : null,
     windowStart: current ? signal.windowStart : null,
   };

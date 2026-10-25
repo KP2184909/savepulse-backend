@@ -55,3 +55,9 @@ Local suite after route-label change: 122 passed, 0 failed. Stripe Dashboard san
 Follow-up evidence: Dashboard creation and saved product metadata are now verified (catalog IDs recorded in sandbox-runbook.md). This is catalog setup only, not a successful payment. The sandbox account task page says a past-due photo-ID task impacts payments and payouts; no identity document was submitted. Connector reauthentication and secure isolated backend credentials remain pending.
 
 Deploy Preview browser check: all six regional names and matching preference labels rendered; Demo label retained, member email disabled until sandbox backend exists, stale card has no active window. Mobile 390px viewport: document content width 375px, six route cards, no horizontal overflow. Evidence stored outside the repository in freightpulse-qa-evidence/routes-mobile.png and stripe-sandbox-product.png.
+
+## v2 ingestion follow-up
+
+Local suite: 125/125 PASS. New coverage verifies exchange-qualified symbol mapping and FBX direction validation; unknown source update time persists for test ingestion but cannot become current or send email; duplicate payload with changed event ID does not create a second signal; source update can precede bar close; expired window preserves independent pressure status; wrong exchange, mismatched route, future timestamps and invalid windows are rejected. These are injected-provider/local tests, not real Stripe, email or TradingView E2E results.
+
+Stripe browser authorization was completed by the owner, but the account-list connector still returns UNAUTHORIZED/requires reauthentication in this chat. Do not ask the owner to repeat authorization indefinitely or treat the successful browser screen as evidence of backend/provider lifecycle tests passing. No Production deployment or paid purchase performed.
