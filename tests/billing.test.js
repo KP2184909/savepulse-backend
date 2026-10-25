@@ -354,3 +354,8 @@ test("safe Stripe event summaries keep customer and subscription IDs hidden", ()
   assert.equal(serialized.includes("sub_secret"), false);
   assert.equal(serialized.includes("cs_live_secret"), false);
 });
+
+test('FreightPulse events cannot change the SavePulse plan through the legacy handler', () => {
+  const result=applyStripeEvent({type:'customer.subscription.updated',data:{object:{id:'sub_freight',status:'active',metadata:{service:'freightpulse',plan:'business',email:'savepulse.cloud@gmail.com'}}}});
+  assert.deepEqual(result,{updated:false,reason:'other_service_event_ignored'});
+});
