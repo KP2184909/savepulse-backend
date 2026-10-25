@@ -44,3 +44,13 @@ Use sandbox test payment methods only. Do not enter a real card or buy a live su
 - Public copy, real route names, commercial data rights and CS/BDI Pine semantics remain launch gates. No automated cold email or CRM changes.
 
 Preview identity guard: email controls are disabled until the dedicated FreightPulse catalog confirms sandboxEnabled. Auth requests use /freightpulse/auth/code and auth/verify (never the Production trial endpoint); the sandbox route restricts recipients to the authorized test mailbox.
+
+## Verified Dashboard catalog (2026-10-25)
+
+Created through the owner's selected SavePulse sandbox, account `acct_1TbuPE0su7h1AsZT`:
+
+- Product `prod_VVNoEbQYkQet9A`, FreightPulse AI - Sandbox, active.
+- Price `price_1UUN3F0su7h1AsZTONdA1fqk`, USD 99.00/month, no trial.
+- Product metadata `service=freightpulse`, `environment=sandbox` verified after saving.
+
+These IDs are not credentials. Set `FREIGHT_STRIPE_PRICE_ID` to this existing price when running the provisioner so it reuses the Dashboard catalog rather than creating a duplicate. Backend SDK validation, separate Portal configuration, signing secret and isolated database still require secure sandbox configuration. No real customer subscription or payment was created. Dashboard shows capabilities paused; its exact requirements must be reviewed before claiming provider lifecycle QA passes.

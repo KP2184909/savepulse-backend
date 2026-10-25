@@ -13,8 +13,10 @@ async function main() {
   const account = await stripe.accounts.retrieve();
   if (account.id !== expected) throw Error("Stripe account mismatch");
   const lookup = "freightpulse_company_usd_monthly_99_test_v1";
-  let price = (await stripe.prices.list({ lookup_keys: [lookup], limit: 10 }))
-      .data[0],
+  let price = process.env.FREIGHT_STRIPE_PRICE_ID
+      ? await stripe.prices.retrieve(process.env.FREIGHT_STRIPE_PRICE_ID)
+      : (await stripe.prices.list({ lookup_keys: [lookup], limit: 10 }))
+          .data[0],
     product;
   if (price) {
     product = await stripe.products.retrieve(price.product);
