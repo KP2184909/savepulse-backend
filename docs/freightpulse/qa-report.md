@@ -73,3 +73,5 @@ Deploy Preview after commit 61c82be: verified full rendered CS11 card says day2/
 ## BDI/ZIM context wording
 
 Local tests: 131/131 PASS. New cases cover all three bilingual Demo labels for each instrument, independent context titles/explanations, removal of CS window fields, preservation of stale/missing/unknown source data states, rejection of implicit BUY/SELL mapping, and authoritative backend suppression of fresh non-demo BDI/ZIM assessments pending rule/source review. CS next-four logic is unchanged. No actual notification/live feed or Production deployment.
+
+Deploy Preview ec5a4c5 browser verification: two separate context cards with exact Thai/English BDI softening and ZIM unclear wording plus owner explanations and Demo-only notice; context window count zero; CS day2/4 still present. Browser evidence: freightpulse-qa-evidence/bdi-zim-context-preview.png outside the repository. Other status variants are covered by local unit tests, not actual market inputs. The FreightPulse Pine chat acknowledged the new context-copy requirements and pending BDI/ZIM source review.
