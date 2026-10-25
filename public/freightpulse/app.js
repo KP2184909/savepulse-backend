@@ -86,11 +86,14 @@ function card(row) {
   const node = el("article", undefined, "card");
   node.append(
     el("span", row.dataMode === "demo" ? "DEMO" : "TEST DATA", "badge demo"),
-    el("h3", row.symbol),
+    el("h3", FREIGHT_ROUTES[row.symbol]?.name || row.symbol),
   );
   if (row.family === "container")
     node.append(
-      el("small", "ชื่อเส้นทางจริงยังรอตกลง — รหัสนี้ไม่ใช่ชื่อท่าเรือ"),
+      el(
+        "small",
+        `${row.symbol} · ${FREIGHT_ROUTES[row.symbol]?.benchmark || "Unknown route"} · USD/FEU (40-foot container)`,
+      ),
     );
   node.append(
     el(
@@ -169,7 +172,12 @@ for (const symbol of ["CS11!", "CS21!", "CS31!", "CS41!", "CS51!", "CS61!"]) {
   const input = document.createElement("input");
   input.type = "checkbox";
   input.value = symbol;
-  label.append(input, document.createTextNode(" " + symbol));
+  label.append(
+    input,
+    document.createTextNode(
+      " " + (FREIGHT_ROUTES[symbol]?.name || symbol) + " · " + symbol,
+    ),
+  );
   $("routePreferences").append(label);
 }
 $("demoButton").onclick = () =>

@@ -81,7 +81,7 @@ function demoReport(now = Date.now()) {
       },
     ],
     notice:
-      "Demo only. Route names, commercial rights, freshness SLA and signal cancellation/restart rules await agreement. Explanations are templates; no live AI model or real feed is connected.",
+      "Demo only. Commercial rights, freshness SLA and signal cancellation/restart rules await agreement. Explanations are templates; no live AI model or real feed is connected.",
   };
 }
 module.exports = { demoReport };

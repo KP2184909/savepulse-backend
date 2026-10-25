@@ -45,3 +45,9 @@ Chrome's controlled tab remained blank despite HTTP 200 for HTML/CSS/JS/API; aft
 Reauthenticate/select the Stripe sandbox; run provision-freight-sandbox.js and complete provider lifecycle/portal tests. Select isolated staging storage and verify restart/outage/CAS behavior. Agree the Pine contract with the FreightPulse author and obtain commercial data rights. Decide team membership, trial/discounts, tax registration/handling, grace/dunning and re-subscription policy. Replace the prototype key/value financial ledger with normalized transactional tables before commercial scale. Do not enable live payments or real ingestion from this patch.
 
 Preview identity guard: email controls are disabled until the dedicated FreightPulse catalog confirms sandboxEnabled. Auth requests use /freightpulse/auth/code and auth/verify (never the Production trial endpoint); the sandbox route restricts recipients to the authorized test mailbox.
+
+## Route labels — 2026-10-25
+
+Verified six regional directions and FBX benchmark identifiers against CME Group's Container Freight Rate futures fact card (contract codes CS1–CS6; USD per FEU). Added names to report cards and route preferences; reverse routes CS2 and CS5 are explicitly covered by a regression test. BDI and ZIM remain separate context. This does not verify a live TradingView feed, commercial redistribution rights, Thai port coverage, or a booking quote. Payload route identifiers remain unchanged pending Pine agreement.
+
+Local suite after route-label change: 122 passed, 0 failed. Stripe Dashboard sandbox selection was verified as SavePulse sandbox; connector still requires reauthentication. Provider payment lifecycle tests remain NOT VERIFIED.

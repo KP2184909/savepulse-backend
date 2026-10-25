@@ -630,3 +630,15 @@ test("existing open checkout is rechecked against the FreightPulse price before 
     /freight_checkout_price_mismatch/,
   );
 });
+
+test("container route metadata preserves the six directional FBX benchmarks", () => {
+  const routes = require("../public/freightpulse/routes");
+  assert.deepEqual(
+    Object.values(routes).map((r) => r.benchmark),
+    ["FBX01", "FBX02", "FBX03", "FBX11", "FBX12", "FBX13"],
+  );
+  assert.equal(routes["CS21!"].name, "U.S. West Coast → China / East Asia");
+  assert.equal(routes["CS51!"].name, "North Europe → China / East Asia");
+  assert.equal(routes.BDI, undefined);
+  assert.equal(routes.ZIM, undefined);
+});
