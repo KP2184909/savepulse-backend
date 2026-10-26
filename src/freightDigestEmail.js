@@ -23,7 +23,7 @@ function freightDigestEmail({ rows = [], generatedAt, mode = "test" } = {}) {
   return {
     subject: `[${mode === "demo" ? "DEMO" : "TEST"}] FreightPulse — สรุปค่าระวางครบทุกเส้นทาง`,
     text:[...intro,"",...sections.flatMap((s)=>[...s.lines,""]),...footer].join("\n"),
-    html:`<!doctype html><html lang="th"><meta charset="utf-8"><body style="margin:0;background:#f2f6f7;font-family:Arial,sans-serif;color:#19323c"><main style="max-width:640px;margin:auto;padding:24px"><p style="color:#875300">${escape(label)}</p><h1 style="font-size:26px">FreightPulse</h1><p>${escape(intro[1])}</p><p>${escape(intro[2])}</p><p>${escape(intro[3])}</p>${sections.map((s)=>`<section style="background:white;border:1px solid #d8e4e8;border-radius:12px;padding:18px;margin:14px 0"><h2 style="font-size:18px;margin-top:0">${escape(s.lines[0])}</h2>${s.lines.slice(1).map((l)=>`<p style="line-height:1.6">${escape(l)}</p>`).join("")}</section>`).join("")}<footer>${footer.map((l)=>`<p style="font-size:13px;line-height:1.6">${escape(l)}</p>`).join("")}</footer></main></body></html>`,
+    html:require("./freightDigestDesign")({sections,label,generatedAt,footer,escape,date}),
   };
 }
 module.exports = {freightDigestEmail, SYMBOLS};
