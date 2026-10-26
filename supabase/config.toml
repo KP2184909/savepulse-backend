@@ -1,0 +1,5 @@
+project_id = "freightpulse-sandbox"
+
+[functions.freightpulse-tv-sandbox]
+verify_jwt = false
+entrypoint = "./functions/freightpulse-tv-sandbox/index.mjs"

@@ -7,3 +7,6 @@ npm-debug.log*
 *.zip
 savepulse-netlify-drop-*.zip
 prototypes/
+
+# Supabase CLI local metadata
+supabase/.temp/

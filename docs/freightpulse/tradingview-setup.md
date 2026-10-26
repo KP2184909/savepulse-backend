@@ -1,3 +1,7 @@
+# Current deployed receiver
+
+The dedicated free Supabase Sandbox receiver is now deployed. Use https://sktzydyiwqylpstxjicf.supabase.co/functions/v1/freightpulse-tv-sandbox directly; see sandbox-deployment.md for verified status. This supersedes the provisional Node hosting instructions below. The Node endpoint is retained for future backend deployment, not the URL to paste today.
+
 # FreightPulse Pine → sandbox receiver
 
 ## Deliverables and status
