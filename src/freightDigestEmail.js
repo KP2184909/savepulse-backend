@@ -4,24 +4,26 @@ const { contextCopy } = require("../public/freightpulse/context-copy");
 const { csWindowCopy } = require("../public/freightpulse/cs-window-copy");
 const SYMBOLS = [...Object.keys(ROUTES), "BDI", "ZIM"];
 const escape = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const date = (s) => s && Number.isFinite(Date.parse(s)) ? new Date(s).toLocaleString("th-TH", {timeZone:"Asia/Bangkok"}) : "ยังไม่ทราบ";
+const date = (s) => s && Number.isFinite(Date.parse(s)) ? new Date(s).toLocaleString("en-GB", {timeZone:"Asia/Bangkok",dateStyle:"medium",timeStyle:"short"}) + " ICT" : "Unknown";
 function freightDigestEmail({ rows = [], generatedAt, mode = "test" } = {}) {
   if (!["demo", "test"].includes(mode)) throw Error("freight_live_email_not_enabled");
   const bySymbol = new Map(rows.map((r) => [r.symbol, r]));
   const sections = SYMBOLS.map((symbol) => {
     const r = bySymbol.get(symbol) || {symbol, current:false, dataStatus:"missing"};
     const context = contextCopy(r);
-    const title = ROUTES[symbol]?.name || context?.title || symbol;
-    const status = !r.current ? ({stale:"ข้อมูลเก่า — ยังใช้ประเมินปัจจุบันไม่ได้",source_freshness_unknown:"ยังยืนยันความสดของข้อมูลไม่ได้",missing:"ยังไม่มีข้อมูล"}[r.dataStatus] || "ยังไม่มีข้อมูลที่ยืนยันสำหรับประเมินปัจจุบัน") : context ? context.statusTh || "ยังไม่เปิดใช้การประเมิน" : ({pressure_up:"แรงกดดันราคาสูงขึ้น",easing:"แรงกดดันราคาผ่อนคลาย",unclear:"ทิศทางยังไม่ชัดเจน"}[r.signalStatus] || "ทิศทางยังไม่ชัดเจน");
+    const title = ROUTES[symbol]?.name || context?.en || symbol;
+    const status = !r.current ? ({stale:"Outdated data — not a current assessment",source_freshness_unknown:"Source freshness not verified",missing:"Data unavailable"}[r.dataStatus] || "No verified current assessment available") : context ? context.statusEn || "Assessment not enabled" : ({pressure_up:"Upward rate pressure",easing:"Rate pressure easing",unclear:"Direction unclear"}[r.signalStatus] || "Direction unclear");
     const window = ROUTES[symbol] && r.current ? csWindowCopy(r) : null;
-    const lines = [title, status, ...(window ? [window.th,window.explanation] : []), `ข้อมูลต้นทาง: ${date(r.sourceUpdatedAt)}`, `แหล่งข้อมูล: ${r.source || "ยังไม่เชื่อมข้อมูล"}`, ...(context ? [context.explanation] : [])];
+    const explanation = symbol === "BDI" ? "Dry-bulk market context only. This is not a container booking rate and does not establish the direction of rates on your company's routes." : "ZIM equity context only. Company-specific factors may affect the share price; assess it alongside route-level freight data and actual quotes.";
+    const windowExplanation = r.windowState === "expired" ? "The end of this window does not mean rates have started falling." : "An initial rebound has been identified. Consider requesting quotes and reviewing booking terms alongside current offers, vessel space and your shipment schedule.";
+    const lines = [title, status, ...(window ? [window.en,windowExplanation] : []), `Source updated: ${date(r.sourceUpdatedAt)}`, `Source: ${r.source || "Not connected"}`, ...(context ? [explanation] : [])];
     return {symbol, lines};
   });
-  const label = mode === "demo" ? "DEMO — ข้อมูลจำลอง ไม่ใช่รายงานตลาดจริง" : "TEST — รายงานทดสอบ ยังไม่เปิดบริการจริง";
-  const intro = [label,"FreightPulse · ภาพรวมค่าระวางทุกเส้นทางในฉบับเดียว",`จัดทำ: ${date(generatedAt)}`,"6 เส้นทางขนส่งตู้คอนเทนเนอร์ พร้อม BDI และ ZIM เป็นข้อมูลประกอบแยกส่วน"];
-  const footer = ["ก่อนตัดสินใจ ตรวจใบเสนอราคาปัจจุบัน วันหมดอายุราคา พื้นที่เรือ วันเรือออก ค่าใช้จ่ายเพิ่มเติม และเงื่อนไขการจอง", "ข้อมูลฟิวเจอร์สเป็นแนวโน้ม ไม่ใช่ราคาจองจริง สัญญาต่อเนื่องอาจได้รับผลจากการเปลี่ยนเดือนสัญญา ไม่รับประกันราคาที่ดีที่สุดหรือผลประหยัด", "สมาชิก FreightPulse ได้รายงานรวมชุดเดียวกัน ไม่ต้องเลือกเส้นทางเพื่อรับรายงาน สามารถปิดอีเมลได้ในบัญชีเมื่อระบบสมาชิกเปิดใช้"];
+  const label = mode === "demo" ? "DEMO — Illustrative data, not a live market report" : "TEST — Test report; service not yet live";
+  const intro = [label,"FreightPulse · All shipping routes in one brief",`Prepared: ${date(generatedAt)}`,"Six container routes, with separate BDI and ZIM market context"];
+  const footer = ["Before booking, check current quotes, quote validity, vessel space, sailing dates, surcharges and booking terms.", "Futures indicate market trends, not actual booking quotes. Continuous contracts may be affected by contract rolls. No best-price or savings guarantee is made.", "All FreightPulse subscribers receive the same complete route brief. Email preferences will be available in your account when membership launches."];
   return {
-    subject: `[${mode === "demo" ? "DEMO" : "TEST"}] FreightPulse — สรุปค่าระวางครบทุกเส้นทาง`,
+    subject: `[${mode === "demo" ? "DEMO" : "TEST"}] FreightPulse — Your Complete Shipping Brief`,
     text:[...intro,"",...sections.flatMap((s)=>[...s.lines,""]),...footer].join("\n"),
     html:require("./freightDigestDesign")({sections,label,generatedAt,footer,escape,date}),
   };
