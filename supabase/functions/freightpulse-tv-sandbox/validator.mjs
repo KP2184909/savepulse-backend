@@ -9,6 +9,7 @@ const CS_STOP_RULE_VERSION =
   "freightpulse.cs.rebound-next-4.lower-close-stop.v1";
 const CS_RESTART_RULE_VERSION =
   "freightpulse.cs.rebound-next-4.lower-close-restart.v1";
+const BDI_RULE_VERSION = "freightpulse.bdi.rebound-next-4.lower-close-restart.v1";
 
 function family(symbol) {
   return CONTAINERS.includes(symbol)
@@ -85,6 +86,8 @@ function validateSignal(input, now, rules) {
       ].includes(input.ruleVersion))
   )
     throw fail("cs_rule_version_required");
+  const bdiWindow = v2 && input.symbol === "BDI" && input.scriptVersion === "freightpulse.bulk.next4.transport.v1";
+  if (bdiWindow && input.ruleVersion !== BDI_RULE_VERSION) throw fail("bdi_rule_version_required");
   for (const k of ["eventId", "source"])
     if (
       typeof input[k] !== "string" ||
@@ -125,10 +128,10 @@ function validateSignal(input, now, rules) {
     )
   )
     throw fail("invalid_window_state");
-  if (v2 && input.family !== "container" && input.windowState !== "inactive")
+  if (v2 && input.family !== "container" && !bdiWindow && input.windowState !== "inactive")
     throw fail("window_not_applicable");
   const hasWindow =
-    input.family === "container" &&
+    (input.family === "container" || bdiWindow) &&
     (v2
       ? input.windowState === "active"
       : input.signalStatus === "pressure_up");

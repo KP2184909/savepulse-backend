@@ -109,3 +109,21 @@ test("Generated Edge validator agrees with backend on accepted payload and rejec
       /invalid_window/,
     );
 });
+
+test("BDI sandbox rule accepts four-day windows only for its approved transport, preserves freshness masking, and leaves ZIM unchanged", async () => {
+  const edge = await import("../supabase/functions/freightpulse-tv-sandbox/validator.mjs");
+  const backend = require("../src/freightpulse");
+  const bdi = {...fixture, symbol:"INDEX:BDI",family:"bulk",route:null,scriptVersion:"freightpulse.bulk.next4.transport.v1",ruleVersion:"freightpulse.bdi.rebound-next-4.lower-close-restart.v1"};
+  const rules={versions:{BDI:[bdi.scriptVersion,"freightpulse.context.telemetry.v1"],ZIM:[bdi.scriptVersion]}};
+  const now=Date.parse("2026-10-26T12:00:00Z");
+  for(const api of [edge,backend]) {
+    const clean=api.validateSignal(bdi,now,rules);
+    assert.equal(clean.windowDay,2);
+    assert.equal(api.signalView(clean,now,86400).current,false);
+    assert.equal(api.signalView(clean,now,86400).windowDay,null);
+    assert.throws(()=>api.validateSignal({...bdi,windowDay:5},now,rules),/invalid_window/);
+    assert.throws(()=>api.validateSignal({...bdi,ruleVersion:fixture.ruleVersion},now,rules),/bdi_rule_version_required/);
+    assert.throws(()=>api.validateSignal({...bdi,scriptVersion:"freightpulse.context.telemetry.v1"},now,rules),/window_not_applicable/);
+    assert.throws(()=>api.validateSignal({...bdi,symbol:"NYSE:ZIM",family:"context"},now,rules),/window_not_applicable/);
+  }
+});
