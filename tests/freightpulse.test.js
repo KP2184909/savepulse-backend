@@ -953,3 +953,25 @@ test("member report never publishes unapproved BDI/ZIM assessments even with fre
     ),
   );
 });
+
+test("confirmed lower-close stop retains the falling day highlight but invalidates its closing payload", () => {
+  const { firstCsWindow } = require("../src/freightCsDemoRule");
+  const bars = [100, 99, 101, 100, 105, 110].map((close, i) => ({
+    time: new Date(NOW + i * DAY).toISOString(),
+    close,
+    closed: true,
+  }));
+  const rows = firstCsWindow(bars, { stopOnLowerClose: true });
+  assert.equal(rows[2].windowDay, null); // confirmation excluded
+  assert.equal(rows[3].highlightDay, 1);
+  assert.equal(rows[3].windowState, "invalidated");
+  assert.equal(rows[3].windowDay, null);
+  assert.equal(rows[4].windowState, "invalidated"); // no inferred restart
+  const payload = signal({
+    ruleVersion: rows[3].ruleVersion,
+    windowState: "invalidated",
+    windowDay: null,
+    windowStart: null,
+  });
+  assert.equal(validateSignal(payload, NOW, rules).windowState, "invalidated");
+});

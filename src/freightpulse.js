@@ -9,6 +9,8 @@ const CONTAINERS = ["CS11!", "CS21!", "CS31!", "CS41!", "CS51!", "CS61!"];
 const SYMBOLS = [...CONTAINERS, "BDI", "ZIM"];
 const STATES = ["pressure_up", "easing", "unclear"];
 const CS_RULE_VERSION = "freightpulse.cs.rebound-next-4.v1";
+const CS_STOP_RULE_VERSION =
+  "freightpulse.cs.rebound-next-4.lower-close-stop.v1";
 const PRICE = Object.freeze({
   service: "freightpulse",
   amount: 9900,
@@ -112,7 +114,8 @@ function validateSignal(input, now, rules) {
     throw fail("closed_daily_bar_required");
   if (
     input.family === "container" &&
-    (!v2 || input.ruleVersion !== CS_RULE_VERSION)
+    (!v2 ||
+      ![CS_RULE_VERSION, CS_STOP_RULE_VERSION].includes(input.ruleVersion))
   )
     throw fail("cs_rule_version_required");
   for (const k of ["eventId", "source"])
@@ -499,7 +502,10 @@ function createFreightService({
         const signal = await store.get(`freight:signal:test:${symbol}`),
           view = signalView(signal, now(), rules.maxAgeSeconds?.[symbol]);
         // New CS rule is demo/sandbox only: no real email delivery until separately approved.
-        if (signal?.ruleVersion === CS_RULE_VERSION) continue;
+        if (
+          [CS_RULE_VERSION, CS_STOP_RULE_VERSION].includes(signal?.ruleVersion)
+        )
+          continue;
         if (!view.current || view.signalStatus === "unclear") continue;
         const id = hash(`${company.id}:${symbol}:${signal.barTime}`),
           key = `freight:mail:${id}`,

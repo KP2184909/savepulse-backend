@@ -1,6 +1,12 @@
 "use strict";
 function csWindowCopy(row) {
-  if (row.ruleVersion !== "freightpulse.cs.rebound-next-4.v1") return null;
+  if (
+    ![
+      "freightpulse.cs.rebound-next-4.v1",
+      "freightpulse.cs.rebound-next-4.lower-close-stop.v1",
+    ].includes(row.ruleVersion)
+  )
+    return null;
   if (row.windowState === "expired")
     return {
       th: "สิ้นสุดช่วงพิจารณาล็อกค่าระวาง",

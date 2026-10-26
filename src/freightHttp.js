@@ -41,6 +41,54 @@ function createFreightHttp({
       sendJson(res, 503, { error: "freight_sandbox_disabled" });
       return true;
     }
+    // TradingView cannot supply our worker's Authorization header. Use a separate,
+    // tightly scoped test-only token envelope; never forward or log that token.
+    if (req.method === "POST" && path === "tradingview/test") {
+      if (env.FREIGHT_TV_TEST_ENABLED !== "true") {
+        sendJson(res, 503, { error: "freight_tradingview_test_disabled" });
+        return true;
+      }
+      const configuredSecret = env.FREIGHT_TV_TEST_SECRET;
+      if (
+        !/^[A-Za-z0-9_-]{24,128}$/.test(configuredSecret || "") ||
+        [
+          env.WEBHOOK_SECRET,
+          env.FREIGHT_TEST_FEED_SECRET,
+          env.FREIGHT_JOB_SECRET,
+        ].some((s) => s && constantEqual(s, configuredSecret))
+      ) {
+        sendJson(res, 503, {
+          error: "dedicated_freight_tv_test_secret_required",
+        });
+        return true;
+      }
+      const body = await parseBody(req);
+      if (
+        !body ||
+        typeof body !== "object" ||
+        Array.isArray(body) ||
+        !constantEqual(
+          typeof body.secret_key === "string" ? body.secret_key : "",
+          configuredSecret,
+        )
+      ) {
+        sendJson(res, 401, { error: "freight_tradingview_unauthorized" });
+        return true;
+      }
+      if (
+        Object.keys(body).some((k) => !["secret_key", "payload"].includes(k)) ||
+        !body.payload ||
+        typeof body.payload !== "object" ||
+        Array.isArray(body.payload) ||
+        body.payload.dataMode !== "test"
+      ) {
+        sendJson(res, 422, { error: "invalid_tradingview_test_envelope" });
+        return true;
+      }
+      // A successful acknowledgement means durable ingest completed, not a background guess.
+      sendJson(res, 200, await service.ingest(body.payload));
+      return true;
+    }
     if (req.method === "POST" && ["auth/code", "auth/verify"].includes(path)) {
       const body = await parseBody(req);
       if (

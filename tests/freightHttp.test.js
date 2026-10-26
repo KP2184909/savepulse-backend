@@ -167,3 +167,180 @@ test("sandbox auth never forwards arbitrary customer email to the shared identit
     true,
   );
 });
+
+test("TradingView test endpoint strips the scoped token and cannot access jobs, live or customer APIs", async () => {
+  env.FREIGHT_TV_TEST_ENABLED = "true";
+  env.FREIGHT_TV_TEST_SECRET = "test-only-scoped-token-123456789";
+  const original = service.ingest;
+  let received;
+  service.ingest = async (payload) => {
+    received = payload;
+    return { accepted: true };
+  };
+  const send = (body) =>
+    fetch(base + "tradingview/test", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  try {
+    assert.equal(
+      (await send({ secret_key: "wrong", payload: { dataMode: "test" } }))
+        .status,
+      401,
+    );
+    const envelope = {
+      secret_key: env.FREIGHT_TV_TEST_SECRET,
+      payload: { dataMode: "test", symbol: "CS11!" },
+    };
+    const response = await send(envelope);
+    assert.equal(response.status, 200);
+    assert.deepEqual(received, envelope.payload);
+    assert.ok(!JSON.stringify(received).includes(env.FREIGHT_TV_TEST_SECRET));
+    assert.ok(!(await response.text()).includes(env.FREIGHT_TV_TEST_SECRET));
+    assert.equal(
+      (await send({ ...envelope, payload: { dataMode: "live" } })).status,
+      422,
+    );
+    assert.equal(
+      (await send({ ...envelope, extra: "unexpected" })).status,
+      422,
+    );
+    assert.equal(
+      (await send({ secret_key: env.FREIGHT_TV_TEST_SECRET, payload: [] }))
+        .status,
+      422,
+    );
+    env.FREIGHT_TV_TEST_ENABLED = "false";
+    assert.equal((await send(envelope)).status, 503);
+    env.FREIGHT_TV_TEST_ENABLED = "true";
+    env.FREIGHT_TV_TEST_SECRET = env.FREIGHT_TEST_FEED_SECRET;
+    assert.equal((await send(envelope)).status, 503);
+  } finally {
+    service.ingest = original;
+    delete env.FREIGHT_TV_TEST_ENABLED;
+    delete env.FREIGHT_TV_TEST_SECRET;
+  }
+});
+
+test("TradingView envelopes for all eight instruments validate, deduplicate and persist without credentials", async () => {
+  const { createFreightService, SYMBOLS } = require("../src/freightpulse");
+  const { firstCsWindow } = require("../src/freightCsDemoRule");
+  const rows = new Map();
+  const store = {
+    get: async (k) => structuredClone(rows.get(k) || null),
+    insert: async (k, v) => {
+      if (rows.has(k)) return false;
+      rows.set(k, structuredClone(v));
+      return true;
+    },
+    cas: async (k, version, v) => {
+      if (rows.get(k)?.version !== version) return false;
+      rows.set(k, structuredClone(v));
+      return true;
+    },
+    listCompanies: async () => [],
+  };
+  const now = Date.parse("2026-10-26T12:00:00Z");
+  const scriptCs = "freightpulse.container.next4.transport.v2",
+    scriptContext = "freightpulse.context.telemetry.v1";
+  const rules = {
+    versions: Object.fromEntries(
+      SYMBOLS.map((s) => [s, [s.startsWith("CS") ? scriptCs : scriptContext]]),
+    ),
+  };
+  const build = () =>
+    createFreightService({
+      store,
+      identity: async () => {
+        throw Error("not used");
+      },
+      rules,
+      enabled: true,
+      now: () => now,
+    });
+  const original = service.ingest;
+  const real = build();
+  service.ingest = real.ingest;
+  env.FREIGHT_TV_TEST_ENABLED = "true";
+  env.FREIGHT_TV_TEST_SECRET = "isolated-transport-test-token-012345";
+  const send = (payload) =>
+    fetch(base + "tradingview/test", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ secret_key: env.FREIGHT_TV_TEST_SECRET, payload }),
+    });
+  try {
+    const bar = new Date(now - 86400000).toISOString();
+    const window = firstCsWindow(
+      [100, 99, 101, 102].map((close, i) => ({
+        time: new Date(now - (4 - i) * 86400000).toISOString(),
+        close,
+        closed: true,
+      })),
+      { stopOnLowerClose: true },
+    )[3];
+    const payloads = SYMBOLS.map((symbol, index) => {
+      const cs = symbol.startsWith("CS");
+      return {
+        contractVersion: "freightpulse.draft.v2",
+        scriptVersion: cs ? scriptCs : scriptContext,
+        eventId: "fixture-" + symbol,
+        symbol:
+          (cs ? "NYMEX:" : symbol === "BDI" ? "INDEX:" : "NYSE:") + symbol,
+        family: cs ? "container" : symbol === "BDI" ? "bulk" : "context",
+        route: cs
+          ? ["FBX01", "FBX02", "FBX03", "FBX11", "FBX12", "FBX13"][index]
+          : null,
+        timeframe: "1D",
+        barTime: bar,
+        barCloseTime: new Date(now - 3600000).toISOString(),
+        barClosed: true,
+        signalStatus: cs ? "pressure_up" : "unclear",
+        windowState: cs ? window.windowState : "inactive",
+        windowDay: cs ? window.windowDay : null,
+        windowStart: cs ? window.windowStart : null,
+        ...(cs
+          ? {
+              ruleVersion: window.ruleVersion,
+              confirmationBarTime: window.confirmationBarTime,
+            }
+          : {}),
+        sourceUpdatedAt: null,
+        sourceFreshness: "unknown",
+        source: "test-fixture",
+        dataMode: "test",
+      };
+    });
+    for (const payload of payloads) {
+      const response = await send(payload);
+      assert.equal(response.status, 200, await response.clone().text());
+      assert.equal((await response.json()).accepted, true);
+    }
+    assert.equal(rows.size, 8);
+    assert.ok(
+      !JSON.stringify([...rows.values()]).includes(env.FREIGHT_TV_TEST_SECRET),
+    );
+    service.ingest = build().ingest;
+    assert.equal(
+      (
+        await (
+          await send({ ...payloads[0], eventId: "new-id-same-bar" })
+        ).json()
+      ).duplicate,
+      true,
+    );
+    const old = {
+      ...payloads[6],
+      barTime: new Date(now - 3 * 86400000).toISOString(),
+      barCloseTime: new Date(now - 2 * 86400000).toISOString(),
+    };
+    assert.equal((await send(old)).status, 409);
+    assert.equal((await send({ ...payloads[0], route: "FBX02" })).status, 422);
+    assert.equal(rows.size, 8);
+  } finally {
+    service.ingest = original;
+    delete env.FREIGHT_TV_TEST_ENABLED;
+    delete env.FREIGHT_TV_TEST_SECRET;
+  }
+});
