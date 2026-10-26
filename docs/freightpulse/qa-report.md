@@ -1,4 +1,21 @@
-# FreightPulse QA — 25 October 2026
+# Current readiness — 26 October 2026
+
+This section supersedes historical counts and setup blockers below.
+
+- Local suite: 141/141 PASS.
+- TradingView UI: CS11–CS61, BDI and ZIM alerts Active. Superseded CS21 and legacy ZIM Stopped manually. Dedicated sandbox URL, 1D, Any alert() function call; credentials entered by the owner.
+- Isolated Supabase sandbox: Edge function version 4 ACTIVE. Synthetic public checks: CS receiver 14/14, BDI adapter 4/4, ZIM adapter 4/4 PASS. Synthetic rows removed. These checks are not actual TradingView delivery.
+- Actual TradingView delivery: NOT VERIFIED, no chart events received. Unknown source freshness remains non-current even after receipt.
+- Latest Deploy Preview browser: eight Demo cards render; route names and separate context are present. Membership and checkout are disabled with an explicit sandbox-not-connected message.
+- Stripe connector recheck still returns UNAUTHORIZED/requires reauthentication despite earlier successful owner OAuth. Actual provider subscription, renewal, failure, cancellation and Portal integration remain NOT VERIFIED. Local mocked lifecycle tests are separate evidence.
+- Isolated member/billing backend is not deployed/configured for this preview. The Supabase Edge receiver is ingestion-only. The preview /api proxy still targets SavePulse Production, where FreightPulse stays disabled.
+- No Production merge, live sale, real charge, customer alert, invitation schedule/quota or CRM change.
+
+Next external evidence: genuine closed-daily TradingView receipt, source freshness/data-rights decisions, and working Stripe sandbox integration with an isolated member backend. Seats, trial, discounts and tax remain owner decisions before sale. A paid signup URL is not ready.
+
+---
+
+# Historical FreightPulse QA — 25 October 2026
 
 ## Release status
 
