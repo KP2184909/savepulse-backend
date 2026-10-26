@@ -508,21 +508,15 @@ function createFreightService({
         !company.preferences.email
       )
         continue;
-      for (const symbol of company.preferences.routes) {
-        const signal = await store.get(`freight:signal:test:${symbol}`),
-          view = signalView(signal, now(), rules.maxAgeSeconds?.[symbol]);
-        // New CS rule is demo/sandbox only: no real email delivery until separately approved.
-        if (
-          [
-            CS_RULE_VERSION,
-            CS_STOP_RULE_VERSION,
-            CS_RESTART_RULE_VERSION,
-            BDI_RULE_VERSION,
-            "freightpulse.zim.savepulse-ema14-60-window5.v1",
-          ].includes(signal?.ruleVersion)
-        )
-          continue;
-        if (!view.current || view.signalStatus === "unclear") continue;
+      // Every FreightPulse subscriber receives the same full-route report.
+      // Route preferences affect the dashboard, not digest coverage.
+      const allSignals = await Promise.all(SYMBOLS.map((s) => store.get(`freight:signal:test:${s}`)));
+      const rows = SYMBOLS.map((symbol, i) => ({symbol, ...signalView(allSignals[i], now(), rules.maxAgeSeconds?.[symbol])}));
+      const blockedRules = [CS_RULE_VERSION, CS_STOP_RULE_VERSION, CS_RESTART_RULE_VERSION, BDI_RULE_VERSION, "freightpulse.zim.savepulse-ema14-60-window5.v1"];
+      const eligible = allSignals.filter((s) => s && !blockedRules.includes(s.ruleVersion) && signalView(s, now(), rules.maxAgeSeconds?.[s.symbol]).current);
+      if (!eligible.length) continue;
+      const signal = eligible.reduce((a,b) => Date.parse(a.barTime) >= Date.parse(b.barTime) ? a : b);
+      for (const symbol of ["ALL_ROUTES"]) {
         const id = hash(`${company.id}:${symbol}:${signal.barTime}`),
           key = `freight:mail:${id}`,
           lease = crypto.randomUUID();
@@ -557,16 +551,11 @@ function createFreightService({
           if (
             !hasAccess(latest, now()) ||
             !latest.preferences.email ||
-            !latest.preferences.routes.includes(symbol) ||
-            !signalView(signal, now(), rules.maxAgeSeconds?.[symbol]).current
+            !signalView(signal, now(), rules.maxAgeSeconds?.[signal.symbol]).current
           )
             throw fail("notification_no_longer_eligible", 409);
-          const providerId = await send({
-            email: company.ownerEmail,
-            subject: `[TEST] FreightPulse ${symbol}: ${signal.signalStatus}`,
-            text: `TEST DATA — not a booking quote. ${symbol}: ${signal.signalStatus}. Source updated ${signal.sourceUpdatedAt}. Check quote expiry, vessel space, sailing date and booking terms. Continuous futures may have rollover effects.`,
-            idempotencyKey: `freight-${id}`,
-          });
+          const digest = require("./freightDigestEmail").freightDigestEmail({rows,generatedAt:new Date(now()).toISOString(),mode:"test"});
+          const providerId = await send({email:company.ownerEmail,...digest,idempotencyKey:`freight-${id}`});
           if (typeof providerId !== "string" || !providerId)
             throw fail("email_provider_unconfirmed", 503);
           await mutate(key, (old) => {

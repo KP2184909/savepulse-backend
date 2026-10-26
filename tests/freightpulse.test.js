@@ -1031,3 +1031,15 @@ test("restart approval does not invent a new cycle after normal expiry", () => {
       .every((x) => x.windowState === "expired" && x.windowDay === null),
   );
 });
+
+test("FreightPulse email is one full-route digest independent of selected routes", async () => {
+  const h=setup(); await activate(h);
+  await h.service.ingest(signal());
+  h.store.rows.get("freight:signal:test:CS11!").ruleVersion="legacy-worker-fixture-only";
+  await h.service.preferences("verified",{routes:[],email:true});
+  assert.equal((await h.service.notifications()).sent,1);
+  assert.equal(h.mail.length,1);
+  for(const route of Object.values(require("../public/freightpulse/routes"))) assert.ok(h.mail[0].text.includes(route.name));
+  assert.equal((await h.service.notifications()).sent,0);
+  assert.equal((await h.service.report("verified")).history[0].symbol,"ALL_ROUTES");
+});
