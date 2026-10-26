@@ -85,3 +85,9 @@ Pine v6 CS transport and BDI/ZIM telemetry files are provided, send disabled by 
 ## Restart approval follow-up
 
 Local suite: 136/136 PASS. Added regression cases for invalidating day1, flat/further declines while waiting, a new confirmation excluded from numbering, day1 at the next available bar, a second invalidation at day2 and another new cycle. A separate test ensures this approval does not silently create restart rules after normal four-day expiry. Updated Pine v1.2/script transport.v3 and exact backend rule allowlist; actual emails remain blocked. Pine compiler and actual TradingView delivery remain NOT VERIFIED; no live endpoint/deployment was activated.
+
+## Delayed NYMEX runtime guard fix
+
+Safari live UI diagnosed User-defined error RE10142, bar0: the NYMEX-only prefix guard rejected the user's valid delayed NYMEX_DL CS charts. Replaced only that guard in the user's existing private script (saved name FrieghtPulse) to accept NYMEX or NYMEX_DL, retained the chart/timeframe/symbol restrictions, and used Update on chart. After update the error controls disappeared from the visible CS11/CS21/CS41 instances; CS31's aggregate indicator-error marker also disappeared. No webhook token/input/alert was changed. This verifies the user's pasted v1.2 compiles/runs after the minimal guard fix, not actual webhook delivery or every branch of the transport.
+
+Repository artifact advances to indicator v1.3/script transport.v4, retains canonical NYMEX payload symbols, and marks the source TradingView-NYMEX-delayed-sandbox when running on NYMEX_DL. Actual publisher freshness remains unknown; delayed feeds are never relabeled fresh by receipt time. This full repository variant still requires its own TradingView compile check if pasted; the live user edit was intentionally the minimal guard patch.

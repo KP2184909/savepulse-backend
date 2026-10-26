@@ -2,7 +2,7 @@
 
 ## Deliverables and status
 
-- `pine/freightpulse/container-next4-sandbox.pine`: Pine v6, CS11!–CS61!, 1D standard NYMEX charts, rule `freightpulse.cs.rebound-next-4.lower-close-restart.v1`, script `freightpulse.container.next4.transport.v3`.
+- `pine/freightpulse/container-next4-sandbox.pine`: Pine v6, CS11!–CS61!, 1D standard NYMEX/NYMEX_DL charts, rule `freightpulse.cs.rebound-next-4.lower-close-restart.v1`, script `freightpulse.container.next4.transport.v4`.
 - `pine/freightpulse/context-telemetry-sandbox.pine`: Pine v6, INDEX:BDI and NYSE:ZIM, 1D standard charts; transport diagnostics only. No BDI strategy or substitute ZIM algorithm. script `freightpulse.context.telemetry.v1`.
 - Receiver: POST `/api/v1/freightpulse/tradingview/test`. All eight charts use the same receiver; symbol/family/FBX route distinguish them. Not Stripe billing webhook or SavePulse webhook.
 - NOT deployed/activated. Pine compiler and actual TradingView delivery are NOT VERIFIED yet. Do not create enabled alerts against the Production hostname based on these files alone.
@@ -22,7 +22,7 @@ No hosting upgrade or paid service is authorized. Existing free Render instances
 - Explicit `FREIGHT_TEST_RULES_JSON` script allowlist, for example the value below. No source freshness SLA is invented; Pine cannot supply actual publisher timestamps, so this transport reports unknown freshness and cannot show current assessments.
 
 ```json
-{"versions":{"CS11!":["freightpulse.container.next4.transport.v3"],"CS21!":["freightpulse.container.next4.transport.v3"],"CS31!":["freightpulse.container.next4.transport.v3"],"CS41!":["freightpulse.container.next4.transport.v3"],"CS51!":["freightpulse.container.next4.transport.v3"],"CS61!":["freightpulse.container.next4.transport.v3"],"BDI":["freightpulse.context.telemetry.v1"],"ZIM":["freightpulse.context.telemetry.v1"]}}
+{"versions":{"CS11!":["freightpulse.container.next4.transport.v4"],"CS21!":["freightpulse.container.next4.transport.v4"],"CS31!":["freightpulse.container.next4.transport.v4"],"CS41!":["freightpulse.container.next4.transport.v4"],"CS51!":["freightpulse.container.next4.transport.v4"],"CS61!":["freightpulse.container.next4.transport.v4"],"BDI":["freightpulse.context.telemetry.v1"],"ZIM":["freightpulse.context.telemetry.v1"]}}
 ```
 
 Keep `FREIGHT_TEST_EMAIL_ENABLED=false`. Live ingestion remains disabled regardless of these settings. Subscription/Stripe configuration is separate and not required to authorize machine ingestion; member reports still require backend-verified member entitlement.

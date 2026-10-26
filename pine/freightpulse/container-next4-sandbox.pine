@@ -1,10 +1,10 @@
 //@version=6
-indicator("FreightPulse CS Sandbox Feed v1.2", overlay = true)
+indicator("FreightPulse CS Sandbox Feed v1.3", overlay = true)
 // Private TEST transport. Lower close ends the current window after that bar.
 // After invalidation, use that lower-close bar as the baseline while waiting for a new rebound.
 // Restart after normal four-day expiry and rollover remain unapproved.
 // Do not publish a script containing configured credentials or show its Inputs in screenshots.
-string SCRIPT = "freightpulse.container.next4.transport.v3"
+string SCRIPT = "freightpulse.container.next4.transport.v4"
 string RULE = "freightpulse.cs.rebound-next-4.lower-close-restart.v1"
 bool enableSend = input.bool(false, "Enable sandbox webhook output", display = display.none)
 string token = input.string("", "Dedicated FreightPulse TEST webhook token", display = display.none)
@@ -18,7 +18,7 @@ string route = switch code
     "CS51!" => "FBX12"
     "CS61!" => "FBX13"
     => ""
-bool chartOk = timeframe.isdaily and timeframe.multiplier == 1 and syminfo.prefix == "NYMEX" and route != "" and chart.is_standard
+bool chartOk = timeframe.isdaily and timeframe.multiplier == 1 and (syminfo.prefix == "NYMEX" or syminfo.prefix == "NYMEX_DL") and route != "" and chart.is_standard
 if barstate.isfirst and not chartOk
     runtime.error("Use a standard NYMEX CS11!–CS61! chart on 1D.")
 f_quote(string value) =>
@@ -56,7 +56,7 @@ if barstate.isconfirmed and not na(close) and reviewStart > 0 and time >= review
     previousClose := close
     if enableSend and barstate.isrealtime and str.length(token) >= 24 and not na(time_close)
         string status = na(confirmation) ? "unclear" : "pressure_up"
-        string payload = "{\"contractVersion\":\"freightpulse.draft.v2\",\"ruleVersion\":" + f_quote(RULE) + ",\"scriptVersion\":" + f_quote(SCRIPT) + ",\"eventId\":" + f_quote(SCRIPT + ":" + code + ":" + str.tostring(time)) + ",\"symbol\":" + f_quote("NYMEX:" + code) + ",\"family\":\"container\",\"route\":" + f_quote(route) + ",\"timeframe\":\"1D\",\"barTime\":" + f_time(time) + ",\"barCloseTime\":" + f_time(time_close) + ",\"barClosed\":true,\"signalStatus\":" + f_quote(status) + ",\"windowState\":" + f_quote(state) + ",\"windowDay\":" + (state == "active" ? str.tostring(day) : "null") + ",\"windowStart\":" + f_time(state == "active" ? start : na) + ",\"confirmationBarTime\":" + f_time(confirmation) + ",\"sourceUpdatedAt\":null,\"sourceFreshness\":\"unknown\",\"source\":\"TradingView-Pine-sandbox\",\"dataMode\":\"test\"}"
+        string payload = "{\"contractVersion\":\"freightpulse.draft.v2\",\"ruleVersion\":" + f_quote(RULE) + ",\"scriptVersion\":" + f_quote(SCRIPT) + ",\"eventId\":" + f_quote(SCRIPT + ":" + code + ":" + str.tostring(time)) + ",\"symbol\":" + f_quote("NYMEX:" + code) + ",\"family\":\"container\",\"route\":" + f_quote(route) + ",\"timeframe\":\"1D\",\"barTime\":" + f_time(time) + ",\"barCloseTime\":" + f_time(time_close) + ",\"barClosed\":true,\"signalStatus\":" + f_quote(status) + ",\"windowState\":" + f_quote(state) + ",\"windowDay\":" + (state == "active" ? str.tostring(day) : "null") + ",\"windowStart\":" + f_time(state == "active" ? start : na) + ",\"confirmationBarTime\":" + f_time(confirmation) + ",\"sourceUpdatedAt\":null,\"sourceFreshness\":\"unknown\",\"source\":" + f_quote(syminfo.prefix == "NYMEX_DL" ? "TradingView-NYMEX-delayed-sandbox" : "TradingView-NYMEX-sandbox") + ",\"dataMode\":\"test\"}"
         alert("{\"secret_key\":" + f_quote(token) + ",\"payload\":" + payload + "}", alert.freq_once_per_bar_close)
 bgcolor(not na(highlightDay) ? color.new(color.teal, 85) : na)
 plot(highlightDay, "Sandbox window day (1–4)", display = display.data_window)
