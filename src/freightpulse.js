@@ -11,6 +11,8 @@ const STATES = ["pressure_up", "easing", "unclear"];
 const CS_RULE_VERSION = "freightpulse.cs.rebound-next-4.v1";
 const CS_STOP_RULE_VERSION =
   "freightpulse.cs.rebound-next-4.lower-close-stop.v1";
+const CS_RESTART_RULE_VERSION =
+  "freightpulse.cs.rebound-next-4.lower-close-restart.v1";
 const PRICE = Object.freeze({
   service: "freightpulse",
   amount: 9900,
@@ -115,7 +117,11 @@ function validateSignal(input, now, rules) {
   if (
     input.family === "container" &&
     (!v2 ||
-      ![CS_RULE_VERSION, CS_STOP_RULE_VERSION].includes(input.ruleVersion))
+      ![
+        CS_RULE_VERSION,
+        CS_STOP_RULE_VERSION,
+        CS_RESTART_RULE_VERSION,
+      ].includes(input.ruleVersion))
   )
     throw fail("cs_rule_version_required");
   for (const k of ["eventId", "source"])
@@ -503,7 +509,11 @@ function createFreightService({
           view = signalView(signal, now(), rules.maxAgeSeconds?.[symbol]);
         // New CS rule is demo/sandbox only: no real email delivery until separately approved.
         if (
-          [CS_RULE_VERSION, CS_STOP_RULE_VERSION].includes(signal?.ruleVersion)
+          [
+            CS_RULE_VERSION,
+            CS_STOP_RULE_VERSION,
+            CS_RESTART_RULE_VERSION,
+          ].includes(signal?.ruleVersion)
         )
           continue;
         if (!view.current || view.signalStatus === "unclear") continue;

@@ -2,7 +2,7 @@
 
 ## Deliverables and status
 
-- `pine/freightpulse/container-next4-sandbox.pine`: Pine v6, CS11!–CS61!, 1D standard NYMEX charts, rule `freightpulse.cs.rebound-next-4.lower-close-stop.v1`, script `freightpulse.container.next4.transport.v2`.
+- `pine/freightpulse/container-next4-sandbox.pine`: Pine v6, CS11!–CS61!, 1D standard NYMEX charts, rule `freightpulse.cs.rebound-next-4.lower-close-restart.v1`, script `freightpulse.container.next4.transport.v3`.
 - `pine/freightpulse/context-telemetry-sandbox.pine`: Pine v6, INDEX:BDI and NYSE:ZIM, 1D standard charts; transport diagnostics only. No BDI strategy or substitute ZIM algorithm. script `freightpulse.context.telemetry.v1`.
 - Receiver: POST `/api/v1/freightpulse/tradingview/test`. All eight charts use the same receiver; symbol/family/FBX route distinguish them. Not Stripe billing webhook or SavePulse webhook.
 - NOT deployed/activated. Pine compiler and actual TradingView delivery are NOT VERIFIED yet. Do not create enabled alerts against the Production hostname based on these files alone.
@@ -22,7 +22,7 @@ No hosting upgrade or paid service is authorized. Existing free Render instances
 - Explicit `FREIGHT_TEST_RULES_JSON` script allowlist, for example the value below. No source freshness SLA is invented; Pine cannot supply actual publisher timestamps, so this transport reports unknown freshness and cannot show current assessments.
 
 ```json
-{"versions":{"CS11!":["freightpulse.container.next4.transport.v2"],"CS21!":["freightpulse.container.next4.transport.v2"],"CS31!":["freightpulse.container.next4.transport.v2"],"CS41!":["freightpulse.container.next4.transport.v2"],"CS51!":["freightpulse.container.next4.transport.v2"],"CS61!":["freightpulse.container.next4.transport.v2"],"BDI":["freightpulse.context.telemetry.v1"],"ZIM":["freightpulse.context.telemetry.v1"]}}
+{"versions":{"CS11!":["freightpulse.container.next4.transport.v3"],"CS21!":["freightpulse.container.next4.transport.v3"],"CS31!":["freightpulse.container.next4.transport.v3"],"CS41!":["freightpulse.container.next4.transport.v3"],"CS51!":["freightpulse.container.next4.transport.v3"],"CS61!":["freightpulse.container.next4.transport.v3"],"BDI":["freightpulse.context.telemetry.v1"],"ZIM":["freightpulse.context.telemetry.v1"]}}
 ```
 
 Keep `FREIGHT_TEST_EMAIL_ENABLED=false`. Live ingestion remains disabled regardless of these settings. Subscription/Stripe configuration is separate and not required to authorize machine ingestion; member reports still require backend-verified member entitlement.
@@ -30,7 +30,7 @@ Keep `FREIGHT_TEST_EMAIL_ENABLED=false`. Live ingestion remains disabled regardl
 ## Pine and alert setup after receiver readiness
 
 1. Keep source private. Paste the appropriate file into a NEW Pine Editor script, never overwrite the existing SavePulse engine. Compile first, then add to a standard 1D chart. No Pine compiler success is claimed in this delivery.
-2. CS: select the chart's actual NYMEX CS symbol. The script derives the FBX route automatically. Choose an explicit single-cycle review start. Zero leaves the rule inactive. This is not the multi-cycle v0.4 historical indicator: automatic restart and rollover have not been approved. A lower close on window days1–4 retains that day's background but sends invalidated with null windowDay/windowStart after close. No next day is counted. Flat closes continue the existing cycle; no synthetic bars are added for missing dates. Confirmation is excluded and the next data-bearing daily bar is day1.
+2. CS: select the chart's actual NYMEX CS symbol. The script derives the FBX route automatically. Choose an explicit review start. Zero leaves the rule inactive. A lower close that invalidates an active window is now the baseline for waiting for a fresh rebound. The fresh confirmation is excluded and the next available bar starts a new day1. There is no overlapping restart while the current window remains active. Restart after normal four-day expiry and rollover remain unapproved. A lower close on window days1–4 retains that day's background but sends invalidated with null windowDay/windowStart after close. No next day is counted. Flat closes continue an active cycle; while waiting they do not count as a rebound. No synthetic bars are added for missing dates. Confirmation is excluded and the next data-bearing daily bar is day1.
 3. BDI/ZIM: add the context telemetry script to each chart. Its unclear field is a transport placeholder; the backend forces assessment not enabled. Do not interpret it as an actual market assessment. The original ZIM Daily Feed EMA14/60 source has not been verified; a different Supertrend file is not a valid replacement.
 4. Enter the dedicated FreightPulse TEST token yourself through the private indicator Inputs, then enable sandbox output. It is not a password-masked input. `display.none` only hides it from status/data-window displays; do not share Inputs screenshots or publish configured script snapshots. Alert names and chart labels never include the token. No secret is stored in the repository.
 5. Create one alert per chart (six CS plus BDI/ZIM if testing all eight). Condition: this script → Any alert() function call. The script sends only realtime confirmed daily bars with alert.freq_once_per_bar_close. Historical bars/replay do not constitute webhook delivery.

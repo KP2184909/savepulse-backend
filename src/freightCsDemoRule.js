@@ -2,7 +2,12 @@
 const RULE_VERSION = "freightpulse.cs.rebound-next-4.v1";
 // Reference evaluator for ONE cycle only, for sandbox fixtures/Pine agreement.
 // After the first window ends it never invents a restart/cancellation/rollover rule.
-function firstCsWindow(bars, { stopOnLowerClose = false } = {}) {
+function firstCsWindow(
+  bars,
+  { stopOnLowerClose = false, restartAfterInvalidation = false } = {},
+) {
+  if (restartAfterInvalidation && !stopOnLowerClose)
+    throw Error("restart_requires_lower_close_stop");
   let waiting = false,
     confirmationBarTime = null,
     windowStart = null,
@@ -18,6 +23,13 @@ function firstCsWindow(bars, { stopOnLowerClose = false } = {}) {
       (previous && time <= Date.parse(previous.time))
     )
       throw Error("ordered_closed_daily_data_required");
+    if (stopped && restartAfterInvalidation) {
+      stopped = false;
+      waiting = true;
+      confirmationBarTime = null;
+      windowStart = null;
+      day = 0;
+    }
     let windowState = "inactive",
       windowDay = null;
     let highlightDay = null;
@@ -42,9 +54,11 @@ function firstCsWindow(bars, { stopOnLowerClose = false } = {}) {
     }
     previous = bar;
     return {
-      ruleVersion: stopOnLowerClose
-        ? "freightpulse.cs.rebound-next-4.lower-close-stop.v1"
-        : RULE_VERSION,
+      ruleVersion: restartAfterInvalidation
+        ? "freightpulse.cs.rebound-next-4.lower-close-restart.v1"
+        : stopOnLowerClose
+          ? "freightpulse.cs.rebound-next-4.lower-close-stop.v1"
+          : RULE_VERSION,
       highlightDay,
       confirmationBarTime,
       windowState,

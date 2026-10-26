@@ -975,3 +975,59 @@ test("confirmed lower-close stop retains the falling day highlight but invalidat
   });
   assert.equal(validateSignal(payload, NOW, rules).windowState, "invalidated");
 });
+
+test("approved restart waits from the invalidating lower close and excludes each new confirmation", () => {
+  const { firstCsWindow } = require("../src/freightCsDemoRule");
+  const closes = [100, 99, 101, 100, 100, 98, 102, 103, 102, 104, 105];
+  const bars = closes.map((close, i) => ({
+    time: new Date(NOW + i * DAY).toISOString(),
+    close,
+    closed: true,
+  }));
+  const rows = firstCsWindow(bars, {
+    stopOnLowerClose: true,
+    restartAfterInvalidation: true,
+  });
+  assert.equal(rows[3].windowState, "invalidated");
+  assert.equal(rows[3].highlightDay, 1);
+  assert.equal(rows[4].confirmationBarTime, null); // flat close: keep waiting
+  assert.equal(rows[5].confirmationBarTime, null); // further decline: keep waiting
+  assert.equal(rows[6].confirmationBarTime, bars[6].time);
+  assert.equal(rows[6].windowDay, null);
+  assert.equal(rows[7].windowDay, 1);
+  assert.equal(rows[7].windowStart, bars[7].time);
+  assert.equal(rows[8].windowState, "invalidated");
+  assert.equal(rows[8].highlightDay, 2);
+  assert.equal(rows[9].confirmationBarTime, bars[9].time);
+  assert.equal(rows[9].windowDay, null);
+  assert.equal(rows[10].windowDay, 1);
+  assert.equal(
+    rows[10].ruleVersion,
+    "freightpulse.cs.rebound-next-4.lower-close-restart.v1",
+  );
+  assert.equal(
+    validateSignal(signal({ ruleVersion: rows[10].ruleVersion }), NOW, rules)
+      .ruleVersion,
+    rows[10].ruleVersion,
+  );
+});
+test("restart approval does not invent a new cycle after normal expiry", () => {
+  const { firstCsWindow } = require("../src/freightCsDemoRule");
+  const rows = firstCsWindow(
+    [100, 99, 101, 102, 103, 104, 105, 106, 100, 110].map((close, i) => ({
+      time: new Date(NOW + i * DAY).toISOString(),
+      close,
+      closed: true,
+    })),
+    { stopOnLowerClose: true, restartAfterInvalidation: true },
+  );
+  assert.deepEqual(
+    rows.slice(3, 7).map((x) => x.windowDay),
+    [1, 2, 3, 4],
+  );
+  assert.ok(
+    rows
+      .slice(7)
+      .every((x) => x.windowState === "expired" && x.windowDay === null),
+  );
+});

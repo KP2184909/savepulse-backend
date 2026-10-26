@@ -1,13 +1,14 @@
 //@version=6
-indicator("FreightPulse CS Sandbox Feed v1.1", overlay = true)
+indicator("FreightPulse CS Sandbox Feed v1.2", overlay = true)
 // Private TEST transport. Lower close ends the current window after that bar.
-// Restart/rollover remain unapproved: one explicit review cycle only.
+// After invalidation, use that lower-close bar as the baseline while waiting for a new rebound.
+// Restart after normal four-day expiry and rollover remain unapproved.
 // Do not publish a script containing configured credentials or show its Inputs in screenshots.
-string SCRIPT = "freightpulse.container.next4.transport.v2"
-string RULE = "freightpulse.cs.rebound-next-4.lower-close-stop.v1"
+string SCRIPT = "freightpulse.container.next4.transport.v3"
+string RULE = "freightpulse.cs.rebound-next-4.lower-close-restart.v1"
 bool enableSend = input.bool(false, "Enable sandbox webhook output", display = display.none)
 string token = input.string("", "Dedicated FreightPulse TEST webhook token", display = display.none)
-int reviewStart = input.time(0, "Explicit sandbox single-cycle start (choose before use)")
+int reviewStart = input.time(0, "Explicit sandbox review start (choose before use)")
 string code = syminfo.ticker
 string route = switch code
     "CS11!" => "FBX01"
@@ -33,8 +34,12 @@ var float previousClose = na
 int highlightDay = na
 if barstate.isconfirmed and not na(close) and reviewStart > 0 and time >= reviewStart
     if state == "invalidated"
-        state := "invalidated"
-    else if not na(confirmation)
+        waiting := true
+        confirmation := na
+        start := na
+        day := 0
+        state := "inactive"
+    if not na(confirmation)
         day += 1
         if day <= 4
             if na(start)
@@ -58,5 +63,5 @@ plot(highlightDay, "Sandbox window day (1–4)", display = display.data_window)
 var table panel = table.new(position.top_right, 1, 3)
 if barstate.islast
     table.cell(panel, 0, 0, "SANDBOX ONLY · " + code + " · " + route, text_color = color.white, bgcolor = color.new(color.black, 15))
-    table.cell(panel, 0, 1, reviewStart == 0 ? "Select an explicit review start first" : state == "active" ? "Favourable Rate-Locking Window — Day " + str.tostring(day) + " of 4" : state == "invalidated" ? "Window invalidated after a lower close — no automatic restart" : state == "expired" ? "Rate-Locking Window Ended" : na(confirmation) ? "Waiting for confirmation" : "Confirmation bar — window starts next bar", text_color = color.white, bgcolor = color.new(color.black, 15))
-    table.cell(panel, 0, 2, "Source freshness unknown. One cycle only. No customer alerts.", text_color = color.white, bgcolor = color.new(color.black, 15))
+    table.cell(panel, 0, 1, reviewStart == 0 ? "Select an explicit review start first" : state == "active" ? "Favourable Rate-Locking Window — Day " + str.tostring(day) + " of 4" : state == "invalidated" ? "Window invalidated — waiting for a new rebound" : state == "expired" ? "Rate-Locking Window Ended" : na(confirmation) ? "Waiting for confirmation" : "Confirmation bar — window starts next bar", text_color = color.white, bgcolor = color.new(color.black, 15))
+    table.cell(panel, 0, 2, "Source freshness unknown. Restart after stop only. No customer alerts.", text_color = color.white, bgcolor = color.new(color.black, 15))

@@ -4,6 +4,7 @@ function csWindowCopy(row) {
     ![
       "freightpulse.cs.rebound-next-4.v1",
       "freightpulse.cs.rebound-next-4.lower-close-stop.v1",
+      "freightpulse.cs.rebound-next-4.lower-close-restart.v1",
     ].includes(row.ruleVersion)
   )
     return null;
