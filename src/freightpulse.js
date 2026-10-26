@@ -513,6 +513,7 @@ function createFreightService({
       const allSignals = await Promise.all(SYMBOLS.map((s) => store.get(`freight:signal:test:${s}`)));
       const rows = SYMBOLS.map((symbol, i) => ({symbol, ...signalView(allSignals[i], now(), rules.maxAgeSeconds?.[symbol])}));
       const blockedRules = [CS_RULE_VERSION, CS_STOP_RULE_VERSION, CS_RESTART_RULE_VERSION, BDI_RULE_VERSION, "freightpulse.zim.savepulse-ema14-60-window5.v1"];
+      if (allSignals.some((s) => s && blockedRules.includes(s.ruleVersion))) continue;
       const eligible = allSignals.filter((s) => s && !blockedRules.includes(s.ruleVersion) && signalView(s, now(), rules.maxAgeSeconds?.[s.symbol]).current);
       if (!eligible.length) continue;
       const signal = eligible.reduce((a,b) => Date.parse(a.barTime) >= Date.parse(b.barTime) ? a : b);
@@ -521,6 +522,7 @@ function createFreightService({
           key = `freight:mail:${id}`,
           lease = crypto.randomUUID();
         let skip = false;
+        const preparedDigest = require("./freightDigestEmail").freightDigestEmail({rows,generatedAt:new Date(now()).toISOString(),mode:"test"});
         await mutate(key, (old) => {
           if (
             old?.status === "sent" ||
@@ -538,6 +540,7 @@ function createFreightService({
           return {
             ...old,
             status: "sending",
+            digest: old?.digest || preparedDigest,
             firstAttempt: old?.firstAttempt || now(),
             attempts: (old?.attempts || 0) + 1,
             lease,
@@ -554,7 +557,7 @@ function createFreightService({
             !signalView(signal, now(), rules.maxAgeSeconds?.[signal.symbol]).current
           )
             throw fail("notification_no_longer_eligible", 409);
-          const digest = require("./freightDigestEmail").freightDigestEmail({rows,generatedAt:new Date(now()).toISOString(),mode:"test"});
+          const digest = (await store.get(key)).digest;
           const providerId = await send({email:company.ownerEmail,...digest,idempotencyKey:`freight-${id}`});
           if (typeof providerId !== "string" || !providerId)
             throw fail("email_provider_unconfirmed", 503);

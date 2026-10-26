@@ -1036,10 +1036,22 @@ test("FreightPulse email is one full-route digest independent of selected routes
   const h=setup(); await activate(h);
   await h.service.ingest(signal());
   h.store.rows.get("freight:signal:test:CS11!").ruleVersion="legacy-worker-fixture-only";
+  await h.service.ingest(signal({symbol:"CS21!",route:"FBX02",eventId:"second-route"}));
+  h.store.rows.get("freight:signal:test:CS21!").ruleVersion="legacy-worker-fixture-only";
   await h.service.preferences("verified",{routes:[],email:true});
   assert.equal((await h.service.notifications()).sent,1);
   assert.equal(h.mail.length,1);
   for(const route of Object.values(require("../public/freightpulse/routes"))) assert.ok(h.mail[0].text.includes(route.name));
   assert.equal((await h.service.notifications()).sent,0);
   assert.equal((await h.service.report("verified")).history[0].symbol,"ALL_ROUTES");
+});
+
+test("digest retry preserves exact payload and concurrent workers deliver one copy",async()=>{
+ const h=setup();await activate(h);await h.service.ingest(signal());h.store.rows.get("freight:signal:test:CS11!").ruleVersion="legacy-worker-fixture-only";
+ await h.service.preferences("verified",{routes:[],email:true});h.failMail(true);await h.service.notifications();
+ const job=[...h.store.rows].find(([k])=>k.startsWith("freight:mail:"))[1];const original=structuredClone(job.digest);
+ h.setTime(NOW+900001);h.failMail(false);
+ const result=await Promise.all([h.service.notifications(),h.build().notifications()]);
+ assert.equal(result.reduce((n,r)=>n+r.sent,0),1);assert.equal(h.mail.length,1);
+ assert.equal(h.mail[0].html,original.html);assert.equal(h.mail[0].text,original.text);
 });
