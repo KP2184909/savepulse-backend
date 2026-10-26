@@ -9,7 +9,7 @@ const rules = {
               "freightpulse.container.next4.transport.v3",
               "freightpulse.container.next4.transport.v4",
             ]
-          : s === "BDI" ? ["freightpulse.context.telemetry.v1", "freightpulse.bulk.next4.transport.v1"] : ["freightpulse.context.telemetry.v1"],
+          : s === "BDI" ? ["freightpulse.context.telemetry.v1", "freightpulse.bulk.next4.transport.v1"] : ["freightpulse.context.telemetry.v1", "freightpulse.zim.savepulse-context.v1"],
       ],
     ),
   ),

@@ -38,7 +38,7 @@ const FREIGHT_CONTEXT = {
     explanation:
       "ใช้การเคลื่อนไหวของหุ้น ZIM เป็นข้อมูลประกอบ หุ้นอาจได้รับผลจากปัจจัยเฉพาะบริษัท จึงต้องประเมินร่วมกับข้อมูลค่าระวางรายเส้นทางและใบเสนอราคาจริง",
     pending:
-      "ยังไม่เปิดใช้การประเมิน — รอตรวจความหมายสถานะจากสคริปต์ SavePulse ของ ZIM",
+      "ยังไม่เปิดใช้การประเมินจริง — ตัวแปลง SavePulse ของ ZIM อยู่ระหว่างทดสอบ sandbox",
   },
 };
 // The status dictionary is a DEMO copy palette, not a BUY/SELL adapter.

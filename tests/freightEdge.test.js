@@ -127,3 +127,22 @@ test("BDI sandbox rule accepts four-day windows only for its approved transport,
     assert.throws(()=>api.validateSignal({...bdi,symbol:"NYSE:ZIM",family:"context"},now,rules),/window_not_applicable/);
   }
 });
+
+test("ZIM adapter preserves supplied SavePulse calculation block and sandbox context contract", async () => {
+  const fs=require("node:fs");
+  const pine=fs.readFileSync(require("node:path").join(__dirname,"../pine/freightpulse/zim-savepulse-context-sandbox.pine"),"utf8");
+  const core=pine.slice(pine.indexOf("// [3] CORE INDICATORS"),pine.indexOf("// [5] SYMBOL & PAYLOAD"));
+  assert.equal(crypto.createHash("sha256").update(core).digest("hex"),"3b5a961707f0a215c5badcd0095a5b2f7e2c9b98f11170125ecdc237cbcb74a2");
+  assert.match(pine,/barstate.isrealtime and barstate.isconfirmed/);
+  assert.match(pine,/syminfo.prefix == "BATS"/);
+  const edge=await import("../supabase/functions/freightpulse-tv-sandbox/validator.mjs");
+  const rules={versions:{ZIM:["freightpulse.zim.savepulse-context.v1"]}};
+  const z={...fixture,symbol:"NYSE:ZIM",family:"context",route:null,scriptVersion:"freightpulse.zim.savepulse-context.v1",ruleVersion:"freightpulse.zim.savepulse-ema14-60-window5.v1",windowState:"inactive",windowDay:null,windowStart:null,confirmationBarTime:null};
+  const now=Date.parse("2026-10-26T12:00:00Z");
+  for(const api of [edge,require("../src/freightpulse")]){
+    assert.equal(api.validateSignal(z,now,rules).symbol,"ZIM");
+    assert.equal(api.signalView(api.validateSignal(z,now,rules),now,86400).signalStatus,null);
+    assert.throws(()=>api.validateSignal({...z,ruleVersion:fixture.ruleVersion},now,rules),/zim_rule_version_required/);
+    assert.throws(()=>api.validateSignal({...z,windowState:"active",windowDay:1},now,rules),/window_not_applicable/);
+  }
+});

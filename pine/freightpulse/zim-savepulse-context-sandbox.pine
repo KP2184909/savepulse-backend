@@ -1,0 +1,165 @@
+//@version=6
+indicator("FreightPulse ZIM SavePulse Context Sandbox v1.0", overlay=true, max_bars_back=5000)
+
+// ==========================================
+// [1] BACKEND STATES
+// ==========================================
+string STATE_STRONG_BUY = "STRONG_BUY"  // User-facing: แลกได้เลย / Good time to exchange
+string STATE_BUY_ZONE   = "BUY_ZONE"    // User-facing: เริ่มน่าจับตา / Worth watching
+string STATE_WAIT_ZONE  = "WAIT_ZONE"   // User-facing: ยังไม่ต้องรีบ / Not urgent yet
+string STATE_SELL_ZONE  = "SELL_ZONE"   // User-facing: รอก่อน / Wait for now
+
+// ==========================================
+// [2] INPUTS
+// ==========================================
+grpWebhook = "=== SavePulse Webhook Settings ==="
+secretKey      = input.string("", "Dedicated FreightPulse TEST webhook token", group=grpWebhook, display=display.none)
+symbolOverride = "ZIM"
+sendWebhook    = input.bool(false, "Enable sandbox webhook output", group=grpWebhook, display=display.none)
+
+grpEma = "=== EMA Settings ==="
+emaFastLen     = input.int(14, "EMA Fast Length", minval=1, group=grpEma)
+emaSlowLen     = input.int(60, "EMA Slow Length", minval=1, group=grpEma)
+goodWindowBars = input.int(5, "Good Zone Window Bars", minval=1, maxval=20, group=grpEma)
+
+grpVisual = "=== Visual Settings ==="
+showDashboard = input.bool(true, "Show Dashboard", group=grpVisual)
+showBgColor   = input.bool(true, "Show Background State Color", group=grpVisual)
+
+// ==========================================
+// [3] CORE INDICATORS
+// ==========================================
+emaFast = ta.ema(close, emaFastLen)
+emaSlow = ta.ema(close, emaSlowLen)
+
+emaBull = emaFast > emaSlow
+emaBear = emaFast < emaSlow
+
+bullCrossEvent = ta.crossover(emaFast, emaSlow)
+bearCrossEvent = ta.crossunder(emaFast, emaSlow)
+
+isRedCandle = close < open
+
+// ราคาเริ่มกลับมายืนเหนือ EMA14 เป็นแท่งแรก ขณะ EMA14 > EMA60
+reclaimEmaFastEvent = emaBull and close > emaFast and close[1] <= emaFast[1]
+
+// ราคาปิดต่ำกว่า EMA14 เป็นแท่งแรก ขณะ EMA14 > EMA60
+firstCloseBelowEmaFast = emaBull and close < emaFast and close[1] >= emaFast[1]
+
+// ราคาปิดต่ำกว่า EMA14 ตั้งแต่แท่งที่ 2 เป็นต้นไป ขณะ EMA14 > EMA60
+secondOrMoreCloseBelowEmaFast = emaBull and close < emaFast and close[1] < emaFast[1]
+
+// Event ที่เริ่มโซนดี
+goodEvent = bullCrossEvent or reclaimEmaFastEvent
+
+barsSinceGoodEvent = ta.barssince(goodEvent)
+inGoodWindow = not na(barsSinceGoodEvent) and barsSinceGoodEvent <= goodWindowBars - 1
+
+// ==========================================
+// [4] STATE ENGINE
+// ==========================================
+string action = STATE_WAIT_ZONE
+string detail = "NEUTRAL"
+int daysInWindow = 0
+
+// Priority 1: EMA14 ต่ำกว่า EMA60 = ยังไม่ต้องรีบ
+if emaBear
+    action := STATE_WAIT_ZONE
+    detail := bearCrossEvent and isRedCandle ? "RED_CANDLE_EMA14_CROSS_DOWN_EMA60" : bearCrossEvent ? "EMA14_CROSS_DOWN_EMA60" : "EMA14_BELOW_EMA60"
+    daysInWindow := 0
+
+// Priority 2: EMA14 ยังเหนือ EMA60 แต่ราคาหลุด EMA14 วันแรก
+else if firstCloseBelowEmaFast
+    action := STATE_SELL_ZONE
+    detail := "FIRST_CLOSE_BELOW_EMA14_WHILE_EMA14_ABOVE_EMA60"
+    daysInWindow := 1
+
+// Priority 3: หลุด EMA14 ตั้งแต่วันที่ 2 เป็นต้นไป
+else if secondOrMoreCloseBelowEmaFast
+    action := STATE_SELL_ZONE
+    detail := "SECOND_OR_MORE_CLOSE_BELOW_EMA14_WHILE_EMA14_ABOVE_EMA60"
+    daysInWindow := 0
+
+// Priority 4: วันแรกของโซนดี
+else if goodEvent
+    action := STATE_STRONG_BUY
+    detail := bullCrossEvent ? "EMA14_CROSS_UP_EMA60_FIRST_DAY" : "PRICE_RECLAIM_EMA14_FIRST_DAY"
+    daysInWindow := 1
+
+// Priority 5: ยังอยู่ใน 5 แท่งของโซนดี
+else if inGoodWindow
+    action := STATE_BUY_ZONE
+    detail := "WITHIN_5_BAR_GOOD_ZONE"
+    daysInWindow := barsSinceGoodEvent + 1
+
+// Default: กลาง ๆ
+else
+    action := STATE_WAIT_ZONE
+    detail := "NO_CLEAR_EDGE"
+    daysInWindow := 0
+
+// ==========================================
+// [5] SYMBOL & PAYLOAD
+// ==========================================
+backendSymbol = symbolOverride != "" ? symbolOverride : syminfo.ticker
+
+priceText = str.tostring(close, format.mintick)
+emaFastText = str.tostring(emaFast, format.mintick)
+emaSlowText = str.tostring(emaSlow, format.mintick)
+
+// Preserve the supplied SavePulse state engine; translate only equity context.
+string SCRIPT = "freightpulse.zim.savepulse-context.v1"
+string RULE = "freightpulse.zim.savepulse-ema14-60-window5.v1"
+bool validChart = timeframe.isdaily and timeframe.multiplier == 1 and chart.is_standard and syminfo.ticker == "ZIM" and (syminfo.prefix == "NYSE" or syminfo.prefix == "BATS")
+if barstate.isfirst and not validChart
+    runtime.error("Use a standard NYSE:ZIM or BATS:ZIM chart on 1D.")
+if barstate.isfirst and (emaFastLen != 14 or emaSlowLen != 60 or goodWindowBars != 5)
+    runtime.error("This approved sandbox rule requires EMA14/60 and 5 bars.")
+f_quote(string value) =>
+    "\"" + str.replace_all(str.replace_all(str.replace_all(str.replace_all(value, "\\", "\\\\"), "\"", "\\\""), "\n", "\\n"), "\r", "\\r") + "\""
+f_time(int value) =>
+    f_quote(str.format_time(value, "yyyy-MM-dd'T'HH:mm:ss'Z'", "UTC"))
+string equityContext = action == STATE_STRONG_BUY or action == STATE_BUY_ZONE ? "pressure_up" : action == STATE_SELL_ZONE or emaBear ? "easing" : "unclear"
+string payload = "{\"contractVersion\":\"freightpulse.draft.v2\",\"ruleVersion\":" + f_quote(RULE) + ",\"scriptVersion\":" + f_quote(SCRIPT) + ",\"eventId\":" + f_quote(SCRIPT + ":ZIM:" + str.tostring(time)) + ",\"symbol\":\"NYSE:ZIM\",\"family\":\"context\",\"route\":null,\"timeframe\":\"1D\",\"barTime\":" + f_time(time) + ",\"barCloseTime\":" + f_time(time_close) + ",\"barClosed\":true,\"signalStatus\":" + f_quote(equityContext) + ",\"windowState\":\"inactive\",\"windowDay\":null,\"windowStart\":null,\"sourceUpdatedAt\":null,\"sourceFreshness\":\"unknown\",\"source\":" + f_quote("TradingView-" + syminfo.prefix + "-ZIM-sandbox") + ",\"dataMode\":\"test\"}"
+if sendWebhook and validChart and barstate.isrealtime and barstate.isconfirmed and str.length(secretKey) >= 24 and not na(close) and not na(emaFast) and not na(emaSlow) and not na(time_close)
+    alert("{\"secret_key\":" + f_quote(secretKey) + ",\"payload\":" + payload + "}", alert.freq_once_per_bar_close)
+
+// ==========================================
+// [7] VISUALS
+// ==========================================
+plot(emaFast, "EMA 14", color=color.new(color.teal, 0), linewidth=2)
+plot(emaSlow, "EMA 60", color=color.new(color.orange, 0), linewidth=2)
+
+bgColor = action == STATE_STRONG_BUY ? color.new(color.green, 85) :
+          action == STATE_BUY_ZONE   ? color.new(color.teal, 88) :
+          action == STATE_SELL_ZONE  ? color.new(color.red, 88) :
+                                       color.new(color.gray, 92)
+
+bgcolor(showBgColor ? bgColor : na)
+
+// ==========================================
+// [8] DASHBOARD
+// ==========================================
+var table dash = table.new(position.top_right, 2, 7, bgcolor=color.new(color.black, 15), border_width=1)
+
+if showDashboard and barstate.islast
+    table.cell(dash, 0, 0, "FreightPulse TEST", text_color=color.white, bgcolor=color.new(color.teal, 0))
+    table.cell(dash, 1, 0, "ZIM Equity Context", text_color=color.white, bgcolor=color.new(color.teal, 0))
+
+    table.cell(dash, 0, 1, "Symbol", text_color=color.white)
+    table.cell(dash, 1, 1, backendSymbol, text_color=color.white)
+
+    table.cell(dash, 0, 2, "Action", text_color=color.white)
+    table.cell(dash, 1, 2, equityContext, text_color=color.white)
+
+    table.cell(dash, 0, 3, "Detail", text_color=color.white)
+    table.cell(dash, 1, 3, detail, text_color=color.white)
+
+    table.cell(dash, 0, 4, "Days", text_color=color.white)
+    table.cell(dash, 1, 4, str.tostring(daysInWindow), text_color=color.white)
+
+    table.cell(dash, 0, 5, "EMA 14", text_color=color.white)
+    table.cell(dash, 1, 5, emaFastText, text_color=color.white)
+
+    table.cell(dash, 0, 6, "EMA 60", text_color=color.white)
+    table.cell(dash, 1, 6, emaSlowText, text_color=color.white)

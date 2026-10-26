@@ -86,6 +86,7 @@ function validateSignal(input, now, rules) {
       ].includes(input.ruleVersion))
   )
     throw fail("cs_rule_version_required");
+  if (input.symbol === "ZIM" && input.scriptVersion === "freightpulse.zim.savepulse-context.v1" && input.ruleVersion !== "freightpulse.zim.savepulse-ema14-60-window5.v1") throw fail("zim_rule_version_required");
   const bdiWindow = v2 && input.symbol === "BDI" && input.scriptVersion === "freightpulse.bulk.next4.transport.v1";
   if (bdiWindow && input.ruleVersion !== BDI_RULE_VERSION) throw fail("bdi_rule_version_required");
   for (const k of ["eventId", "source"])
