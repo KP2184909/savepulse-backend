@@ -1,5 +1,24 @@
 # Sandbox webhook incident — 27 October 2026
 
+## Repair rollout update
+
+All eight replacement alerts were created and verified through TradingView's server-side alert details. CS inputs have output enabled, an owner-entered token, reviewStart 27 October 2026 00:00 UTC (07:00 Thailand), 1D and webhook enabled. BDI and ZIM replacements likewise have output enabled and a configured token. The owner entered the ZIM token directly into the new revision's Inputs. Legacy alerts for these eight instruments were paused; an intermediate disabled-output CS11 alert was also paused. Other SavePulse and trading alerts were not changed.
+
+| Instrument | Replacement alert ID | Pine revision |
+| --- | --- | --- |
+| CS11! | 5931910754 | 193.0 |
+| CS21! | 5931916248 | 193.0 |
+| CS31! | 5931916546 | 193.0 |
+| CS41! | 5931917179 | 193.0 |
+| CS51! | 5931917466 | 193.0 |
+| CS61! | 5931918251 | 193.0 |
+| BDI | 5934138660 | 4.0 |
+| ZIM | 5934217153 | 4.0 |
+
+ZIM keeps EMA14/60 and window5. Its chart includes the older visual instance alongside the new revision; the old alert is stopped. Receiver readback after CS/BDI rollout still contained no accepted actual chart events and only the two earlier 422 requests. Successful creation/activation is not successful delivery; next genuine closed-bar POST and persisted record remain required. Source freshness stays unknown, never current by assumption. No live customer notification schedule or billing launch was enabled.
+
+The notes below describe the earlier diagnostic state before this rollout.
+
 ## Verified evidence (Thailand time)
 
 - Eight TradingView alerts are active and have a webhook configured. Stored alert inputs enable output and contain an owner-entered credential; no credential values are recorded here.
