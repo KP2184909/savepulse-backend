@@ -15,3 +15,26 @@ test("digest hides stale windows and escapes source HTML",()=>{
  assert.doesNotMatch(d.text,/Day 2 of 4/);assert.match(d.text,/Outdated data/);
  assert.doesNotMatch(d.html,/<img/);assert.match(d.html,/&lt;img/);
 });
+
+test("Pine JSON encoders never use unsupported carriage-return escape that rewrites literal r",()=>{
+ const fs=require('node:fs'),path=require('node:path');
+ for(const file of fs.readdirSync(path.join(__dirname,'../pine/freightpulse')).filter(x=>x.endsWith('.pine'))){
+  const source=fs.readFileSync(path.join(__dirname,'../pine/freightpulse',file),'utf8');
+  const quote=source.slice(source.indexOf('f_quote(string value)'),source.indexOf('f_time(int value)'));
+  assert.ok(quote.includes('str.replace_all'));
+  assert.ok(!quote.includes('"\\r"'),file+' must not rewrite literal r');
+ }
+});
+
+test("actual BDI payload demonstrates quote corruption without weakening ingestion validation",()=>{
+ const {validateSignal}=require('../src/freightpulse');
+ const bad=require('./fixtures/bdi-tv-corrupt-quote.json');
+ const rules={versions:{BDI:['freightpulse.bulk.next4.transport.v1']},maxAgeSeconds:{BDI:129600}};
+ const now=Date.parse('2026-10-27T01:00:00Z');
+ assert.throws(()=>validateSignal(bad,now,rules),/script_version_not_approved/);
+ // Diagnostic reconstruction only: never normalize incoming production messages.
+ const repaired=Object.fromEntries(Object.entries(bad).map(([k,v])=>[k,typeof v==='string'?v.replaceAll('\r','r'):v]));
+ assert.equal(validateSignal(repaired,now,rules).symbol,'BDI');
+ assert.equal(repaired.sourceFreshness,'unknown');
+ assert.equal(repaired.sourceUpdatedAt,null);
+});

@@ -10,7 +10,7 @@ bool chartOk = timeframe.isdaily and timeframe.multiplier == 1 and chart.is_stan
 if barstate.isfirst and not chartOk
     runtime.error("Use a standard INDEX:BDI or NYSE:ZIM chart on 1D.")
 f_quote(string value) =>
-    "\"" + str.replace_all(str.replace_all(str.replace_all(str.replace_all(value, "\\", "\\\\"), "\"", "\\\""), "\n", "\\n"), "\r", "\\r") + "\""
+    "\"" + str.replace_all(str.replace_all(str.replace_all(value, "\\", "\\\\"), "\"", "\\\""), "\n", "\\n") + "\""
 f_time(int value) =>
     f_quote(str.format_time(value, "yyyy-MM-dd'T'HH:mm:ss'Z'", "UTC"))
 if enableSend and barstate.isrealtime and barstate.isconfirmed and not na(close) and not na(time_close) and str.length(token) >= 24
