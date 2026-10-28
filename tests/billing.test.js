@@ -149,6 +149,16 @@ test("Stripe webhook signature verification accepts a matching v1 signature", ()
   );
 });
 
+test("Stripe events from a different mode cannot change membership", () => {
+  for (const [key, livemode] of [["sk_test_example", true], ["sk_live_example", false]]) {
+    const result = applyStripeEvent({
+      type: "checkout.session.completed", livemode,
+      data: { object: { payment_status: "paid", metadata: { email: "member@example.com", plan: "pro" } } }
+    }, { STRIPE_SECRET_KEY: key });
+    assert.deepEqual(result, { updated: false, reason: "stripe_mode_mismatch" });
+  }
+});
+
 test("checkout completion upgrades the subscriber plan from Stripe metadata", () => {
   const result = applyStripeEvent({
     type: "checkout.session.completed",

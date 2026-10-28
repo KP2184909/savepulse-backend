@@ -1091,6 +1091,10 @@ function applyStripeSubscriptionChanged(subscription, env = process.env) {
 }
 
 function applyStripeEvent(event, env = process.env) {
+  const mode = stripeKeyMode(stripeSecretKey(env));
+  if (typeof event?.livemode === "boolean" && ((mode === "live" && !event.livemode) || (mode === "test" && event.livemode))) {
+    return { updated: false, reason: "stripe_mode_mismatch" };
+  }
   const object = event?.data?.object || {};
 
   switch (event?.type) {
