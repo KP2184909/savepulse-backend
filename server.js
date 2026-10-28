@@ -1281,6 +1281,15 @@ async function handleBillingCheckout(req, res) {
     return;
   }
 
+  if (publicCheckoutEnabled()) {
+    await requireTrialReady();
+    const verifiedEmail = await trials.identity(bearerToken(req));
+    if (verifiedEmail !== email) {
+      sendJson(res, 403, { error: "verified_email_mismatch" });
+      return;
+    }
+  }
+
   sendJson(res, 200, {
     email,
     checkout: await checkoutPayload(plan, {

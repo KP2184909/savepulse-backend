@@ -77,6 +77,24 @@ test("direct checkout endpoint stays closed during Private Beta", async () => {
   assert.equal(payload.checkout.url, null);
 });
 
+test("enabled direct checkout fails closed when verified identity storage is unavailable", async () => {
+  const old = process.env.PUBLIC_CHECKOUT_ENABLED;
+  process.env.PUBLIC_CHECKOUT_ENABLED = "true";
+  try {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/api/v1/billing/checkout`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "member@example.com", plan: "pro" })
+    });
+    assert.equal(response.status, 503);
+    const payload = await response.json();
+    assert.equal(payload.error, "trial_not_available");
+    assert.equal(payload.checkout, undefined);
+  } finally {
+    if (old === undefined) delete process.env.PUBLIC_CHECKOUT_ENABLED;
+    else process.env.PUBLIC_CHECKOUT_ENABLED = old;
+  }
+});
+
 test("checkout payload reports missing Stripe configuration without failing", async () => {
   const payload = await checkoutPayload(
     "pro",
