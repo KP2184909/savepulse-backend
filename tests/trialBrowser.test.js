@@ -9,7 +9,7 @@ const trial = { status: "active", active: true, startedAt: new Date().toISOStrin
 const data = { email: "savepulse.cloud@gmail.com", paidPlan: "free", plan: "pro", trial };
 function setup(reply, token = "") {
   const nodes = new Map(), storage = new Map(token ? [["savepulse_session", token]] : []);
-  const $ = id => { if (!nodes.has(id)) nodes.set(id, { hidden: ["account", "verifyForm", "start", "cancel"].includes(id), disabled: false, value: id === "email" ? "savepulse.cloud@gmail.com" : "", textContent: "", focus() {} }); return nodes.get(id); };
+  const $ = id => { if (!nodes.has(id)) nodes.set(id, { hidden: ["login", "account", "verifyForm", "start", "cancel"].includes(id), disabled: false, value: id === "email" ? "savepulse.cloud@gmail.com" : "", textContent: "", focus() {} }); return nodes.get(id); };
   const localStorage = { getItem: k => storage.get(k), setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) };
   const requests = [];
   const context = { document: { getElementById: $, querySelectorAll: () => [...nodes.values()] }, localStorage, Date, Error, JSON, setInterval() {}, fetch: async (url, options) => { requests.push({ url, options }); return reply(url, options); } };
@@ -33,4 +33,14 @@ test("expired or unconfirmed access is not restored from local browser state", a
   const f = setup(async () => ({ ok: false, status: 401, json: async () => ({ error: "authentication_required" }) }), "expired-token");
   await f.flush(); assert.equal(f.$("account").hidden, true); assert.equal(f.storage.has("savepulse_session"), false);
   assert.doesNotMatch(f.$("message").textContent, /Trial activated/);
+});
+test("login stays hidden until saved session is checked and is shown if the check fails", async () => {
+  let finish;
+  const f = setup(() => new Promise(resolve => { finish = resolve; }), "saved-token");
+  assert.equal(f.$("login").hidden, true);
+  assert.equal(f.$("account").hidden, true);
+  finish({ ok: false, status: 401, json: async () => ({ error: "authentication_required" }) });
+  await f.flush();
+  assert.equal(f.$("login").hidden, false);
+  assert.equal(f.$("account").hidden, true);
 });
