@@ -1,11 +1,11 @@
-# Current readiness — 27 October 2026
+# Current readiness — 28 October 2026
 
 This section supersedes historical counts and setup blockers below.
 
-- Local suite: 147/147 PASS.
+- Local suite: 150/150 PASS. Read-only backend feed-health tooling now reports coverage and source evidence separately; see 2026-10-28-feed-check.md.
 - TradingView: all eight replacement alert records use the repaired Pine revisions (CS193, BDI4, ZIM4), output enabled, owner-entered tokens, 1D and webhook enabled. Superseded alerts are paused. See 2026-10-27-webhook-incident.md for IDs and distinctions between server records, UI activation and actual delivery.
 - Isolated Supabase sandbox: Edge function version 4 ACTIVE. Synthetic public checks: CS receiver 14/14, BDI adapter 4/4, ZIM adapter 4/4 PASS. Synthetic rows removed. These checks are not actual TradingView delivery.
-- Actual TradingView delivery: two earlier genuine BDI/ZIM POSTs reached the sandbox and were rejected with HTTP422 because Pine JSON escaping corrupted string fields. Repaired alerts are now installed; successful delivery after repair remains NOT VERIFIED, with no accepted chart rows at last readback. Unknown source freshness remains non-current even after receipt.
+- Actual TradingView delivery after repair: BDI and ZIM PASS HTTP200 plus matching persisted latest rows on28 October (Thailand). CS11–CS61 still have no fires/receipts. Their returned latest chart bars precede the configured review boundary; five route series return June bars in this account/data path. These observations require investigation and do not prove source freshness. Both received payloads remain unknown/non-current. Earlier422 incident notes are historical.
 - Latest Deploy Preview browser (including copy revision 1dc6e52): eight Demo cards render; route names and separate context are present. At 320px viewport, document width305px: no horizontal overflow. Membership and checkout are disabled with an explicit sandbox-not-connected message. The displayed CS cancellation/restart and ZIM adapter text matches the owner-approved sandbox changes. Screenshots latest-preview-mobile.png and latest-preview-desktop.png are saved in the task evidence directory outside the repository.
 - Stripe connector recheck still returns UNAUTHORIZED/requires reauthentication despite earlier successful owner OAuth. Actual provider subscription, renewal, failure, cancellation and Portal integration remain NOT VERIFIED. Local mocked lifecycle tests are separate evidence.
 - Isolated member/billing backend is not deployed/configured for this preview. The Supabase Edge receiver is ingestion-only. The preview /api proxy still targets SavePulse Production, where FreightPulse stays disabled.
