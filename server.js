@@ -1058,6 +1058,9 @@ function stripeSubscriptionPriceId(subscription) {
 }
 
 function applyStripeCheckoutCompleted(session, env = process.env) {
+  if (session?.payment_status !== "paid") {
+    return { updated: false, reason: "payment_not_confirmed" };
+  }
   const email = stripeObjectEmail(session);
   const metadataPlan = normalizePlan(session?.metadata?.plan);
   const plan = metadataPlan === "free" ? normalizePlan(session?.metadata?.requested_plan) : metadataPlan;

@@ -124,6 +124,17 @@ test("checkout completion upgrades the subscriber plan from Stripe metadata", ()
   assert.equal(result.subscriber.billing.status, "paid");
 });
 
+test("checkout completion does not grant access when payment is not confirmed", () => {
+  for (const status of ["unpaid", "no_payment_required", undefined]) {
+    const result = applyStripeEvent({
+      type: "checkout.session.completed",
+      data: { object: { payment_status: status, customer_email: "pending@example.com", metadata: { plan: "pro" } } }
+    });
+    assert.equal(result.updated, false);
+    assert.equal(result.reason, "payment_not_confirmed");
+  }
+});
+
 test("billing readiness snapshot reports live readiness without exposing secrets", () => {
   const snapshot = billingReadinessSnapshot({
     APP_BASE_URL: "https://savepulse.cloud",
