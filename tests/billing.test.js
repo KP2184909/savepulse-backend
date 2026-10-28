@@ -95,6 +95,25 @@ test("enabled direct checkout fails closed when verified identity storage is una
   }
 });
 
+test("newsletter signup cannot create a paid checkout even if public checkout is enabled", async () => {
+  const old = process.env.PUBLIC_CHECKOUT_ENABLED;
+  process.env.PUBLIC_CHECKOUT_ENABLED = "true";
+  try {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/api/v1/subscribe`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "new-checkout@example.com", plan: "pro" })
+    });
+    const payload = await response.json();
+    assert.equal(response.status, 201);
+    assert.equal(payload.checkout.configured, false);
+    assert.equal(payload.checkout.reason, "verified_account_required");
+    assert.equal(payload.checkout.url, null);
+  } finally {
+    if (old === undefined) delete process.env.PUBLIC_CHECKOUT_ENABLED;
+    else process.env.PUBLIC_CHECKOUT_ENABLED = old;
+  }
+});
+
 test("checkout payload reports missing Stripe configuration without failing", async () => {
   const payload = await checkoutPayload(
     "pro",

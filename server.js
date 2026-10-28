@@ -1255,11 +1255,7 @@ async function handleSubscribe(req, res) {
     requestedPlan,
     upgradeRequired,
     checkout: upgradeRequired
-      ? await checkoutPayload(requestedPlan, {
-          email,
-          locale: record.locale,
-          watchlist: record.watchlist
-        })
+      ? { configured: false, provider: "disabled", url: null, reason: "verified_account_required", message: "Verify your email before starting a paid checkout." }
       : null,
     rejectedWatchlist: watchlistResult.rejected,
     quota: quotaSnapshot()
