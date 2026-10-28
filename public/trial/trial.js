@@ -45,5 +45,6 @@ $("cancel").onclick = () => action(async () => { const data = await api("cancel"
 $("refresh").onclick = () => action(async () => { draw(await api("status")); $("message").textContent = "Status refreshed from the server."; });
 $("qaReminder").onclick = () => action(async () => { const result = await api("qa-reminder", {}); $("message").textContent = `Isolated virtual-time QA: ${result.reminder?.status || "not confirmed"}. First pass sent ${result.first.sent || 0}; duplicate pass sent ${result.duplicate.sent || 0}. Your real trial is unchanged. Check the test mailbox for the [TEST] email.`; });
 $("logout").onclick = () => action(async () => { await api("logout", {}); token = ""; localStorage.removeItem("savepulse_session"); $("account").hidden = true; $("login").hidden = false; $("email").value = ""; $("code").value = ""; $("verifyForm").hidden = true; verifiedEmail = ""; $("message").textContent = "Signed out on this device. Enter the email you want to verify. Your previous trial history is unchanged."; $("email").focus(); });
-if (token) action(async () => { draw(await api("status")); $("message").textContent = "Status confirmed by the server."; });
+if (token) action(async () => { try { draw(await api("status")); $("message").textContent = "Status confirmed by the server."; } catch (error) { $("login").hidden = false; throw error; } });
+else $("login").hidden = false;
 setInterval(() => { if (token && !busy) action(async () => { draw(await api("status")); $("message").textContent = "Status confirmed by the server."; }); }, 60000);
