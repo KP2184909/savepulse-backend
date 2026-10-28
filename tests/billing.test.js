@@ -128,6 +128,15 @@ test("checkout payload reports missing Stripe configuration without failing", as
   assert.deepEqual(payload.missing, ["STRIPE_SECRET_KEY", "STRIPE_PRICE_PRO"]);
 });
 
+test("checkout never falls back to an unbound static payment link", async () => {
+  const payload = await checkoutPayload("pro", { email: "member@example.com" }, {
+    PUBLIC_CHECKOUT_ENABLED: "true",
+    CHECKOUT_PRO_URL: "https://buy.stripe.com/example"
+  });
+  assert.equal(payload.configured, false);
+  assert.equal(payload.url, null);
+});
+
 test("Stripe webhook signature verification accepts a matching v1 signature", () => {
   const secret = "whsec_test_secret";
   const rawBody = Buffer.from(JSON.stringify({ id: "evt_test", type: "checkout.session.completed" }));

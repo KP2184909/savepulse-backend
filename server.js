@@ -628,8 +628,6 @@ async function checkoutPayload(plan, options = {}, env = process.env) {
     };
   }
 
-  const staticUrl = checkoutUrlForPlan(planId, env);
-
   if (options.email && checkoutRequirements(planId, env).length === 0) {
     try {
       const session = await createStripeCheckoutSession({ ...options, plan: planId }, env);
@@ -653,16 +651,6 @@ async function checkoutPayload(plan, options = {}, env = process.env) {
         message: error.message
       };
     }
-  }
-
-  if (staticUrl) {
-    return {
-      plan: planId,
-      configured: true,
-      provider: "payment_link",
-      url: staticUrl,
-      message: "Open this checkout URL to activate the requested plan."
-    };
   }
 
   return {
