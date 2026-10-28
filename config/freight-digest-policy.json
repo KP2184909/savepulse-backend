@@ -1,0 +1,9 @@
+{
+  "service": "freightpulse",
+  "frequency": "daily",
+  "timeZone": "Asia/Bangkok",
+  "localTime": "09:00",
+  "coverage": "all_six_routes_plus_bdi_zim",
+  "routePreferencesAffectEmail": false,
+  "productionScheduleEnabled": false
+}

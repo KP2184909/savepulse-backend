@@ -8,7 +8,7 @@ const { once } = require("node:events");
 const rows = new Map(), mail = [];
 const originalFetch = global.fetch;
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "savepulse-trial-http-"));
-Object.assign(process.env, { PORT: "0", HOST: "127.0.0.1", DATA_DIR: dir, SUPABASE_URL: "https://database.invalid", SUPABASE_SERVICE_ROLE_KEY: "test-not-secret", RESEND_API_KEY: "test-not-secret", FROM_EMAIL: "test@example.invalid" });
+Object.assign(process.env, { PORT: "0", HOST: "127.0.0.1", DATA_DIR: dir, FREIGHTPULSE_SANDBOX_ENABLED: "true", SUPABASE_URL: "https://database.invalid", SUPABASE_SERVICE_ROLE_KEY: "test-not-secret", RESEND_API_KEY: "test-not-secret", FROM_EMAIL: "test@example.invalid" });
 global.fetch = async (rawUrl, options = {}) => {
   const url = new URL(rawUrl);
   if (url.hostname === "api.resend.com") { mail.push(JSON.parse(options.body)); return Response.json({ id: "test-provider" }); }
@@ -73,4 +73,20 @@ test("trial and exact legal routes serve documents, not the SPA", async () => {
   for (const [route, text] of [["/trial/", "Your 14-day trial"], ["/terms", "14-day no-card trial"], ["/refund", "No refund is needed"]]) {
     const response = await originalFetch(base + route); assert.equal(response.status, 200); assert.ok((await response.text()).includes(text));
   }
+});
+
+test("FreightPulse company uses the existing verified session without granting either service", async () => {
+  const email="freight-owner@example.invalid";
+  assert.equal((await api("code",{email})).status,200);
+  const code=mail.at(-1).text.match(/code is (\d{6})/)[1];
+  const auth=await api("verify",{email,code});
+  const token=auth.data.token;
+  const request=(route,body,authToken=token)=>originalFetch(`${base}/api/v1/freightpulse/${route}`,{method:body?"POST":"GET",headers:{"content-type":"application/json",authorization:`Bearer ${authToken}`},...(body?{body:JSON.stringify(body)}:{})});
+  assert.equal((await request("company",{name:"Integration Test Co"},"not-verified")).status,401);
+  const created=await request("company",{name:"Integration Test Co",email:"someone-else@example.invalid"});
+  assert.equal(created.status,200);assert.equal((await created.json()).company.access,false);
+  const loaded=await(await request("account")).json();assert.equal(loaded.company.name,"Integration Test Co");
+  assert.equal((await request("report")).status,403);
+  assert.equal((await api("status",undefined,token)).data.trial.status,"not_started");
+  await api("logout",{},token);assert.equal((await request("account")).status,401);
 });

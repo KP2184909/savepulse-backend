@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>FreightPulse AI — Development preview</title>
+    <link rel="stylesheet" href="/freightpulse/styles.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/freightpulse/">FreightPulse <span>AI</span></a
+      ><a href="/">SavePulse ↗</a>
+    </header>
+    <main>
+      <section class="intro">
+        <p class="eyebrow">PROCUREMENT · LOGISTICS · IMPORT / EXPORT</p>
+        <h1>อ่านแรงกดดันค่าระวาง<br />ก่อนคุยราคากับผู้ให้บริการ</h1>
+        <p>
+          ข้อมูลแนวโน้มประกอบการขอใบเสนอราคา ต่อรอง และพิจารณาล็อกค่าขนส่ง
+          ควบคู่กับราคาจริง พื้นที่เรือ และกำหนดส่งของคุณ
+        </p>
+        <p>
+          Six regional container routes. BDI: dry-bulk context. ZIM: company
+          stock context. These are not port-specific booking quotes from
+          Thailand.
+        </p>
+        <p>
+          Route names and USD/FEU units:
+          <a
+            href="https://www.cmegroup.com/content/dam/cmegroup/markets/energy/files/container-freight-rate-futures-fact-card.pdf"
+            target="_blank"
+            rel="noopener"
+            >CME Group contract specifications</a
+          >. Market data remains disconnected; all displayed signals are Demo.
+        </p>
+        <div class="tags">
+          <span>ระหว่างพัฒนาและทดสอบ</span><span>$99 USD / บริษัท / เดือน</span>
+        </div>
+        <p>
+          ช่วยฝ่ายจัดซื้อและโลจิสติกส์ติดตามภาวะค่าระวางรายเส้นทาง
+          เพื่อเตรียมขอใบเสนอราคา ต่อรอง และพิจารณาเงื่อนไขการจอง
+        </p>
+        <p>
+          ข้อมูลบนหน้านี้เป็นตัวอย่างระหว่างพัฒนา
+          โปรดพิจารณาร่วมกับใบเสนอราคาปัจจุบัน พื้นที่เรือ และกำหนดส่งสินค้า
+        </p>
+        <p class="muted">
+          ยังไม่เปิดขายจริง · ภาษี จำนวนผู้ใช้ต่อบริษัท ระยะทดลอง
+          และส่วนลดอยู่ระหว่างกำหนด
+        </p>
+      </section>
+      <section class="toolbar">
+        <div>
+          <h2>ภาพรวมเส้นทาง</h2>
+          <p id="modeLabel" class="demo">DEMO — ข้อมูลจำลอง ไม่ใช่ตลาดจริง</p>
+        </div>
+        <div class="actions">
+          <button id="demoButton" class="secondary">ดู Demo</button
+          ><button id="reportButton">โหลดรายงานสมาชิกทดสอบ</button>
+        </div>
+      </section>
+      <div id="message" role="status" aria-live="polite"></div>
+      <p id="updated" class="muted"></p>
+      <div id="routes" class="routes"></div>
+      <section class="guidance">
+        <h2>ก่อนพิจารณาล็อกค่าขนส่ง</h2>
+        <p>
+          ตรวจวันหมดอายุของใบเสนอราคา พื้นที่เรือ วันเรือออก ค่าใช้จ่ายเพิ่มเติม
+          และเงื่อนไขการจองกับผู้ให้บริการเสมอ
+          ช่วงพิจารณาไม่ใช่คำสั่งให้จองหรือรับประกันว่าจะได้ราคาต่ำกว่า
+        </p>
+        <p>
+          ฟิวเจอร์สใช้ดูแนวโน้ม ไม่ใช่ราคาจองจริง
+          สัญญาต่อเนื่องอาจได้รับผลจากการเปลี่ยนเดือนสัญญา
+        </p>
+      </section>
+      <section>
+        <h2>บริบทประกอบ · แสดงแยกจากเส้นทาง</h2>
+        <p class="muted">
+          BDI และ ZIM ช่วยประกอบการมองภาพรวมตลาดขนส่ง
+          ควรพิจารณาร่วมกับข้อมูลรายเส้นทางและใบเสนอราคาจริง
+        </p>
+        <div id="context" class="context"></div>
+        <p>
+          BDI และ ZIM เป็นข้อมูลประกอบแยกจาก CS ไม่มีตัวนับวันที่ 1–4
+          และยังไม่รวมทั้งสามกลุ่มเป็นคะแนนหรือข้อสรุปอัตโนมัติ
+          ตัวอย่างทั้งหมดเป็น Demo แยกจาก webhook ทดสอบ
+          กติกา sandbox ที่อนุมัติยังไม่ใช่การเปิดใช้ข้อมูลหรือการแจ้งเตือนจริง
+        </p>
+      </section>
+      <section class="account">
+        <div>
+          <p class="eyebrow">COMPANY WORKSPACE · SANDBOX</p>
+          <h2>บัญชีบริษัท FreightPulse</h2>
+          <p>
+            สิทธิ์ FreightPulse แยกจาก SavePulse
+            บริษัทเดียวกันสมัครทั้งสองบริการได้ การยืนยันอีเมลไม่เริ่ม trial
+            หรือเปิดสิทธิ์เสียเงินให้เอง
+          </p>
+          <p id="accountStatus">ยังไม่ได้ยืนยันสมาชิกทดสอบ</p>
+          <form id="emailForm">
+            <label
+              >อีเมลผู้ดูแลบริษัท<input
+                disabled
+                id="email"
+                type="email"
+                autocomplete="email"
+                maxlength="254"
+                required /></label
+            ><button disabled>ส่งรหัสยืนยันอีเมล</button>
+          </form>
+          <form id="codeForm" hidden>
+            <label
+              >รหัสยืนยัน 6 หลัก<input
+                id="code"
+                inputmode="numeric"
+                pattern="[0-9]{6}"
+                maxlength="6"
+                autocomplete="one-time-code"
+                required /></label
+            ><button>ยืนยันอีเมล</button>
+          </form>
+          <form id="companyForm" hidden>
+            <label
+              >ชื่อบริษัท<input
+                id="companyName"
+                maxlength="120"
+                minlength="2"
+                required /></label
+            ><button>สร้าง workspace ทดสอบ</button>
+          </form>
+        </div>
+        <div>
+          <h3>การชำระเงิน</h3>
+          <p><strong>$99 USD ต่อบริษัท ต่อเดือน</strong></p>
+          <p>
+            Sandbox เท่านั้น ต่ออายุรายเดือนจนกว่าจะยกเลิก ยกเลิกต่ออายุได้ผ่าน
+            Billing Portal สิทธิ์คงอยู่จนสิ้นรอบที่ชำระแล้ว
+            หากชำระไม่สำเร็จหรือข้อมูลสมาชิกตรวจยืนยันไม่ได้
+            ระบบจะไม่เปิดรายงานสมาชิก
+          </p>
+          <p>
+            นโยบายภาษียังไม่สรุป ยอดนี้ไม่ใช่การยืนยันยอดสุทธิรวมภาษี
+            ยังไม่เปิดรับเงินจริง ไม่กำหนด trial หรือส่วนลดให้เอง
+          </p>
+          <div class="actions">
+            <button id="checkoutButton" disabled>สมัครใน Stripe sandbox</button
+            ><button id="portalButton" class="secondary" disabled>
+              จัดการบัตร · ใบเสร็จ · ยกเลิกต่ออายุ
+            </button>
+          </div>
+          <p class="muted">
+            Customer Portal จะแสดงเฉพาะบัญชี billing ของ FreightPulse
+          </p>
+        </div>
+      </section>
+      <section>
+        <h2>เส้นทางที่ติดตามและการแจ้งเตือน</h2>
+        <p>สมาชิก FreightPulse รับรายงานรวมทั้ง 6 เส้นทาง พร้อม BDI และ ZIM ในอีเมลฉบับเดียว
+          การเลือกเส้นทางด้านล่างใช้สำหรับติดตามบนเว็บ ไม่เปลี่ยนชุดข้อมูลในอีเมล
+          สามารถเปิด–ปิดการรับอีเมลได้</p>
+        <form id="preferencesForm">
+          <fieldset id="routePreferences" disabled>
+            <legend>เลือกเส้นทางระดับภูมิภาคที่ต้องการติดตาม</legend>
+          </fieldset>
+          <label class="toggle"
+            ><input id="emailEnabled" type="checkbox" disabled />
+            เปิดอีเมลแจ้งเตือนทดสอบ</label
+          ><button id="savePreferences" disabled>บันทึกการตั้งค่า</button>
+        </form>
+        <p class="muted">
+          การทดสอบส่งอีเมลจำกัดเฉพาะ savepulse.cloud@gmail.com · Discord
+          เตรียมเป็นช่องทางเพิ่มเติม ยังไม่เปิดส่ง
+        </p>
+        <h3>ประวัติแจ้งเตือน</h3>
+        <ul id="history"></ul>
+      </section>
+      <footer>
+        <p>
+          FreightPulse AI ยังอยู่ระหว่างพัฒนา ไม่รับประกันความแม่นยำ
+          ราคาที่ดีที่สุด หรือผลประหยัด ข้อความอธิบายต้นแบบใช้ template ตามสถานะ
+          ยังไม่เชื่อมโมเดล AI หรือข้อมูลตลาดจริง
+        </p>
+        <p>
+          สิทธิ์ใช้ข้อมูลเชิงพาณิชย์และ payload จาก Pine Script
+          ต้องยืนยันก่อนเปิดขาย ไม่มีการเปลี่ยนตารางหรือโควตาอีเมลเชิญชวน
+        </p>
+      </footer>
+    </main>
+    <script src="/freightpulse/routes.js"></script>
+    <script src="/freightpulse/cs-window-copy.js"></script>
+    <script src="/freightpulse/context-copy.js"></script>
+    <script src="/freightpulse/app.js"></script>
+  </body>
+</html>

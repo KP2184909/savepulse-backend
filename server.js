@@ -47,6 +47,16 @@ async function requireTrialReady() {
   await trialProbe;
   if (!trialDatabaseReady) throw Object.assign(new Error("trial_not_available"), { status: 503 });
 }
+// FreightPulse is sandbox-only and disabled by default. Reuse identity, never SavePulse entitlement.
+const { createFreightStore, createFreightService } = require("./src/freightpulse");
+const { createFreightStripe } = require("./src/freightStripe");
+const { createFreightHttp } = require("./src/freightHttp");
+const { demoReport } = require("./src/freightDemo");
+const freightStripe = process.env.FREIGHTPULSE_SANDBOX_ENABLED === "true" ? createFreightStripe() : null;
+let freightRules = {};
+try { freightRules = JSON.parse(process.env.FREIGHT_TEST_RULES_JSON || "{}"); } catch (_) { /* No approved versions/freshness => fail closed. */ }
+const freight = createFreightService({ store: createFreightStore(), identity: async token => { await requireTrialReady(); return trials.identity(token); }, stripe: freightStripe, send: createTrialMailer(), enabled: process.env.FREIGHTPULSE_SANDBOX_ENABLED === "true", mailEnabled: process.env.FREIGHT_TEST_EMAIL_ENABLED === "true", rules: freightRules });
+const freightHttp = createFreightHttp({ service: freight, stripe: freightStripe, auth: { code: async (email, req) => { await requireTrialReady(); return trials.requestCode(email, req.socket.remoteAddress); }, verify: async (email, code) => { await requireTrialReady(); return trials.verify(email, code); } }, parseBody, readRawBody, sendJson, demo: demoReport });
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || (process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1");
 const DATA_DIR = path.resolve(__dirname, process.env.DATA_DIR || "state");
@@ -1101,6 +1111,7 @@ function applyStripeSubscriptionChanged(subscription, env = process.env) {
 
 function applyStripeEvent(event, env = process.env) {
   const object = event?.data?.object || {};
+  if (object.metadata?.service === "freightpulse") return { updated: false, reason: "other_service_event_ignored" };
 
   switch (event?.type) {
     case "checkout.session.completed":
@@ -1470,6 +1481,7 @@ async function handleRequest(req, res) {
   }
 
   try {
+    if (await freightHttp(req, res, url)) return;
     if (url.pathname.startsWith("/api/v1/trial/")) {
       res.setHeader("cache-control", "no-store");
       if (req.method === "GET" && url.pathname === "/api/v1/trial/readiness") {

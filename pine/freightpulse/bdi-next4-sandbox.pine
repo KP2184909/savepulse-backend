@@ -1,0 +1,60 @@
+//@version=6
+indicator("FreightPulse BDI Sandbox Feed v1.0", overlay = true)
+// Private TEST transport. Lower close ends the current window after that bar.
+// After invalidation, use that lower-close bar as the baseline while waiting for a new rebound.
+// Restart after normal four-day expiry and rollover remain unapproved.
+// Do not publish a script containing configured credentials or show its Inputs in screenshots.
+string SCRIPT = "freightpulse.bulk.next4.transport.v1"
+string RULE = "freightpulse.bdi.rebound-next-4.lower-close-restart.v1"
+bool enableSend = input.bool(false, "Enable sandbox webhook output", display = display.none)
+string token = input.string("", "Dedicated FreightPulse TEST webhook token", display = display.none)
+int reviewStart = input.time(0, "Explicit sandbox review start (choose before use)")
+string code = syminfo.ticker
+string route = "BDI"
+bool chartOk = timeframe.isdaily and timeframe.multiplier == 1 and syminfo.prefix == "INDEX" and code == "BDI" and chart.is_standard
+if barstate.isfirst and not chartOk
+    runtime.error("Use a standard INDEX:BDI chart on 1D.")
+f_quote(string value) =>
+    "\"" + str.replace_all(str.replace_all(str.replace_all(value, "\\", "\\\\"), "\"", "\\\""), "\n", "\\n") + "\""
+f_time(int value) =>
+    na(value) ? "null" : f_quote(str.format_time(value, "yyyy-MM-dd'T'HH:mm:ss'Z'", "UTC"))
+var bool waiting = false
+var int confirmation = na
+var int start = na
+var int day = 0
+var string state = "inactive"
+var float previousClose = na
+int highlightDay = na
+if barstate.isconfirmed and not na(close) and reviewStart > 0 and time >= reviewStart
+    if state == "invalidated"
+        waiting := true
+        confirmation := na
+        start := na
+        day := 0
+        state := "inactive"
+    if not na(confirmation)
+        day += 1
+        if day <= 4
+            if na(start)
+                start := time
+            highlightDay := day
+            state := close < previousClose ? "invalidated" : "active"
+        else
+            state := "expired"
+    else if not na(previousClose)
+        if waiting and close > previousClose
+            confirmation := time
+        else if close < previousClose
+            waiting := true
+    previousClose := close
+    if enableSend and barstate.isrealtime and str.length(token) >= 24 and not na(time_close)
+        string status = na(confirmation) ? "unclear" : "pressure_up"
+        string payload = "{\"contractVersion\":\"freightpulse.draft.v2\",\"ruleVersion\":" + f_quote(RULE) + ",\"scriptVersion\":" + f_quote(SCRIPT) + ",\"eventId\":" + f_quote(SCRIPT + ":" + code + ":" + str.tostring(time)) + ",\"symbol\":" + f_quote("INDEX:BDI") + ",\"family\":\"bulk\",\"route\":null" + ",\"timeframe\":\"1D\",\"barTime\":" + f_time(time) + ",\"barCloseTime\":" + f_time(time_close) + ",\"barClosed\":true,\"signalStatus\":" + f_quote(status) + ",\"windowState\":" + f_quote(state) + ",\"windowDay\":" + (state == "active" ? str.tostring(day) : "null") + ",\"windowStart\":" + f_time(state == "active" ? start : na) + ",\"confirmationBarTime\":" + f_time(confirmation) + ",\"sourceUpdatedAt\":null,\"sourceFreshness\":\"unknown\",\"source\":" + f_quote("TradingView-INDEX-BDI-sandbox") + ",\"dataMode\":\"test\"}"
+        alert("{\"secret_key\":" + f_quote(token) + ",\"payload\":" + payload + "}", alert.freq_once_per_bar_close)
+bgcolor(not na(highlightDay) ? color.new(color.teal, 85) : na)
+plot(highlightDay, "Sandbox window day (1–4)", display = display.data_window)
+var table panel = table.new(position.top_right, 1, 3)
+if barstate.islast
+    table.cell(panel, 0, 0, "SANDBOX ONLY · " + code + " · " + route, text_color = color.white, bgcolor = color.new(color.black, 15))
+    table.cell(panel, 0, 1, reviewStart == 0 ? "Select an explicit review start first" : state == "active" ? "Dry Bulk Rebound Observation — Day " + str.tostring(day) + " of 4" : state == "invalidated" ? "Window invalidated — waiting for a new rebound" : state == "expired" ? "Dry Bulk Observation Window Ended" : na(confirmation) ? "Waiting for confirmation" : "Confirmation bar — window starts next bar", text_color = color.white, bgcolor = color.new(color.black, 15))
+    table.cell(panel, 0, 2, "Source freshness unknown. Restart after stop only. No customer alerts.", text_color = color.white, bgcolor = color.new(color.black, 15))

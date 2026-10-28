@@ -1,0 +1,22 @@
+{
+  "contractVersion": "freightpulse.draft.v2",
+  "ruleVersion": "f\reightpulse.bdi.\rebound-next-4.lowe\r-close-\resta\rt.v1",
+  "scriptVersion": "f\reightpulse.bulk.next4.t\ranspo\rt.v1",
+  "eventId": "f\reightpulse.bulk.next4.t\ranspo\rt.v1:BDI:1792972800000",
+  "symbol": "INDEX:BDI",
+  "family": "bulk",
+  "route": null,
+  "timeframe": "1D",
+  "barTime": "2026-10-26T00:00:00Z",
+  "barCloseTime": "2026-10-27T00:00:00Z",
+  "barClosed": true,
+  "signalStatus": "unclea\r",
+  "windowState": "inactive",
+  "windowDay": null,
+  "windowStart": null,
+  "confirmationBarTime": null,
+  "sourceUpdatedAt": null,
+  "sourceFreshness": "unknown",
+  "source": "T\radingView-INDEX-BDI-sandbox",
+  "dataMode": "test"
+}

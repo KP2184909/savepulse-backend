@@ -1,0 +1,51 @@
+{
+  "observedAt": "2026-10-28T02:32:47Z",
+  "receipts": [
+    {
+      "symbol": "BDI",
+      "barTime": "2026-10-27T00:00:00Z",
+      "receivedAt": "2026-10-28T00:24:17.049167Z",
+      "sourceFreshness": "unknown",
+      "sourceUpdatedAt": null
+    },
+    {
+      "symbol": "ZIM",
+      "barTime": "2026-10-27T13:30:00Z",
+      "receivedAt": "2026-10-27T20:01:19.394243Z",
+      "sourceFreshness": "unknown",
+      "sourceUpdatedAt": null
+    }
+  ],
+  "observations": [
+    {
+      "symbol": "CS11!",
+      "lastBarOpen": "2026-10-26T22:00:00.000Z",
+      "reviewStart": "2026-10-27T00:00:00Z"
+    },
+    {
+      "symbol": "CS21!",
+      "lastBarOpen": "2026-06-08T22:00:00.000Z",
+      "reviewStart": "2026-10-27T00:00:00Z"
+    },
+    {
+      "symbol": "CS31!",
+      "lastBarOpen": "2026-06-08T22:00:00.000Z",
+      "reviewStart": "2026-10-27T00:00:00Z"
+    },
+    {
+      "symbol": "CS41!",
+      "lastBarOpen": "2026-06-08T22:00:00.000Z",
+      "reviewStart": "2026-10-27T00:00:00Z"
+    },
+    {
+      "symbol": "CS51!",
+      "lastBarOpen": "2026-06-08T22:00:00.000Z",
+      "reviewStart": "2026-10-27T00:00:00Z"
+    },
+    {
+      "symbol": "CS61!",
+      "lastBarOpen": "2026-06-08T22:00:00.000Z",
+      "reviewStart": "2026-10-27T00:00:00Z"
+    }
+  ]
+}
