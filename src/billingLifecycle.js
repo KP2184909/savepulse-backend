@@ -22,7 +22,7 @@ function keyMode(key) {
 function createStripeApi(env = process.env, fetchImpl = globalThis.fetch) {
   const key = env.STRIPE_SECRET_KEY || env.STRIPE_API_KEY || "";
   return async function stripe(method, route, values = {}, idempotencyKey) {
-    if (!key || !/^\/(account|prices|checkout\/sessions|subscriptions|billing_portal\/sessions)(\/|$)/.test(route)) throw fail("billing_unavailable");
+    if (!key || !/^\/(account|prices|invoices|checkout\/sessions|subscriptions|billing_portal\/sessions)(\/|$)/.test(route)) throw fail("billing_unavailable");
     const form = new URLSearchParams();
     const encode = (prefix, value) => {
       if (Array.isArray(value)) value.forEach((entry, i) => encode(`${prefix}[${i}]`, entry));
@@ -240,6 +240,23 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
       return { updated: true, membership: result, email: ctx.row().email };
     });
   }
+  async function paidInvoiceForTaxDraft(invoiceId) {
+    await verifyAccount();
+    if (!/^in_\w+$/.test(invoiceId || "")) throw fail("billing_invoice_required", 422);
+    const invoice = await stripe("GET", `/invoices/${invoiceId}`);
+    if (invoice.livemode !== (mode === "live") || invoice.status !== "paid" || invoice.currency !== "usd" || !Number.isSafeInteger(invoice.amount_paid) || invoice.amount_paid <= 0) throw fail("billing_paid_invoice_required", 422);
+    const subscriptionId = id(invoice.subscription) || id(invoice.parent?.subscription_details?.subscription);
+    if (!/^sub_\w+$/.test(subscriptionId || "")) throw fail("billing_bound_invoice_required", 422);
+    const sub = await freshSubscription(subscriptionId);
+    const reference = sub.metadata?.billing_account;
+    if (sub.livemode !== invoice.livemode || sub.metadata?.service !== "savepulse" || !/^[a-f0-9]{64}$/.test(reference || "") || id(invoice.customer) !== id(sub.customer)) throw fail("billing_bound_invoice_required", 422);
+    const row = await store.get(prefix + reference);
+    const binding = row?.bindings?.[sub.metadata?.billing_attempt];
+    if (!binding || !row.email || hash(canonicalEmail(row.email)) !== reference) throw fail("billing_bound_invoice_required", 422);
+    const session = await stripe("GET", `/checkout/sessions/${binding.sessionId}`);
+    if (id(session.subscription) !== sub.id || session.payment_status !== "paid" || session.status !== "complete") throw fail("billing_bound_invoice_required", 422);
+    return invoice;
+  }
   async function catalog() {
     await verifyAccount();
     const plans = [];
@@ -250,7 +267,7 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
     }
     return { enabled: true, mode, plans, noCardTrialUrl: "/trial/", taxPolicyConfirmed: env.BILLING_TAX_POLICY_CONFIRMED === "true" };
   }
-  return { checkout, status, portal, event, catalog, reconcileEmail, accountKey, enabled, mode, prices, publicStatus, requiredEvents: EVENTS };
+  return { checkout, status, portal, event, catalog, paidInvoiceForTaxDraft, reconcileEmail, accountKey, enabled, mode, prices, publicStatus, requiredEvents: EVENTS };
 }
 
 module.exports = { createBillingLifecycle, createStripeApi, keyMode, AMOUNTS, EVENTS };

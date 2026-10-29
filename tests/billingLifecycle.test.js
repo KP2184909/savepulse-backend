@@ -30,6 +30,7 @@ function fixture() {
     if (route.endsWith("/expire")) { const session = sessions.get(route.split("/").at(-2)); session.status = "expired"; return clone(session); }
     if (route.startsWith("/checkout/sessions/")) return clone(sessions.get(route.split("/").at(-1)));
     if (route.startsWith("/subscriptions/")) return clone(subscriptions.get(route.split("/").at(-1)));
+    if (route.startsWith("/invoices/")) return clone([...subscriptions.values()].find(sub => sub.latest_invoice?.id === route.split("/").at(-1))?.latest_invoice);
     if (route === "/billing_portal/sessions") return { url: "https://billing.stripe.com/p/session/test_fixture" };
     throw Error(`unexpected request ${route}`);
   };
@@ -185,4 +186,16 @@ test("restricted API key modes are recognized and provider errors are sanitized"
   const api = createStripeApi({ STRIPE_SECRET_KEY: "rk_test_fixture" }, async () => Response.json({ error: { message: "sensitive" } }, { status: 400 }));
   await assert.rejects(api("GET", "/account"), error => error.message === "billing_provider_unavailable");
   await assert.rejects(api("GET", "/customers"), /billing_unavailable/);
+});
+
+ test("tax draft source requires a paid invoice bound to this account and matching customer", async () => {
+  const f = fixture(), session = await f.opened();
+  const sub = f.settle(session);
+  Object.assign(sub.latest_invoice, { currency: "usd", amount_paid: 1500 });
+  assert.equal((await f.api.paidInvoiceForTaxDraft("in_fixture")).id,"in_fixture");
+  sub.latest_invoice.customer="cus_other";
+  await assert.rejects(f.api.paidInvoiceForTaxDraft("in_fixture"),/billing_bound_invoice_required/);
+  sub.latest_invoice.customer="cus_fixture"; sub.latest_invoice.status="open";
+  await assert.rejects(f.api.paidInvoiceForTaxDraft("in_fixture"),/billing_paid_invoice_required/);
+  await assert.rejects(f.api.paidInvoiceForTaxDraft("arbitrary"),/billing_invoice_required/);
 });

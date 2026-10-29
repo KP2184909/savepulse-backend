@@ -87,3 +87,9 @@ test("verified HTTP checkout, signed webhook, reload entitlement, portal, cancel
   assert.equal((await resolveBillingSubscriber({ email: "savepulse.cloud@gmail.com", plan: "pro" })).plan, "free");
   await assert.rejects(resolveBillingSubscriber({ email: "real-customer@example.com", plan: "pro" }), /billing_test_mailbox_required/);
 });
+
+test("tax invoice drafts reject a member session without separate administrator authorization", async () => {
+  const result = await api("/api/v1/admin/billing/tax-invoice-draft", { invoiceId: "in_http" });
+  assert.equal(result.status,401);
+  assert.equal(result.headers.get("cache-control"),"no-store");
+});

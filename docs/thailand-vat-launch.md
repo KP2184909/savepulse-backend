@@ -40,3 +40,13 @@ Stripe sandbox GetTaxSettings returned country unsupported. Use manual Tax Rates
 ## Seller facts confirmed by owner — 2026-10-29
 
 Server-side seller profile is in config/billing-seller.json. Owner confirms legal name, head office, address, 13-digit tax number matching PP20, and that the same legal entity is the Stripe merchant. Profile is preparation data; it does not activate tax invoices or change Stripe. Existing Business invoices endpoint tracks customers' procurement exposure and is not a seller tax-invoice issuance system. A compliant seller tax-invoice workflow and established FX method are still required.
+
+## Draft implementation — 2026-10-29
+
+Owner reports no prior USD tax-invoice FX method. Added src/thaiTaxInvoiceDraft.js and administrator-only POST /api/v1/admin/billing/tax-invoice-draft. The server retrieves a paid USD invoice from Stripe and checks mode, subscription, verified account binding, customer and paid Checkout before passing it to the draft builder. Posted payment amounts cannot override the provider invoice.
+
+The draft builder is deliberately scoped to ordinary domestic TH service use during the verified 7% period. It converts USD cents to THB satang with integer arithmetic, splits inclusive VAT, preserves rate method/source/date and tax-point date, and escapes HTML. Foreign/mixed use, unpaid invoices, missing customer details, undocumented FX and unreviewed rate periods fail validation. No issue number, persistence or customer email is created. No official tax invoice is represented as issued.
+
+Required fields: invoiceId; customer.name/address/country/serviceUseCountry and taxId/branchCode when applicable; fx.method/sourceUrl/rateDate/taxPointDate/thbPerUsd/selectionReason; treatment=th_domestic_standard_7_inclusive. FX is an administrator-supplied documented rate, not yet fetched or independently verified by this code. Do not treat draft generation as compliant completed issuance. Draft endpoint is not yet deployed to Production or the Edge sandbox wrapper.
+
+Validation: 123 automated tests pass, including paid-source ownership, administrator access, inclusive arithmetic and missing/invalid FX or customer cases. Full issuance still needs authoritative FX retrieval/evidence, durable unique invoice numbering and storage, tax-point exceptions, credit notes/refunds, and customer delivery. No live billing or tax changes made.

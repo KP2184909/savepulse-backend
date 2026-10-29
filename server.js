@@ -31,6 +31,7 @@ const {
 
 const { createTrialStore, createTrialMailer, createTrialLifecycle } = require("./src/trialLifecycle");
 const { createBillingLifecycle, createStripeApi } = require("./src/billingLifecycle");
+const { buildThaiTaxInvoiceDraft, renderThaiTaxInvoiceDraft } = require("./src/thaiTaxInvoiceDraft");
 const { verifyStripeWebhookSignature } = require("./src/stripeSignature");
 const trialStore = createTrialStore();
 const legacyPaidPlan = trialStore.paidPlan.bind(trialStore);
@@ -1583,6 +1584,15 @@ async function handleRequest(req, res) {
         generatedAt: new Date().toISOString()
       });
       return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/v1/admin/billing/tax-invoice-draft") {
+      res.setHeader("cache-control", "no-store");
+      if (!hasAdminSecret(req)) { sendJson(res, 401, { error: "unauthorized_admin_billing" }); return; }
+      const body = await parseBody(req);
+      const payment = await billing.paidInvoiceForTaxDraft(body.invoiceId);
+      const draft = buildThaiTaxInvoiceDraft({ payment, customer: body.customer, fx: body.fx, treatment: body.treatment });
+      sendJson(res, 200, { draft, html: renderThaiTaxInvoiceDraft(draft) }); return;
     }
 
     if (req.method === "GET" && url.pathname === "/api/v1/admin/billing-readiness") {
