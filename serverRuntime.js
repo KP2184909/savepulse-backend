@@ -338,7 +338,11 @@ async function sendDailyDigestBatch(
   { dryRun = false, plan = "", email = "", signals, now = new Date(), sendEmail = sendDailyDigestEmail } = {},
   env = process.env
 ) {
-  const recipients = dailyDigestCandidates(plan, email, env);
+  const recipients = [];
+  for (const subscriber of dailyDigestCandidates(plan, email, env)) {
+    try { recipients.push(await baseServer.resolveBillingSubscriber(subscriber)); }
+    catch (_) { recipients.push({ ...subscriber, billingLookupFailed: true }); }
+  }
   const signalList = storedSignalsForDigest(signals);
   const readiness = assessSignalReadiness(signalList, {
     now,
@@ -357,6 +361,7 @@ async function sendDailyDigestBatch(
     const templateType = templateTypeForPlan(planId);
     const unsubscribeUrl = unsubscribeUrlForSubscriber(subscriber, env);
     const skipReason =
+      (subscriber.billingLookupFailed ? "membership_not_verified" : "") ||
       subscriberSkipReason(subscriber) ||
       (!readiness.ready ? "incomplete_signals" : "") ||
       (isDuplicateDailyEmail(existingLogs, subscriber, templateType, signalSnapshotDate) ? "duplicate_daily_email" : "");

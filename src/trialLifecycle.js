@@ -44,6 +44,9 @@ function createTrialStore(env = process.env, fetchImpl = globalThis.fetch) {
     async paidPlan(email) {
       const rows = await request(`subscribers?email=eq.${encodeURIComponent(email)}&select=plan,payload&limit=1`);
       // Trial never writes the subscriber's paid record. Billing remains authoritative.
+      // A v2 mirror is only a recipient index; missing authoritative billing data
+      // must never restore a cached paid plan from that mirror.
+      if (env.BILLING_V2_ENABLED === "true" && rows[0]?.payload?.billing?.version === 2) return "free";
       const plan = rows[0]?.plan || rows[0]?.payload?.plan;
       return ["plus", "pro", "business"].includes(plan) ? plan : "free";
     }
@@ -222,4 +225,4 @@ function createTrialLifecycle({ store, send, now = Date.now, enabled = true }) {
   }
   return { requestCode, verify, status, start, cancel, tick, identity, logout, qaReminder };
 }
-module.exports = { createTrialStore, createTrialMailer, createTrialLifecycle, accountKey, DAY };
+module.exports = { createTrialStore, createTrialMailer, createTrialLifecycle, canonicalEmail, accountKey, DAY };
