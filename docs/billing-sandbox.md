@@ -50,3 +50,14 @@ Deploy Preview #10 forwards `/sandbox-billing/*` via a Netlify Function to the i
 - Production paid checkout, tax treatment, legacy member migration, data-use rights and customer email fulfillment are **NOT VERIFIED**. Keep public checkout disabled.
 
 Package shared modules before Edge deployment with `node tools/build-billing-sandbox.js`. `shared/` is generated and ignored; deploy the entrypoint plus generated ESM files. The tested Node source is canonical.
+
+## Deployed QA — 2026-10-29 (Asia/Bangkok)
+
+- User configured the test API credential through Supabase Secrets; readiness returned configured=true and webhookConfigured=true, liveSales=false.
+- Netlify preview deployment 6ae2bcb0bce95ad4641ae628 served membership UI. User verified the authorized test mailbox securely.
+- Clicking Test Pro checkout created hosted Sandbox Checkout cs_test_a14GWuleVZ52TEYQKlFnvdmOTnNegvJz4SvT7wFwPjEyGd8punTvC1fFTw. Completed using Stripe public test card only, with browser card saving declined.
+- Return page and browser reload showed pro/active, paid through 2026-11-29 10:33:33 Asia/Bangkok. Isolated database confirmed subscription sub_1UVk5r0su7h1AsZTX1FIFDJb and two processed verified webhook events.
+- Customer Portal showed the $15 paid invoice, payment method management, and cancellation. Submitted cancellation for period end. Database then confirmed cancelAt=1795923213 and three processed verified webhook events, preserving the paid period.
+- CSS repair ensures hidden verification and portal controls do not appear when inapplicable.
+- Automated checks: 119 pass. Real deployed checkout above covers Pro; Plus/Business hosted checkout and future renewal/expiry for this exact bound account remain unverified. Earlier separate test-clock renewal/failure checks do not substitute for that coverage.
+- Production paid signup remains closed; live tax policy, existing member migration and Business/data coverage require resolution before activation.
