@@ -18,7 +18,7 @@ async function api(route, body) {
   return data;
 }
 function draw() {
-  $("billingDetails").hidden = !catalog?.billingDetailsRequired || Boolean(account?.managed && !["canceled", "incomplete_expired"].includes(account.status));
+  if ($("billingDetails")) $("billingDetails").hidden = !catalog?.billingDetailsRequired || Boolean(account?.managed && !["canceled", "incomplete_expired"].includes(account.status));
   $("plans").replaceChildren();
   for (const plan of catalog?.plans || []) {
     if (!names[plan.id] || !Number.isFinite(plan.amount) || plan.currency !== "USD" || plan.interval !== "month") continue;
@@ -31,6 +31,7 @@ function draw() {
     button.onclick = () => action(async () => {
       if (!account?.email) throw Error("Verify your email before continuing.");
       if (catalog.billingDetailsRequired) {
+        if (!$("billingDetails")) throw Error("This page was updated. Reload before continuing.");
         if (!$("billingDetails").reportValidity()) throw Error("Complete your billing details before checkout.");
         await api("profile", { name: $("billingName").value, address: $("billingAddress").value, postalCode: $("billingPostal").value, taxId: $("billingTaxId").value, branchCode: $("billingBranch").value, country: "TH", serviceUseCountry: "TH", domesticUseConfirmed: $("domesticUse").checked });
       }
