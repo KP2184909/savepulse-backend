@@ -46,7 +46,7 @@ Deploy Preview #10 forwards `/sandbox-billing/*` via a Netlify Function to the i
 - A Stripe test-only decline source was selected for the next cycle. Advancing to December 29 produced `past_due`, invoice `in_1UVXL50su7h1AsZTkqGJe0J3` open, attempted, amount due 1500 cents and amount paid 0.
 - Customer Portal displayed card management, paid/failed invoice history and cancellation. Cancellation was submitted in the sandbox Portal; API readback confirmed `cancel_at=1801143219` (flexible billing mode), without relying solely on `cancel_at_period_end`.
 - An auxiliary direct API test subscription `sub_1UVX6G0su7h1AsZTQNd0mS2j` was cancelled after its renewal check. These are isolated test objects, no real charges.
-- Deployed Edge readiness confirms test-only isolation and signing configuration; the test API key is still absent. Therefore frontend → deployed billing → signed webhook → durable entitlement E2E is **NOT VERIFIED**. Actual Stripe lifecycle success is not proof of deployed membership fulfillment.
+- Deployed Edge readiness now confirms the test API key and signing configuration. See deployed QA below for frontend → billing → signed webhook → durable entitlement evidence. Earlier standalone lifecycle checks remain separate evidence.
 - Production paid checkout, tax treatment, legacy member migration, data-use rights and customer email fulfillment are **NOT VERIFIED**. Keep public checkout disabled.
 
 Package shared modules before Edge deployment with `node tools/build-billing-sandbox.js`. `shared/` is generated and ignored; deploy the entrypoint plus generated ESM files. The tested Node source is canonical.
@@ -61,3 +61,12 @@ Package shared modules before Edge deployment with `node tools/build-billing-san
 - CSS repair ensures hidden verification and portal controls do not appear when inapplicable.
 - Automated checks: 119 pass. Real deployed checkout above covers Pro; Plus/Business hosted checkout and future renewal/expiry for this exact bound account remain unverified. Earlier separate test-clock renewal/failure checks do not substitute for that coverage.
 - Production paid signup remains closed; live tax policy, existing member migration and Business/data coverage require resolution before activation.
+
+## Additional deployed QA — 2026-10-29
+
+- Pro immediate test-only cancellation propagated to Free/canceled on the browser without resetting the trial.
+- Plus hosted Checkout cs_test_a1prwzOnVkimcnNNHnSy4LlnfJoqmom1iMILNg6AaomErfu8f6s7IVfFoJ charged $5 test-only; browser and durable state showed plus/active for sub_1UVkY80su7h1AsZTyT7XlkZd, including reload.
+- Cancelled that Plus test subscription without invoicing/proration before testing Business.
+- Business hosted Checkout cs_test_a1uAdmtSuh6UCO48AcFQjeMfVXvO9pnX4QSRB5I4THlHZDoUKXYm4eMOJa charged $59 test-only; browser and durable state showed business/active for sub_1UVkar0su7h1AsZTkWHiIfEy. Seven verified events persisted across the test sequence. Cancelled this test subscription after verification, without invoicing/proration. No live subscriptions were changed.
+- Production database read-only inventory: five Free subscriber rows, no paid subscriber rows. This does not prove that the live Stripe account has no subscriptions; live Stripe inventory still needs verification.
+- User confirms Thailand VAT registration (PP20). Sandbox GetTaxSettings returns country unsupported. Automatic Stripe Tax remains disabled; manual tax treatment and inclusive/exclusive pricing need confirmation before implementation/activation. No paid Stripe Tax product enabled.
