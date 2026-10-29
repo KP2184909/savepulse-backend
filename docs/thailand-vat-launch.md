@@ -36,3 +36,7 @@ Prepare a domestic ordinary-service path first; overseas checkout must not simpl
 Still need the actual VAT-registered seller name/address/tax number/branch, whether that same entity is the Stripe merchant, and the company's existing FX/tax-invoice process. Do not invent these facts or require an accountant letter merely to supply them. No paid tax service is authorized.
 
 Stripe sandbox GetTaxSettings returned country unsupported. Use manual Tax Rates where applicable; do not enable automatic_tax or a paid Stripe Tax subscription. Connector operation discovery did not expose manual Tax Rate creation in this session; Dashboard fallback remains available. No tax settings or live collection were changed during this research.
+
+## Seller facts confirmed by owner — 2026-10-29
+
+Server-side seller profile is in config/billing-seller.json. Owner confirms legal name, head office, address, 13-digit tax number matching PP20, and that the same legal entity is the Stripe merchant. Profile is preparation data; it does not activate tax invoices or change Stripe. Existing Business invoices endpoint tracks customers' procurement exposure and is not a seller tax-invoice issuance system. A compliant seller tax-invoice workflow and established FX method are still required.
