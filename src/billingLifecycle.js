@@ -273,7 +273,17 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
     const sub = await freshSubscription(subscriptionId);
     const reference = sub.metadata?.billing_account;
     if (sub.livemode !== invoice.livemode || sub.metadata?.service !== "savepulse" || !/^[a-f0-9]{64}$/.test(reference || "") || id(invoice.customer) !== id(sub.customer)) throw fail("billing_bound_invoice_required", 422);
-    if (withContext && env.BILLING_DOMESTIC_VAT_ENABLED === "true" && !sub.default_tax_rates?.some(rate => id(rate) === env.STRIPE_MANUAL_TAX_RATE)) throw fail("billing_invoice_tax_review_required", 422);
+    if (withContext && env.BILLING_DOMESTIC_VAT_ENABLED === "true") {
+      // Read the paid invoice snapshot, not mutable subscription defaults.
+      const rates = invoice.default_tax_rates;
+      if (!Array.isArray(rates) || rates.length !== 1 || id(rates[0]) !== env.STRIPE_MANUAL_TAX_RATE ||
+          invoice.customer_tax_exempt !== "none" || invoice.total !== invoice.amount_paid ||
+          invoice.amount_remaining !== 0 || invoice.amount_shipping !== 0 ||
+          (invoice.total_discount_amounts?.length || 0) > 0 ||
+          (invoice.pre_payment_credit_notes_amount || 0) !== 0 || (invoice.post_payment_credit_notes_amount || 0) !== 0) {
+        throw fail("billing_invoice_tax_review_required", 422);
+      }
+    }
     const row = await store.get(prefix + reference);
     const binding = row?.bindings?.[sub.metadata?.billing_attempt];
     if (!binding || !row.email || hash(canonicalEmail(row.email)) !== reference) throw fail("billing_bound_invoice_required", 422);

@@ -45,3 +45,9 @@ Live issuance/delivery remains disabled in code, independently of the paid-check
 Owner confirms no prior e-Tax enrollment. Opened the official RD Time Stamp application from https://www.rd.go.th/27659.html. Owner gave action-time approval to accept the agreement and prepare form ก.อ.01. The official site subsequently confirmed the application was recorded, pending email verification and signed-document upload by 2026-11-09. Downloaded the official one-page application PDF and checked its company tax ID matches the owner-confirmed seller profile. Contact details and the application PDF are not committed.
 
 Required owner actions: verify the official email securely; sign/stamp form where applicable; provide corporate certificate issued within six months and signatory identification through the official upload flow. This is an application record, not approval to issue e-Tax documents. Live issuance remains disabled.
+
+### Paid-invoice snapshot safeguard — 2026-10-29
+
+Tax draft eligibility now reads `invoice.default_tax_rates` rather than the subscription’s mutable defaults. Missing, extra or mismatched tax rates, exemptions, discounts, shipping, outstanding balances, differing paid/total amounts and existing credit notes require review instead of entering the simple domestic invoice path. Reference: https://docs.stripe.com/api/invoices/object . This is a conservative eligibility gate, not complete tax reconciliation.
+
+Local verification: 140 tests passed, including invoice snapshot persistence after subscription defaults change and nine unsupported invoice variants. This change has not been deployed or verified against a fresh Stripe sandbox invoice. Existing sandbox-issued documents are unchanged; no Production changes or payments were made.

@@ -212,3 +212,27 @@ test("domestic VAT checkout requires server-saved details and a verified inclusi
  const row=await f.store.get(f.api.accountKey("savepulse.cloud@gmail.com"));assert.equal(row.bindings[row.pending.attempt].billingProfile.name,"Sandbox QA");
  f.env.STRIPE_MANUAL_TAX_RATE="";await assert.rejects(f.api.checkout("verified-session","plus"),/tax_configuration_required/);
 });
+
+
+test("tax source uses invoice VAT snapshot and sends adjustments or exemptions for review", async () => {
+  const f = fixture(), session = await f.opened(), sub = f.settle(session);
+  f.env.BILLING_DOMESTIC_VAT_ENABLED = "true";
+  f.env.STRIPE_MANUAL_TAX_RATE = "txr_fixture";
+  const invoice = sub.latest_invoice;
+  Object.assign(invoice, { currency: "usd", amount_paid: 1500, total: 1500, amount_remaining: 0,
+    amount_shipping: 0, customer_tax_exempt: "none", default_tax_rates: [{ id: "txr_fixture" }] });
+  // A later subscription edit must not rewrite the tax treatment of a paid invoice.
+  sub.default_tax_rates = [];
+  assert.equal((await f.api.paidInvoiceForTaxDraft("in_fixture", true)).payment.id, "in_fixture");
+  for (const change of [
+    { default_tax_rates: [] }, { default_tax_rates: ["txr_other"] },
+    { default_tax_rates: ["txr_fixture", "txr_other"] }, { customer_tax_exempt: "exempt" },
+    { total: 1600 }, { amount_remaining: 1 }, { amount_shipping: 100 },
+    { total_discount_amounts: [{ amount: 100 }] }, { post_payment_credit_notes_amount: 1 }
+  ]) {
+    const original = structuredClone(invoice);
+    Object.assign(invoice, change);
+    await assert.rejects(f.api.paidInvoiceForTaxDraft("in_fixture", true), /billing_invoice_tax_review_required/);
+    Object.keys(invoice).forEach(key => delete invoice[key]); Object.assign(invoice, original);
+  }
+});
