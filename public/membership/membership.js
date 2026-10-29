@@ -5,6 +5,7 @@ const token = () => localStorage.getItem("savepulse_session") || "";
 const billingBase = window.location.hostname === "deploy-preview-10--astounding-fenglisu-0ff097.netlify.app" ? "/sandbox-billing/" : "/api/v1/billing/";
 const names = { plus: "Plus", pro: "Pro", business: "Business" };
 const errors = {
+  tax_fx_exact_date_unavailable: "The Bank of Thailand has not published the rate for this payment date yet. Try again after publication. Membership access is unaffected.",
   authentication_required: "Verify your email before continuing.", billing_test_mailbox_required: "Sandbox testing is limited to the authorized test mailbox.",
   billing_membership_exists_use_portal: "You already have a membership. Use Manage billing & receipts.", billing_checkout_already_open: "A checkout is already open for another plan. Complete or cancel it before choosing another plan.",
   billing_existing_membership_needs_migration: "Your existing membership is preserved. Contact support to connect billing management.",
@@ -45,6 +46,8 @@ function draw() {
   $("refresh").hidden = !account?.email;
   $("portal").hidden = !account?.portalAvailable;
   $("portal").disabled = busy;
+  if ($("taxDocumentPanel")) $("taxDocumentPanel").hidden = catalog?.mode !== "test" || !account?.managed;
+  if ($("taxDocument")) $("taxDocument").disabled = busy;
   if (account) $("status").textContent = `Email: ${account.email}\nCurrent paid access: ${account.plan}\nBilling status: ${account.status}${account.paidUntil ? `\nPaid through: ${new Date(account.paidUntil).toLocaleString()}` : ""}\nRenewal: ${account.renews ? "on" : "off"}${account.cancellationScheduled ? " (cancellation scheduled)" : ""}`;
 }
 async function action(fn) {
@@ -63,6 +66,14 @@ async function refresh() {
 }
 $("refresh").onclick = () => action(refresh);
 $("portal").onclick = () => action(async () => { const result = await api("portal", {}); if (!result.url?.startsWith("https://billing.stripe.com/")) throw Error("Billing portal unavailable."); window.location.assign(result.url); });
+if ($("taxDocument")) $("taxDocument").onclick = () => action(async () => {
+  const result = await api("tax-document", {});
+  if (result.document?.paymentMode !== "test" || !result.document?.invoiceNumber?.startsWith("TEST-") || typeof result.html !== "string") throw Error("Test document was not confirmed.");
+  $("taxDocumentPreview").srcdoc = result.html;
+  $("taxDocumentPreview").hidden = false;
+  $("taxDocumentStatus").textContent = `${result.document.invoiceNumber} — ${result.delivery === "sent" ? "Test email sent." : "Document prepared. Test email delivery is not configured."}`;
+  $("message").textContent = "Test document confirmed by the server.";
+});
 action(async () => {
   catalog = await api("catalog");
   if (!catalog.enabled) { $("message").textContent = "Paid signup is not open yet. You can use the separate 14-day no-card trial."; return; }

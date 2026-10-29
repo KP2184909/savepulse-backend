@@ -92,14 +92,19 @@ Deno.serve(async request => {
       return json(await billing.saveProfile(token, JSON.parse(raw)));
     }
     if (request.method === "POST" && operation === "tax-document") {
-      await identity(token);
+      const email = await identity(token);
       const raw = await request.text(); if (raw.length > 2048) throw fail("request_too_large",413);
       const body = JSON.parse(raw);
+      const row = await store.get(billing.accountKey(email));
+      if (!row?.membership?.subscriptionId) throw fail("billing_invoice_required",422);
+      const subscription = await stripe("GET", `/subscriptions/${row.membership.subscriptionId}`);
+      const latest = typeof subscription.latest_invoice === "string" ? subscription.latest_invoice : subscription.latest_invoice?.id;
+      if (!latest || (body.invoiceId && body.invoiceId !== latest)) throw fail("billing_invoice_required",422);
       await ensureSandboxTaxRate();
-      const document = await taxLedger.issue(body.invoiceId);
+      const document = await taxLedger.issue(latest);
       let delivery = "not_configured";
       if (Deno.env.get("SAVEPULSE_TEST_RESEND_KEY") && Deno.env.get("SAVEPULSE_TEST_FROM_EMAIL")) {
-        await taxLedger.deliver(document.paymentDate.slice(0,7).replace("-",""), body.invoiceId); delivery = "sent";
+        await taxLedger.deliver(document.paymentDate.slice(0,7).replace("-",""), latest); delivery = "sent";
       }
       return json({ document, html: renderTaxDocument(document), delivery });
     }
