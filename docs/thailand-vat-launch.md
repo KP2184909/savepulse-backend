@@ -1,0 +1,38 @@
+# SavePulse Thailand VAT launch basis
+
+Reviewed 2026-10-29. This records researched rules and implementation boundaries, not a claim that all customer transactions have identical treatment.
+
+User confirms Thailand VAT registration (PP20); approved monthly totals USD 5/15/59 include applicable VAT. No accountant letter is a software prerequisite.
+
+## Domestic ordinary taxable service
+
+The official government announcement extends the combined VAT rate of 7% through 2027-09-30. Treat ordinary taxable domestic service at 7%, subject to the seller's actual registered activity and transaction facts. Inclusive calculation: VAT = gross * 7/107; net = gross - VAT. Stripe currency rounding and THB tax-document rounding must be recorded separately; do not add 7% to the approved gross prices.
+
+Source: https://www.thaigov.go.th/th/news/166956
+
+## Overseas service
+
+Do not infer zero-rating from a foreign card, email, billing country or foreign incorporation alone. Revenue Department Notification 105 as amended requires the relevant service to be used abroad and evidence of payment in the registered supplier's name. Mixed domestic/overseas use requires treatment of the respective portions; unsupported cases need review rather than a default zero rate.
+
+Source: https://www.rd.go.th/3288.html
+
+Destination-country obligations are independent of Thai export VAT. For example, EU B2C electronic services are generally taxed where the customer resides. A Thai VAT registration does not establish worldwide compliance.
+
+Source: https://taxation-customs.ec.europa.eu/taxation/vat/vat-directive/place-taxation_en
+
+## Tax invoice and FX
+
+Stripe USD invoice/receipt must not automatically be labelled a compliant Thai tax invoice. Required Thai tax invoice information includes seller name/address/tax number, customer name/address, document number/date, service description/value and separately stated VAT. Relevant branch and customer tax-identification particulars must also be supported. Unless an applicable approval exists, show tax-invoice amounts in THB. Preserve the actual selected lawful FX method, rate, source and tax-point date; do not silently select a new method if the company already uses one.
+
+Sources:
+- https://rd.go.th/5208.html (section 86/4)
+- https://www.rd.go.th/3568.html
+- https://www.rd.go.th/40711.html
+
+## Fast launch boundary and remaining facts
+
+Prepare a domestic ordinary-service path first; overseas checkout must not simply reuse a blanket Thai rate or zero rate. A domestic-only product restriction must be enforced before payment, not by charging foreign customers and rejecting fulfillment afterward.
+
+Still need the actual VAT-registered seller name/address/tax number/branch, whether that same entity is the Stripe merchant, and the company's existing FX/tax-invoice process. Do not invent these facts or require an accountant letter merely to supply them. No paid tax service is authorized.
+
+Stripe sandbox GetTaxSettings returned country unsupported. Use manual Tax Rates where applicable; do not enable automatic_tax or a paid Stripe Tax subscription. Connector operation discovery did not expose manual Tax Rate creation in this session; Dashboard fallback remains available. No tax settings or live collection were changed during this research.
