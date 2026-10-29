@@ -70,3 +70,10 @@ Package shared modules before Edge deployment with `node tools/build-billing-san
 - Business hosted Checkout cs_test_a1uAdmtSuh6UCO48AcFQjeMfVXvO9pnX4QSRB5I4THlHZDoUKXYm4eMOJa charged $59 test-only; browser and durable state showed business/active for sub_1UVkar0su7h1AsZTkWHiIfEy. Seven verified events persisted across the test sequence. Cancelled this test subscription after verification, without invoicing/proration. No live subscriptions were changed.
 - Production database read-only inventory: five Free subscriber rows, no paid subscriber rows. This does not prove that the live Stripe account has no subscriptions; live Stripe inventory still needs verification.
 - User confirms Thailand VAT registration (PP20). Sandbox GetTaxSettings returns country unsupported. Automatic Stripe Tax remains disabled; manual tax treatment and inclusive/exclusive pricing need confirmation before implementation/activation. No paid Stripe Tax product enabled.
+
+## Live readiness inventory — 2026-10-29
+
+- Chrome Dashboard account acct_1TbuP21NzGcGzIig (SavePulse, not sandbox): Account status showed Active for Payments, Payouts and PromptPay payments, with no active tasks to complete.
+- Live Subscriptions displayed the empty onboarding state (no listed subscriptions). Combined with the read-only Production database inventory above, no existing paid member migration was identified in the inspected sources. No live account mutations made.
+- User confirms that $5/$15/$59 must INCLUDE VAT, not add tax to those totals. User confirms PP20 VAT registration in Thailand; exact service tax treatment and domestic/export handling remain to be confirmed. Do not use one blanket tax rule for all countries.
+- Stripe connector access is currently scoped to sandbox only. Live Dashboard read access is available. Live backend credentials/prices/webhook/portal and full Production fulfillment remain unverified.
