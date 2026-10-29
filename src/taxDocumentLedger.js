@@ -1,9 +1,10 @@
 "use strict";
 const crypto = require("node:crypto");
+const { buildThaiCreditNote } = require("./thaiCreditNote");
 const fail = code => Object.assign(new Error(code), { status: 503 });
 // One CAS write allocates a number AND stores the immutable document. A crash cannot
 // allocate the same number to two invoices or store an unnumbered issued document.
-function createTaxDocumentLedger({ store, source, send, mode, now = Date.now }) {
+function createTaxDocumentLedger({ store, source, refundSource, send, mode, liveIssuanceApproved = false, now = Date.now }) {
   if (!["test", "live"].includes(mode)) throw Error("tax_document_mode_required");
   const digest = value => crypto.createHash("sha256").update(value).digest("hex");
   async function change(key, fn) {
@@ -18,6 +19,7 @@ function createTaxDocumentLedger({ store, source, send, mode, now = Date.now }) 
   }
   const keyFor = period => `tax-documents:v1:${mode}:${period}`;
   async function issue(invoiceId) {
+    if (mode === "live" && !liveIssuanceApproved) throw fail("tax_document_live_issuance_not_approved");
     // Source must independently fetch payment/customer/FX evidence; never use request
     // body amounts, addresses or a caller-supplied "verified" flag as issuance proof.
     const verified = await source(invoiceId);
@@ -36,6 +38,7 @@ function createTaxDocumentLedger({ store, source, send, mode, now = Date.now }) 
     return structuredClone(row.documents[id].document);
   }
   async function deliver(period, invoiceId) {
+    if (mode === "live" && !liveIssuanceApproved) throw fail("tax_document_live_issuance_not_approved");
     const key = keyFor(period), id = digest(invoiceId), owner = crypto.randomUUID();
     const row = await change(key, old => {
       const item = old.documents[id];
@@ -68,6 +71,23 @@ function createTaxDocumentLedger({ store, source, send, mode, now = Date.now }) 
     });
     return { sent: true, duplicate: false };
   }
-  return { issue, deliver };
+  async function credit(period, invoiceId, refundId) {
+    if (mode === "live" && !liveIssuanceApproved) throw fail("tax_document_live_issuance_not_approved");
+    if (!/^\d{6}$/.test(period || "") || !/^in_\w+$/.test(invoiceId || "") || !/^re_\w+$/.test(refundId || "") || !refundSource) throw fail("credit_verified_refund_required");
+    const verified = await refundSource(invoiceId, refundId);
+    if (!verified?.evidenceVerified || verified.refund?.id !== refundId) throw fail("credit_verified_refund_required");
+    const key=keyFor(period), id=digest(invoiceId), creditId=digest(refundId);
+    const row=await change(key, old => {
+      const item=old.documents[id]; if(!item) throw fail("tax_document_not_found");
+      if(item.credits?.[creditId]) return null;
+      const entries=Object.values(item.credits || {});
+      const sum=field=>entries.reduce((total,entry)=>total+entry[field],0);
+      const draft=buildThaiCreditNote({original:item.document,refund:verified.refund,review:verified.review,cumulativeUsdCents:sum("sourceGrossUsdCents")+verified.refund.amount,previousGrossSatang:sum("grossSatang"),previousVatSatang:sum("vatSatang"),now:now()});
+      const document={...draft,status:"issued",issued:true,invoiceNumber:`${item.document.invoiceNumber}-CN-${String(entries.length+1).padStart(3,"0")}`,issuedAt:new Date(now()).toISOString()};
+      return {...old,documents:{...old.documents,[id]:{...item,credits:{...item.credits,[creditId]:document}}}};
+    });
+    return structuredClone(row.documents[id].credits[creditId]);
+  }
+  return { issue, deliver, credit };
 }
 module.exports = { createTaxDocumentLedger };

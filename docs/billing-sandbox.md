@@ -86,3 +86,7 @@ Package shared modules before Edge deployment with `node tools/build-billing-san
 - Clicking Prepare test tax document fetched the latest invoice server-side from the authenticated account. BOT has no exact 2026-10-29 payment-date rate yet. UI correctly reports pending publication without reducing membership, fabricating a rate or issuing a numbered document. Database contained only verified 2026-10-28 FX evidence at this check.
 - Tax document email delivery remains NOT VERIFIED: dedicated test sender/key are not configured. No customer mail sent. No live billing enabled. Required follow-up: real exact-date document issuance after BOT publication, rendered-document review, authorized test-mail delivery, automated pending-job recovery, then live configuration and fulfillment readiness.
 - Focused billing and tax ledger checks: 18 PASS after this change. Previous broader 130-check result remains separate evidence; no new full-suite claim.
+
+## Durable tax-document follow-up — 2026-10-29
+
+See tax-document-qa.md for corrected BOT reference-date selection, actual test document TEST-SP-TI-202610-000001, authenticated worker/cron proof, 139 passing checks and explicit remaining tax-document launch requirements. The earlier exact-payment-date waiting requirement is superseded for supported ordinary daytime cases; exceptional dates remain visible review jobs. No Production change or real tax filing.

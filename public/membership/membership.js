@@ -68,6 +68,11 @@ $("refresh").onclick = () => action(refresh);
 $("portal").onclick = () => action(async () => { const result = await api("portal", {}); if (!result.url?.startsWith("https://billing.stripe.com/")) throw Error("Billing portal unavailable."); window.location.assign(result.url); });
 if ($("taxDocument")) $("taxDocument").onclick = () => action(async () => {
   const result = await api("tax-document", {});
+  if (result.pending) {
+    $("taxDocumentStatus").textContent = result.state === "review" ? "This payment needs a tax-document review. Membership access is unaffected." : "The document is queued. The server will retry when the required rate is available. Membership access is unaffected.";
+    $("message").textContent = "Tax document status confirmed by the server.";
+    return;
+  }
   if (result.document?.paymentMode !== "test" || !result.document?.invoiceNumber?.startsWith("TEST-") || typeof result.html !== "string") throw Error("Test document was not confirmed.");
   $("taxDocumentPreview").srcdoc = result.html;
   $("taxDocumentPreview").hidden = false;

@@ -1,3 +1,6 @@
+import crypto from "node:crypto";
+import { selectBotTaxRateDate } from "./shared/taxFxPolicy.mjs";
+import { createTaxDocumentJobs } from "./shared/taxDocumentJobs.mjs";
 import { createBotTaxFx } from "./shared/botTaxFx.mjs";
 import { createTaxDocumentLedger } from "./shared/taxDocumentLedger.mjs";
 import { buildThaiTaxInvoiceDraft, renderTaxDocument } from "./shared/thaiTaxInvoiceDraft.mjs";
@@ -52,9 +55,9 @@ async function ensureSandboxTaxRate() {
 const taxLedger = createTaxDocumentLedger({ store, mode: "test", source: async invoiceId => {
   const context = await billing.paidInvoiceForTaxDraft(invoiceId, true);
   if (context.recipient !== testEmail || !context.customer) throw fail("billing_tax_profile_missing",422);
-  const date = new Date(context.payment.status_transitions.paid_at * 1000 + 7 * 3600000).toISOString().slice(0,10);
-  const evidence = await createBotTaxFx({ token: Deno.env.get("BOT_EXCHANGE_RATE_API_KEY"), store })(date);
-  const fx = { ...evidence, taxPointDate: date, selectionReason: "Exact payment-date BOT USD buying_transfer; no day or rate-type substitution." };
+  const selection = selectBotTaxRateDate(context.payment.status_transitions.paid_at);
+  const evidence = await createBotTaxFx({ token: Deno.env.get("BOT_EXCHANGE_RATE_API_KEY"), store })(selection.rateDate);
+  const fx = { ...evidence, ...selection };
   return { evidenceVerified: true, mode: "test", recipient: testEmail, fxEvidence: evidence, draft: buildThaiTaxInvoiceDraft({ payment: context.payment, customer: context.customer, fx, treatment: "th_domestic_standard_7_inclusive" }) };
 }, send: async ({ to, document, idempotencyKey }) => {
   const key = Deno.env.get("SAVEPULSE_TEST_RESEND_KEY"), from = Deno.env.get("SAVEPULSE_TEST_FROM_EMAIL");
@@ -63,6 +66,7 @@ const taxLedger = createTaxDocumentLedger({ store, mode: "test", source: async i
   if (!response.ok) throw fail("billing_tax_delivery_failed");
   return response.json();
 } });
+const taxJobs = createTaxDocumentJobs({ store, mode: "test", issue: invoiceId => taxLedger.issue(invoiceId) });
 function json(data: unknown, status = 200) {
   return Response.json(data, { status, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" } });
 }
@@ -72,13 +76,33 @@ Deno.serve(async request => {
     if (env.SUPABASE_URL !== projectUrl) throw fail("sandbox_project_mismatch");
     if (operation === "readiness" && request.method === "GET") return json({ mode: "test", isolated: true, configured: keyMode(env.STRIPE_SECRET_KEY) === "test", webhookConfigured: Boolean(await signingSecret()), liveSales: false });
     if (keyMode(env.STRIPE_SECRET_KEY) !== "test") throw fail("billing_sandbox_key_required");
+    if (request.method === "POST" && operation === "tax-worker") {
+      const expected = (await store.get("tax-worker:v1:test:credential"))?.token || "";
+      const provided = request.headers.get("x-savepulse-worker-token") || "";
+      if (!/^[a-f0-9]{64}$/.test(expected) || !/^[a-f0-9]{64}$/.test(provided) || !crypto.timingSafeEqual(new TextEncoder().encode(provided),new TextEncoder().encode(expected))) throw fail("authentication_required",401);
+      await ensureSandboxTaxRate();
+      // Recover a missed paid webhook for the single authorized sandbox account.
+      const account = await store.get(billing.accountKey(testEmail));
+      if(account?.membership?.subscriptionId){
+        const subscription=await stripe("GET",`/subscriptions/${account.membership.subscriptionId}`,{expand:["latest_invoice"]});
+        if(subscription.latest_invoice?.status === "paid") await taxJobs.enqueue(subscription.latest_invoice.id);
+      }
+      const query = new URLSearchParams({select:"key,value",key:"like.tax-job:v1:test:*","value->>state":"in.(pending,retry,working)",order:"updated_at.asc",limit:"20"});
+      const response = await fetch(`${projectUrl}/rest/v1/scheduler_state?${query}`,{headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY!,authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`},signal:AbortSignal.timeout(12000)});
+      if(!response.ok) throw fail("tax_document_storage_busy");
+      const jobs = await response.json(), states = [];
+      for(const job of jobs){ if(job.value.nextAttemptAt<=Date.now() && job.value.leaseUntil<=Date.now()){const result=await taxJobs.run(job.value.invoiceId);states.push(result.state);} }
+      return json({mode:"test",processed:states.length,states});
+    }
     if (request.method === "POST" && operation === "webhook") {
       if (Number(request.headers.get("content-length") || 0) > 262144) throw fail("request_too_large", 413);
       const raw = await request.text();
       if (new TextEncoder().encode(raw).length > 262144) throw fail("request_too_large", 413);
       try { verifyStripeWebhookSignature(raw, request.headers.get("stripe-signature"), await signingSecret()); }
       catch (_) { throw fail("invalid_stripe_signature", 400); }
-      const result = await billing.event(JSON.parse(raw));
+      const event = JSON.parse(raw);
+      const result = await billing.event(event);
+      if ((result.updated || result.reason === "duplicate_event") && result.email === testEmail && ["invoice.paid","invoice.payment_succeeded"].includes(event.type) && /^in_\w+$/.test(event.data?.object?.id || "")) await taxJobs.enqueue(event.data.object.id);
       return json({ received: true, updated: result.updated, reason: result.reason || null });
     }
     if (request.method === "GET" && operation === "catalog") return json(await billing.catalog());
@@ -101,7 +125,9 @@ Deno.serve(async request => {
       const latest = typeof subscription.latest_invoice === "string" ? subscription.latest_invoice : subscription.latest_invoice?.id;
       if (!latest || (body.invoiceId && body.invoiceId !== latest)) throw fail("billing_invoice_required",422);
       await ensureSandboxTaxRate();
-      const document = await taxLedger.issue(latest);
+      const job = await taxJobs.run(latest);
+      if (job.state !== "issued") return json({ pending:true, state:job.state, nextAttemptAt:job.nextAttemptAt, error:job.lastError || "tax_document_pending" },202);
+      const document = job.document;
       let delivery = "not_configured";
       if (Deno.env.get("SAVEPULSE_TEST_RESEND_KEY") && Deno.env.get("SAVEPULSE_TEST_FROM_EMAIL")) {
         await taxLedger.deliver(document.paymentDate.slice(0,7).replace("-",""), latest); delivery = "sent";

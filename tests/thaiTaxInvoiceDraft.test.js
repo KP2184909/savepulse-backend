@@ -10,3 +10,10 @@ test("unpaid, nonUSD, foreign/mixed use and undocumented FX never create a draft
   const changes=[ f=>f.payment.status="open", f=>f.payment.currency="thb", f=>f.customer.country="US", f=>f.customer.serviceUseCountry="US", f=>delete f.fx, f=>f.fx.taxPointDate="2026-10-30", f=>f.fx.rateDate="2026-10-30", f=>f.fx.thbPerUsd="NaN", f=>f.treatment="export_zero", f=>f.customer.branchCode="", f=>f.payment.status_transitions.paid_at=Date.parse("2027-10-01")/1000 ];
   for(const change of changes){const f=fixture();change(f);assert.throws(()=>buildThaiTaxInvoiceDraft(f));}
 });
+
+test("rendered test document includes buyer identity, service and source evidence; live output remains gated",()=>{
+ const {renderTaxDocument}=require('../src/thaiTaxInvoiceDraft');const draft=buildThaiTaxInvoiceDraft(fixture());
+ const issued={...draft,status:'issued',issued:true,invoiceNumber:'TEST-SP-TI-202610-000001'};
+ const html=renderTaxDocument(issued);for(const text of ['TEST DOCUMENT','0125554006077','00000','SavePulse monthly membership','TEST FIXTURE ONLY'])assert.ok(html.includes(text));
+ assert.throws(()=>renderTaxDocument({...issued,paymentMode:'live'}),/live_delivery_not_approved/);
+});
