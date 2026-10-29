@@ -18,17 +18,22 @@ async function api(route, body) {
   return data;
 }
 function draw() {
+  $("billingDetails").hidden = !catalog?.billingDetailsRequired || Boolean(account?.managed && !["canceled", "incomplete_expired"].includes(account.status));
   $("plans").replaceChildren();
   for (const plan of catalog?.plans || []) {
     if (!names[plan.id] || !Number.isFinite(plan.amount) || plan.currency !== "USD" || plan.interval !== "month") continue;
     const card = document.createElement("section"); card.className = "plan";
     const title = document.createElement("h2"); title.textContent = names[plan.id];
     const price = document.createElement("p"); price.className = "price"; price.textContent = `$${plan.amount} USD / month`;
-    const note = document.createElement("p"); note.textContent = catalog.mode === "test" ? "Sandbox demonstration. No real charge. Test access only." : "Charged at signup. Renews monthly until cancelled.";
+    const note = document.createElement("p"); note.textContent = catalog.mode === "test" ? `Sandbox demonstration. No real charge. Test access only.${catalog.taxLabel ? " " + catalog.taxLabel : ""}` : "Charged at signup. Renews monthly until cancelled.";
     const button = document.createElement("button"); button.textContent = catalog.mode === "test" ? `Test ${names[plan.id]} checkout` : `Subscribe to ${names[plan.id]}`;
     button.disabled = busy || !account?.email || !catalog.enabled || (account?.managed && !["canceled", "incomplete_expired"].includes(account.status));
     button.onclick = () => action(async () => {
       if (!account?.email) throw Error("Verify your email before continuing.");
+      if (catalog.billingDetailsRequired) {
+        if (!$("billingDetails").reportValidity()) throw Error("Complete your billing details before checkout.");
+        await api("profile", { name: $("billingName").value, address: $("billingAddress").value, postalCode: $("billingPostal").value, taxId: $("billingTaxId").value, branchCode: $("billingBranch").value, country: "TH", serviceUseCountry: "TH", domesticUseConfirmed: $("domesticUse").checked });
+      }
       const result = await api("checkout", { email: account.email, plan: plan.id });
       if (!result.checkout?.configured || !result.checkout.url?.startsWith("https://checkout.stripe.com/")) throw Error("Checkout was not confirmed by the server.");
       window.location.assign(result.checkout.url);

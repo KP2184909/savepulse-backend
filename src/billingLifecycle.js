@@ -22,7 +22,7 @@ function keyMode(key) {
 function createStripeApi(env = process.env, fetchImpl = globalThis.fetch) {
   const key = env.STRIPE_SECRET_KEY || env.STRIPE_API_KEY || "";
   return async function stripe(method, route, values = {}, idempotencyKey) {
-    if (!key || !/^\/(account|prices|invoices|checkout\/sessions|subscriptions|billing_portal\/sessions)(\/|$)/.test(route)) throw fail("billing_unavailable");
+    if (!key || !/^\/(account|prices|invoices|tax_rates|checkout\/sessions|subscriptions|billing_portal\/sessions)(\/|$)/.test(route)) throw fail("billing_unavailable");
     const form = new URLSearchParams();
     const encode = (prefix, value) => {
       if (Array.isArray(value)) value.forEach((entry, i) => encode(`${prefix}[${i}]`, entry));
@@ -144,12 +144,34 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
   async function freshSubscription(subscriptionId) {
     return stripe("GET", `/subscriptions/${subscriptionId}`, { expand: ["latest_invoice", "items.data.price"] });
   }
+  function validateBillingProfile(input) {
+    if (input?.country !== "TH" || input?.serviceUseCountry !== "TH" || input?.domesticUseConfirmed !== true) throw fail("billing_country_not_supported", 422);
+    const profile = { name: String(input.name || "").trim(), address: String(input.address || "").trim(), postalCode: String(input.postalCode || "").trim(), country: "TH", serviceUseCountry: "TH", domesticUseConfirmed: true, taxId: String(input.taxId || "").trim(), branchCode: String(input.branchCode || "").trim() };
+    if (profile.name.length < 2 || profile.name.length > 200 || profile.address.length < 10 || profile.address.length > 1000 || !/^\d{5}$/.test(profile.postalCode)) throw fail("billing_details_required", 422);
+    if (profile.taxId && (!/^\d{13}$/.test(profile.taxId) || !/^\d{5}$/.test(profile.branchCode))) throw fail("billing_tax_details_invalid", 422);
+    return profile;
+  }
+  async function saveProfile(token, input) {
+    const email = await authenticated(token), profile = validateBillingProfile(input);
+    await locked(accountKey(email), async ctx => ctx.save({ email, billingProfile: profile }));
+    return { saved: true };
+  }
+  async function inclusiveTaxRate() {
+    const rateId = env.STRIPE_MANUAL_TAX_RATE;
+    if (!/^txr_\w+$/.test(rateId || "")) throw fail("billing_tax_configuration_required");
+    const rate = await stripe("GET", `/tax_rates/${rateId}`);
+    if (!rate.active || rate.livemode !== (mode === "live") || rate.inclusive !== true || Number(rate.percentage) !== 7 || rate.country !== "TH" || now() >= Date.parse("2027-10-01T00:00:00+07:00")) throw fail("billing_tax_configuration_invalid");
+    return rateId;
+  }
   async function checkout(token, plan) {
     const email = await authenticated(token);
     await verifyAccount();
     await validatePrice(plan);
     return locked(accountKey(email), async ctx => {
       let row = ctx.row();
+      const detailsRequired = env.BILLING_DOMESTIC_VAT_ENABLED === "true";
+      const billingProfile = detailsRequired ? validateBillingProfile(row.billingProfile) : null;
+      const taxRate = detailsRequired ? await inclusiveTaxRate() : null;
       if (row.membership?.subscriptionId) {
         await sync(ctx, await freshSubscription(row.membership.subscriptionId)); row = ctx.row();
         if (!["canceled", "incomplete_expired"].includes(row.membership.status)) throw fail("billing_membership_exists_use_portal", 409);
@@ -178,16 +200,17 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
         const params = {
           mode: "subscription", customer_email: email, client_reference_id: accountRef,
           line_items: [{ price: prices[plan], quantity: 1 }], metadata,
-          subscription_data: { metadata, billing_mode: { type: "flexible" } },
+          subscription_data: { metadata, billing_mode: { type: "flexible" }, ...(taxRate ? { default_tax_rates: [taxRate] } : {}) },
+          ...(billingProfile ? { billing_address_collection: "required", tax_id_collection: { enabled: true } } : {}),
           success_url: `${baseUrl}/membership/?checkout=success`, cancel_url: `${baseUrl}/membership/?checkout=cancelled`,
           integration_identifier: `savepulse_${crypto.randomBytes(8).toString("hex").replace(/[0-9]/g, "a").slice(0, 8)}`
         };
-        pending = { attempt, plan, params, createdAt: now() };
+        pending = { attempt, plan, params, billingProfile, createdAt: now() };
         await ctx.save({ email, accountRef, pending });
       }
       const session = await stripe("POST", "/checkout/sessions", pending.params, `savepulse-checkout/${pending.attempt}`);
       if (!session.id || session.livemode !== (mode === "live") || !session.url?.startsWith("https://checkout.stripe.com/")) throw fail("billing_checkout_invalid");
-      await ctx.save({ pending: { ...pending, sessionId: session.id }, bindings: { ...ctx.row().bindings, [pending.attempt]: { sessionId: session.id, plan } } });
+      await ctx.save({ pending: { ...pending, sessionId: session.id }, bindings: { ...ctx.row().bindings, [pending.attempt]: { sessionId: session.id, plan, billingProfile: pending.billingProfile || null } } });
       return { configured: true, provider: "stripe", mode, url: session.url };
     });
   }
@@ -240,7 +263,7 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
       return { updated: true, membership: result, email: ctx.row().email };
     });
   }
-  async function paidInvoiceForTaxDraft(invoiceId) {
+  async function paidInvoiceForTaxDraft(invoiceId, withContext = false) {
     await verifyAccount();
     if (!/^in_\w+$/.test(invoiceId || "")) throw fail("billing_invoice_required", 422);
     const invoice = await stripe("GET", `/invoices/${invoiceId}`);
@@ -250,12 +273,13 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
     const sub = await freshSubscription(subscriptionId);
     const reference = sub.metadata?.billing_account;
     if (sub.livemode !== invoice.livemode || sub.metadata?.service !== "savepulse" || !/^[a-f0-9]{64}$/.test(reference || "") || id(invoice.customer) !== id(sub.customer)) throw fail("billing_bound_invoice_required", 422);
+    if (withContext && env.BILLING_DOMESTIC_VAT_ENABLED === "true" && !sub.default_tax_rates?.some(rate => id(rate) === env.STRIPE_MANUAL_TAX_RATE)) throw fail("billing_invoice_tax_review_required", 422);
     const row = await store.get(prefix + reference);
     const binding = row?.bindings?.[sub.metadata?.billing_attempt];
     if (!binding || !row.email || hash(canonicalEmail(row.email)) !== reference) throw fail("billing_bound_invoice_required", 422);
     const session = await stripe("GET", `/checkout/sessions/${binding.sessionId}`);
     if (id(session.subscription) !== sub.id || session.payment_status !== "paid" || session.status !== "complete") throw fail("billing_bound_invoice_required", 422);
-    return invoice;
+    return withContext ? { payment: invoice, customer: binding.billingProfile || null, recipient: row.email } : invoice;
   }
   async function catalog() {
     await verifyAccount();
@@ -265,9 +289,9 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
       await validatePrice(plan);
       plans.push({ id: plan, amount: AMOUNTS[plan] / 100, currency: "USD", interval: "month" });
     }
-    return { enabled: true, mode, plans, noCardTrialUrl: "/trial/", taxPolicyConfirmed: env.BILLING_TAX_POLICY_CONFIRMED === "true" };
+    return { enabled: true, mode, plans, noCardTrialUrl: "/trial/", billingDetailsRequired: env.BILLING_DOMESTIC_VAT_ENABLED === "true", taxLabel: env.BILLING_DOMESTIC_VAT_ENABLED === "true" ? "Thailand VAT 7% included. Thailand service use only." : null, taxPolicyConfirmed: env.BILLING_TAX_POLICY_CONFIRMED === "true" };
   }
-  return { checkout, status, portal, event, catalog, paidInvoiceForTaxDraft, reconcileEmail, accountKey, enabled, mode, prices, publicStatus, requiredEvents: EVENTS };
+  return { checkout, saveProfile, status, portal, event, catalog, paidInvoiceForTaxDraft, reconcileEmail, accountKey, enabled, mode, prices, publicStatus, requiredEvents: EVENTS };
 }
 
 module.exports = { createBillingLifecycle, createStripeApi, keyMode, AMOUNTS, EVENTS };

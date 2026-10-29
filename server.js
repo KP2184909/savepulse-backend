@@ -1468,6 +1468,10 @@ async function handleRequest(req, res) {
       if (!publicCheckoutEnabled() || !billing.enabled) { sendJson(res, 200, { enabled: false, plans: [], noCardTrialUrl: "/trial/" }); return; }
       sendJson(res, 200, await billing.catalog()); return;
     }
+    if (req.method === "POST" && url.pathname === "/api/v1/billing/profile") {
+      await requireTrialReady();
+      sendJson(res, 200, await billing.saveProfile(bearerToken(req), await parseBody(req))); return;
+    }
     if (url.pathname === "/api/v1/billing/status" || url.pathname === "/api/v1/billing/portal") {
       await requireTrialReady();
       const token = bearerToken(req);

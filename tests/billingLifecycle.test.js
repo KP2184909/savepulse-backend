@@ -18,6 +18,7 @@ function fixture() {
     requests.push({ method, route, values: clone(values), key });
     if (failStripe) throw Error("provider_unavailable");
     if (route === "/account") return { id: "acct_fixture" };
+    if (route === "/tax_rates/txr_fixture") return { active:true, livemode:false, inclusive:true, percentage:7, country:"TH" };
     if (route.startsWith("/prices/")) {
       const plan = route.split("price_")[1];
       return { id: `price_${plan}`, active: true, livemode: false, currency: "usd", unit_amount: AMOUNTS[plan], type: "recurring", recurring: { interval: "month", interval_count: 1 } };
@@ -198,4 +199,16 @@ test("restricted API key modes are recognized and provider errors are sanitized"
   sub.latest_invoice.customer="cus_fixture"; sub.latest_invoice.status="open";
   await assert.rejects(f.api.paidInvoiceForTaxDraft("in_fixture"),/billing_paid_invoice_required/);
   await assert.rejects(f.api.paidInvoiceForTaxDraft("arbitrary"),/billing_invoice_required/);
+});
+
+test("domestic VAT checkout requires server-saved details and a verified inclusive tax rate", async () => {
+ const f=fixture();f.env.BILLING_DOMESTIC_VAT_ENABLED="true";f.env.STRIPE_MANUAL_TAX_RATE="txr_fixture";
+ await assert.rejects(f.api.checkout("verified-session","plus"),/billing_country_not_supported/);
+ await assert.rejects(f.api.saveProfile("verified-session",{country:"US"}),/country_not_supported/);
+ const profile={name:"Sandbox QA",address:"Test address in Thailand",postalCode:"11130",country:"TH",serviceUseCountry:"TH",domesticUseConfirmed:true,taxId:"0125554006077",branchCode:"00000"};
+ await f.api.saveProfile("verified-session",profile);await f.api.checkout("verified-session","plus");
+ const request=f.requests.find(r=>r.method==="POST"&&r.route==="/checkout/sessions");
+ assert.deepEqual(request.values.subscription_data.default_tax_rates,["txr_fixture"]);assert.equal(request.values.billing_address_collection,"required");
+ const row=await f.store.get(f.api.accountKey("savepulse.cloud@gmail.com"));assert.equal(row.bindings[row.pending.attempt].billingProfile.name,"Sandbox QA");
+ f.env.STRIPE_MANUAL_TAX_RATE="";await assert.rejects(f.api.checkout("verified-session","plus"),/tax_configuration_required/);
 });

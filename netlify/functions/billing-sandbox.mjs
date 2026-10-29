@@ -1,5 +1,5 @@
 const edge = "https://sktzydyiwqylpstxjicf.supabase.co/functions/v1/savepulse-billing-sandbox";
-const operations = new Set(["catalog", "status", "checkout", "portal", "readiness"]);
+const operations = new Set(["catalog", "status", "checkout", "portal", "profile", "tax-document", "readiness"]);
 export default async (request, context) => {
   if (context.deploy.context !== "deploy-preview" || context.site.id !== "ddc6313e-a711-4a4f-be1f-46887301fd80") return Response.json({ error: "not_found" }, { status: 404 });
   const operation = new URL(request.url).pathname.split("/").filter(Boolean).at(-1);
