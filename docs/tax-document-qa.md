@@ -34,8 +34,14 @@ Credit note logic uses the original invoice FX, immutable original data and a tr
 
 - Confirm seller's e-Tax enrollment and approved signing/time-stamp delivery process, or implement the company's valid paper workflow. An ordinary HTML/PDF emailed by our app is not automatically an authorized e-Tax invoice. Official guide: https://www.rd.go.th/fileadmin/user_upload/eTax/manual_time_stamp_010666.pdf
 - Review exceptional FX cases and a maintained calendar; the current implementation fails closed with visible REVIEW jobs.
-- Review document appearance in Chrome. Mac was locked during this session; HTML field/escaping checks pass, visual QA is NOT VERIFIED.
+- Chrome desktop QA completed after owner unlocked the Mac: authenticated membership page displayed TEST-SP-TI-202610-000001 in a sandboxed iframe; seller/buyer identity, service, invoice reference, net 157.23, VAT 11.01 and gross 168.24 THB were present. Screenshot inspection confirmed readable buyer details, amount rows and FX evidence without overlaps in the inspected desktop viewport. Mobile/print layout remains NOT VERIFIED.
 - Complete succeeded Stripe refund ownership and credit-note review/delivery integration.
 - Customer email delivery is step 2, still not configured in this sandbox. No test document email was sent here.
 
 Live issuance/delivery remains disabled in code, independently of the paid-checkout flag. Sandbox proof does not imply Production readiness.
+
+## Owner enrollment follow-up
+
+Owner confirms no prior e-Tax enrollment. Opened the official RD Time Stamp application from https://www.rd.go.th/27659.html. Owner gave action-time approval to accept the agreement and prepare form ก.อ.01. The official site subsequently confirmed the application was recorded, pending email verification and signed-document upload by 2026-11-09. Downloaded the official one-page application PDF and checked its company tax ID matches the owner-confirmed seller profile. Contact details and the application PDF are not committed.
+
+Required owner actions: verify the official email securely; sign/stamp form where applicable; provide corporate certificate issued within six months and signatory identification through the official upload flow. This is an application record, not approval to issue e-Tax documents. Live issuance remains disabled.
