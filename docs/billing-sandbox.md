@@ -77,3 +77,12 @@ Package shared modules before Edge deployment with `node tools/build-billing-san
 - Live Subscriptions displayed the empty onboarding state (no listed subscriptions). Combined with the read-only Production database inventory above, no existing paid member migration was identified in the inspected sources. No live account mutations made.
 - User confirms that $5/$15/$59 must INCLUDE VAT, not add tax to those totals. User confirms PP20 VAT registration in Thailand; exact service tax treatment and domestic/export handling remain to be confirmed. Do not use one blanket tax rule for all countries.
 - Stripe connector access is currently scoped to sandbox only. Live Dashboard read access is available. Live backend credentials/prices/webhook/portal and full Production fulfillment remain unverified.
+
+## VAT-inclusive deployed QA — 2026-10-29
+
+- Edge `savepulse-billing-sandbox` version 7 is active in isolated project `sktzydyiwqylpstxjicf`. Preview deploy `6ae2e76ec26b4d355662b340` includes authenticated test-document controls. Production is unchanged.
+- Hosted Plus Checkout `cs_test_a1SdZGGTDnLYL76cEHJ4wwyyjC3Z1Z5DRGlnpMZXXjWdjbuT1IXotLKEHo` displayed USD 5.00 total, VAT 7% inclusive USD 0.33. Completed with Stripe public test card, no real charge or browser card saving.
+- Returned membership page and reload confirmed Plus / active, paid through 2026-11-29 13:23:51 Asia/Bangkok. Durable sandbox state confirms `sub_1UVmkf0su7h1AsZTTLSuys8M`, latestInvoicePaid=true.
+- Clicking Prepare test tax document fetched the latest invoice server-side from the authenticated account. BOT has no exact 2026-10-29 payment-date rate yet. UI correctly reports pending publication without reducing membership, fabricating a rate or issuing a numbered document. Database contained only verified 2026-10-28 FX evidence at this check.
+- Tax document email delivery remains NOT VERIFIED: dedicated test sender/key are not configured. No customer mail sent. No live billing enabled. Required follow-up: real exact-date document issuance after BOT publication, rendered-document review, authorized test-mail delivery, automated pending-job recovery, then live configuration and fulfillment readiness.
+- Focused billing and tax ledger checks: 18 PASS after this change. Previous broader 130-check result remains separate evidence; no new full-suite claim.
