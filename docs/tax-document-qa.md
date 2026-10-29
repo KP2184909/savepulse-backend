@@ -51,3 +51,9 @@ Required owner actions: verify the official email securely; sign/stamp form wher
 Tax draft eligibility now reads `invoice.default_tax_rates` rather than the subscription’s mutable defaults. Missing, extra or mismatched tax rates, exemptions, discounts, shipping, outstanding balances, differing paid/total amounts and existing credit notes require review instead of entering the simple domestic invoice path. Reference: https://docs.stripe.com/api/invoices/object . This is a conservative eligibility gate, not complete tax reconciliation.
 
 Local verification: 140 tests passed, including invoice snapshot persistence after subscription defaults change and nine unsupported invoice variants. This change has not been deployed or verified against a fresh Stripe sandbox invoice. Existing sandbox-issued documents are unchanged; no Production changes or payments were made.
+
+### Sandbox deployment verification — 2026-10-29
+
+Deployed `savepulse-billing-sandbox` version 11 only to isolated project `sktzydyiwqylpstxjicf`. Added a worker-credential-protected, read-only `auditLatestInvoice` operation. It validates the existing authorized test mailbox’s latest Stripe invoice without issuing documents or sending email. Database-side pg_net request 37 returned HTTP 200, `verified:true`, invoice `in_1UVmkd0su7h1AsZTJvc2bKrg`, USD 500 cents, documentsCreated 0 and emailsSent 0. An unauthenticated request was rejected with `authentication_required`. Existing retry cron remains active at `*/15 * * * *`. Local suite remains 140/140 passing. No new Checkout/payment was created. Production remains unchanged.
+
+Remaining launch gates: lawful tax-document fulfillment/enrollment; exceptional FX-date review; actual Stripe refund-to-credit-note integration and risk-event reconciliation; sandbox tax-document email delivery; live account/price/webhook/portal verification; commercial data-use scope. The application being recorded or email-verified is not e-Tax approval.

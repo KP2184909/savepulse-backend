@@ -81,6 +81,16 @@ Deno.serve(async request => {
       const provided = request.headers.get("x-savepulse-worker-token") || "";
       if (!/^[a-f0-9]{64}$/.test(expected) || !/^[a-f0-9]{64}$/.test(provided) || !crypto.timingSafeEqual(new TextEncoder().encode(provided),new TextEncoder().encode(expected))) throw fail("authentication_required",401);
       await ensureSandboxTaxRate();
+      const workerInput = await request.json().catch(() => ({}));
+      if (workerInput.auditLatestInvoice === true) {
+        const account = await store.get(billing.accountKey(testEmail));
+        if (!account?.membership?.subscriptionId) throw fail("billing_invoice_required",422);
+        const subscription = await stripe("GET",`/subscriptions/${account.membership.subscriptionId}`,{expand:["latest_invoice"]});
+        const invoiceId = typeof subscription.latest_invoice === "string" ? subscription.latest_invoice : subscription.latest_invoice?.id;
+        const context = await billing.paidInvoiceForTaxDraft(invoiceId,true);
+        if(context.recipient !== testEmail || !context.customer) throw fail("billing_test_mailbox_required",403);
+        return json({mode:"test",audit:"paid_invoice_snapshot",verified:true,invoiceId:context.payment.id,amountPaid:context.payment.amount_paid,currency:context.payment.currency,documentsCreated:0,emailsSent:0});
+      }
       // Recover a missed paid webhook for the single authorized sandbox account.
       const account = await store.get(billing.accountKey(testEmail));
       if(account?.membership?.subscriptionId){
