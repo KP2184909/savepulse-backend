@@ -50,3 +50,9 @@ The draft builder is deliberately scoped to ordinary domestic TH service use dur
 Required fields: invoiceId; customer.name/address/country/serviceUseCountry and taxId/branchCode when applicable; fx.method/sourceUrl/rateDate/taxPointDate/thbPerUsd/selectionReason; treatment=th_domestic_standard_7_inclusive. FX is an administrator-supplied documented rate, not yet fetched or independently verified by this code. Do not treat draft generation as compliant completed issuance. Draft endpoint is not yet deployed to Production or the Edge sandbox wrapper.
 
 Validation: 123 automated tests pass, including paid-source ownership, administrator access, inclusive arithmetic and missing/invalid FX or customer cases. Full issuance still needs authoritative FX retrieval/evidence, durable unique invoice numbering and storage, tax-point exceptions, credit notes/refunds, and customer delivery. No live billing or tax changes made.
+
+## Durable ledger implementation — 2026-10-29
+
+Added taxDocumentLedger.js, using the existing CAS storage interface. A single atomic write allocates a sequential monthly number and stores the document; repeat/concurrent invoice requests reuse the same document. Test and live namespaces and document prefixes are separate. Source adapter must independently verify payment, recipient and FX evidence. Delivery leases, provider idempotency keys and a retry-retention boundary prevent blind duplicate mail after ambiguous sends. This module has not been connected to Production or an actual issuance source/mailer yet; no genuine customer tax invoice was issued.
+
+127 automated tests pass. Tests cover concurrent issuance/restart, mode separation, failed email retry and duplicate suppression. BOT API connection is pending owner signup through the official portal. No new paid services or Production state changed.
