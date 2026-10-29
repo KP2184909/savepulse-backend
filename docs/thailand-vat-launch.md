@@ -56,3 +56,13 @@ Validation: 123 automated tests pass, including paid-source ownership, administr
 Added taxDocumentLedger.js, using the existing CAS storage interface. A single atomic write allocates a sequential monthly number and stores the document; repeat/concurrent invoice requests reuse the same document. Test and live namespaces and document prefixes are separate. Source adapter must independently verify payment, recipient and FX evidence. Delivery leases, provider idempotency keys and a retry-retention boundary prevent blind duplicate mail after ambiguous sends. This module has not been connected to Production or an actual issuance source/mailer yet; no genuine customer tax invoice was issued.
 
 127 automated tests pass. Tests cover concurrent issuance/restart, mode separation, failed email retry and duplicate suppression. BOT API connection is pending owner signup through the official portal. No new paid services or Production state changed.
+
+## BOT connection verified — 2026-10-29
+
+Owner registered BOT API app 5995 (SavePulse Tax Invoice FX), obtained approved Exchange Rates Plan access and entered the Token directly into isolated Supabase Secret BOT_EXCHANGE_RATE_API_KEY. No token was placed in source or chat.
+
+Official endpoint/schema checked in the developer portal: https://gateway.api.bot.or.th/Stat-ExchangeRate/v2/DAILY_AVG_EXG_RATE/ ; query start_period, end_period, currency; Authorization header is the raw Token, not Token Hash. Documented publication time is 18:00 Bangkok on business days.
+
+Deployed isolated savepulse-bot-fx-probe v6 verified HTTP 200 and USD buying_transfer for 2026-10-28: 33.6482000 (normalized exact value 33.6482). Evidence hash da4504d4123e21791418bb802c7334a938db2237067914b09c8bdbbc66bc2086 stored in RLS scheduler_state using the tested createBotTaxFx adapter. Raw rate precision is preserved; trailing zero normalization does not round. No midpoint or prior-day fallback occurs if the requested tax-point date is missing. Probe permits only the fixed QA date, is rate-cached and expires after 2026-10-29 UTC; it is not a public market-data feed.
+
+129 automated tests pass. This verifies actual BOT connectivity and exact-date FX evidence persistence, not full issued customer tax invoices or Production billing. Issuance integration, customer billing details, manual inclusive Stripe VAT setup and live configuration are still pending.
