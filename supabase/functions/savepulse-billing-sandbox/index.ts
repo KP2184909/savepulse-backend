@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { createBillingRiskInbox } from "./shared/billingRiskInbox.mjs";
 import { selectBotTaxRateDate } from "./shared/taxFxPolicy.mjs";
 import { createTaxDocumentJobs } from "./shared/taxDocumentJobs.mjs";
 import { createBotTaxFx } from "./shared/botTaxFx.mjs";
@@ -38,6 +39,7 @@ async function identity(token: string) {
   if (data.email !== testEmail) throw fail("billing_test_mailbox_required", 403);
   return data.email;
 }
+const riskInbox = createBillingRiskInbox({store,mode:"test",accountId:env.STRIPE_EXPECTED_ACCOUNT_ID});
 const stripe = createStripeApi(env);
 const billing = createBillingLifecycle({ store, stripe, identity, env });
 async function ensureSandboxTaxRate() {
@@ -111,6 +113,8 @@ Deno.serve(async request => {
       try { verifyStripeWebhookSignature(raw, request.headers.get("stripe-signature"), await signingSecret()); }
       catch (_) { throw fail("invalid_stripe_signature", 400); }
       const event = JSON.parse(raw);
+      const risk = await riskInbox.receive(event);
+      if (risk.received) return json({received:true,updated:false,reason:risk.reason});
       const result = await billing.event(event);
       if ((result.updated || result.reason === "duplicate_event") && result.email === testEmail && ["invoice.paid","invoice.payment_succeeded"].includes(event.type) && /^in_\w+$/.test(event.data?.object?.id || "")) await taxJobs.enqueue(event.data.object.id);
       return json({ received: true, updated: result.updated, reason: result.reason || null });

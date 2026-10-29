@@ -6,7 +6,7 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const out = path.join(root, "supabase/functions/savepulse-billing-sandbox/shared");
 fs.mkdirSync(out, { recursive: true });
-for (const name of ["trialLifecycle", "billingLifecycle", "stripeSignature", "botTaxFx", "taxDocumentLedger", "thaiTaxInvoiceDraft", "thaiCreditNote", "taxDocumentJobs", "taxFxPolicy"]) {
+for (const name of ["billingRiskInbox", "trialLifecycle", "billingLifecycle", "stripeSignature", "botTaxFx", "taxDocumentLedger", "thaiTaxInvoiceDraft", "thaiCreditNote", "taxDocumentJobs", "taxFxPolicy"]) {
   const input = fs.readFileSync(path.join(root, `src/${name}.js`), "utf8");
   let result = input.replace('"use strict";\n', "").replace('const crypto = require("node:crypto");', 'import crypto from "node:crypto";');
   result = result.replace('const { canonicalEmail } = require("./trialLifecycle");', 'import { canonicalEmail } from "./trialLifecycle.mjs";');
