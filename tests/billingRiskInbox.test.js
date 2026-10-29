@@ -34,3 +34,22 @@ test("risk tasks isolate Stripe account and mode",async()=>{
  await createBillingRiskInbox({...f.options,mode:"live"}).receive({...event(),livemode:true});
  assert.equal(f.rows.size,3);
 });
+
+test("risk reconciliation persists verified evidence once and never changes entitlement",async()=>{
+ const f=fixture();f.options.store.get=async key=>structuredClone(f.rows.get(key));
+ f.options.store.cas=async(key,version,value)=>{if(f.rows.get(key)?.version!==version)return false;f.rows.set(key,structuredClone(value));return true;};
+ await f.api.receive(event());const key=[...f.rows.keys()][0];
+ const api=createBillingRiskInbox({...f.options,resolve:async()=>({ownershipVerified:true,invoices:[{invoiceId:"in_fixture"}],reviewRequired:true})});
+ await Promise.all([api.reconcile(key),api.reconcile(key)]);
+ const row=f.rows.get(key);assert.equal(row.state,"verified_review_required");assert.equal(row.version,2);assert.equal(row.entitlementChanged,false);assert.equal(row.creditNoteCreated,false);
+ assert.equal((await api.reconcile(key)).updated,false);
+});
+test("provider errors persist bounded retries without leaking provider payloads",async()=>{
+ const f=fixture();let time=1000;f.options.store.get=async key=>structuredClone(f.rows.get(key));
+ f.options.store.cas=async(key,version,value)=>{if(f.rows.get(key)?.version!==version)return false;f.rows.set(key,structuredClone(value));return true;};
+ await f.api.receive(event());const key=[...f.rows.keys()][0];let calls=0;
+ const api=createBillingRiskInbox({...f.options,now:()=>time,resolve:async()=>{calls++;throw Error("sensitive_provider_data");}});
+ await api.reconcile(key);await api.reconcile(key);assert.equal(calls,1);
+ for(let i=1;i<10;i++){time=f.rows.get(key).nextAttemptAt;await api.reconcile(key);}
+ assert.equal(f.rows.get(key).state,"manual_review_required");assert.ok(!JSON.stringify(f.rows.get(key)).includes("sensitive"));
+});

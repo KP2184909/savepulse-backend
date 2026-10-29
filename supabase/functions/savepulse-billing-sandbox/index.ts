@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { createBillingRiskResolver } from "./shared/billingRiskResolver.mjs";
 import { createBillingRiskInbox } from "./shared/billingRiskInbox.mjs";
 import { selectBotTaxRateDate } from "./shared/taxFxPolicy.mjs";
 import { createTaxDocumentJobs } from "./shared/taxDocumentJobs.mjs";
@@ -39,9 +40,10 @@ async function identity(token: string) {
   if (data.email !== testEmail) throw fail("billing_test_mailbox_required", 403);
   return data.email;
 }
-const riskInbox = createBillingRiskInbox({store,mode:"test",accountId:env.STRIPE_EXPECTED_ACCOUNT_ID});
 const stripe = createStripeApi(env);
 const billing = createBillingLifecycle({ store, stripe, identity, env });
+const riskResolver = createBillingRiskResolver({stripe,mode:"test",accountId:env.STRIPE_EXPECTED_ACCOUNT_ID,invoiceSource:invoiceId=>billing.paidInvoiceForTaxDraft(invoiceId,true)});
+const riskInbox = createBillingRiskInbox({store,mode:"test",accountId:env.STRIPE_EXPECTED_ACCOUNT_ID,resolve:riskResolver.resolve});
 async function ensureSandboxTaxRate() {
   const key = "billing:v2:test:inclusive-th-vat7";
   const stored = await store.get(key);
@@ -99,12 +101,17 @@ Deno.serve(async request => {
         const subscription=await stripe("GET",`/subscriptions/${account.membership.subscriptionId}`,{expand:["latest_invoice"]});
         if(subscription.latest_invoice?.status === "paid") await taxJobs.enqueue(subscription.latest_invoice.id);
       }
+      const riskQuery = new URLSearchParams({select:"key",key:`like.billing-risk:v1:test:${env.STRIPE_EXPECTED_ACCOUNT_ID}:*`,"value->>state":"eq.pending_review",order:"updated_at.asc",limit:"10"});
+      const riskResponse = await fetch(`${projectUrl}/rest/v1/scheduler_state?${riskQuery}`,{headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY!,authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`},signal:AbortSignal.timeout(12000)});
+      if(!riskResponse.ok) throw fail("billing_risk_storage_unavailable");
+      let risksVerified=0;
+      for(const risk of await riskResponse.json()){const result=await riskInbox.reconcile(risk.key);if(result.updated)risksVerified++;}
       const query = new URLSearchParams({select:"key,value",key:"like.tax-job:v1:test:*","value->>state":"in.(pending,retry,working)",order:"updated_at.asc",limit:"20"});
       const response = await fetch(`${projectUrl}/rest/v1/scheduler_state?${query}`,{headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY!,authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`},signal:AbortSignal.timeout(12000)});
       if(!response.ok) throw fail("tax_document_storage_busy");
       const jobs = await response.json(), states = [];
       for(const job of jobs){ if(job.value.nextAttemptAt<=Date.now() && job.value.leaseUntil<=Date.now()){const result=await taxJobs.run(job.value.invoiceId);states.push(result.state);} }
-      return json({mode:"test",processed:states.length,states});
+      return json({mode:"test",processed:states.length,states,risksVerified});
     }
     if (request.method === "POST" && operation === "webhook") {
       if (Number(request.headers.get("content-length") || 0) > 262144) throw fail("request_too_large", 413);
