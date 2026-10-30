@@ -76,7 +76,7 @@ if ($("taxDocument")) $("taxDocument").onclick = () => action(async () => {
   if (result.document?.paymentMode !== "test" || !result.document?.invoiceNumber?.startsWith("TEST-") || typeof result.html !== "string") throw Error("Test document was not confirmed.");
   $("taxDocumentPreview").srcdoc = result.html;
   $("taxDocumentPreview").hidden = false;
-  $("taxDocumentStatus").textContent = `${result.document.invoiceNumber} — ${result.delivery === "sent" ? "Test email sent." : "Document prepared. Test email delivery is not configured."}`;
+  $("taxDocumentStatus").textContent = `${result.document.invoiceNumber} — ${result.delivery === "sent" ? "Test email accepted by the provider; inbox delivery is not yet confirmed." : "Document prepared. Test email delivery is not configured."}`;
   $("message").textContent = "Test document confirmed by the server.";
 });
 action(async () => {

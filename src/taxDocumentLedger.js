@@ -49,6 +49,7 @@ function createTaxDocumentLedger({ store, source, refundSource, send, mode, live
       // retry beyond provider idempotency retention and risk duplicate mail.
       if (job.firstAttemptAt && now() - job.firstAttemptAt >= 23 * 3600000) throw fail("tax_document_delivery_needs_review");
       if (job.leaseUntil > now()) throw fail("tax_document_delivery_busy");
+      if (job.nextAttemptAt > now()) throw fail("tax_document_delivery_retry_later");
       return { ...old, documents: { ...old.documents, [id]: { ...item, delivery: { ...job, status: "sending", owner, leaseUntil: now() + 90000, attempts: job.attempts + 1, firstAttemptAt: job.firstAttemptAt || now() } } } };
     });
     const item = row.documents[id];
@@ -59,7 +60,7 @@ function createTaxDocumentLedger({ store, source, refundSource, send, mode, live
       await change(key, old => {
         const current = old.documents[id];
         if (current.delivery.owner !== owner) return null;
-        return { ...old, documents: { ...old.documents, [id]: { ...current, delivery: { ...current.delivery, status: "failed", leaseUntil: 0, lastFailureAt: new Date(now()).toISOString() } } } };
+        return { ...old, documents: { ...old.documents, [id]: { ...current, delivery: { ...current.delivery, status: "failed", leaseUntil: 0, lastFailureAt: new Date(now()).toISOString(), nextAttemptAt: now() + Math.min(3600000,60000 * 2 ** Math.min(current.delivery.attempts - 1,6)) } } } };
       });
       throw fail("tax_document_delivery_failed");
     }

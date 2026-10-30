@@ -11,7 +11,7 @@ function setup() {
 }
 test("concurrent duplicate issuance and worker restart preserve one number per paid invoice",async()=>{const f=setup();const docs=await Promise.all(Array.from({length:10},()=>f.ledger.issue("in_one")));assert.equal(new Set(docs.map(d=>d.invoiceNumber)).size,1);const other=await f.ledger.issue("in_two");assert.ok(other.invoiceNumber.endsWith("000002"));const restarted=createTaxDocumentLedger(f.options);assert.equal((await restarted.issue("in_one")).invoiceNumber,docs[0].invoiceNumber);assert.ok(docs[0].invoiceNumber.startsWith("TEST-"));});
 test("unverified or mode-mismatched source cannot allocate any issued document",async()=>{const f=setup();for(const value of [{evidenceVerified:false},{mode:"live"}]){const ledger=createTaxDocumentLedger({...f.options,source:async id=>({...await f.options.source(id),...value})});await assert.rejects(ledger.issue("in_one"),/verified_source/);}assert.equal(f.rows.size,0);});
-test("email retry keeps stable idempotency and successful delivery is not sent twice",async()=>{const f=setup();await f.ledger.issue("in_one");f.setBroken(true);await assert.rejects(f.ledger.deliver("202610","in_one"),/delivery_failed/);f.setBroken(false);await f.ledger.deliver("202610","in_one");assert.deepEqual(await f.ledger.deliver("202610","in_one"),{sent:true,duplicate:true});assert.equal(f.deliveries.length,2);assert.equal(f.deliveries[0].idempotencyKey,f.deliveries[1].idempotencyKey);});
+test("email retry keeps stable idempotency and successful delivery is not sent twice",async()=>{const f=setup();await f.ledger.issue("in_one");f.setBroken(true);await assert.rejects(f.ledger.deliver("202610","in_one"),/delivery_failed/);f.setBroken(false);f.advance(60000);await f.ledger.deliver("202610","in_one");assert.deepEqual(await f.ledger.deliver("202610","in_one"),{sent:true,duplicate:true});assert.equal(f.deliveries.length,2);assert.equal(f.deliveries[0].idempotencyKey,f.deliveries[1].idempotencyKey);});
 test("ambiguous delivery outside provider retention requires review instead of a duplicate email",async()=>{const f=setup();await f.ledger.issue("in_one");f.setBroken(true);await assert.rejects(f.ledger.deliver("202610","in_one"));f.advance(24*3600000);f.setBroken(false);await assert.rejects(f.ledger.deliver("202610","in_one"),/needs_review/);assert.equal(f.deliveries.length,1);});
 
 test("partial refunds conserve original THB and VAT, duplicates reuse credit notes and never rewrite originals",async()=>{
@@ -33,3 +33,11 @@ test("cancellation alone, failed/wrong-mode refunds and missing legal reason do 
 });
 
 test("live tax documents and credit notes require explicit issuance approval",async()=>{const f=setup(),ledger=createTaxDocumentLedger({...f.options,mode:"live"});await assert.rejects(ledger.issue("in_one"),/live_issuance_not_approved/);await assert.rejects(ledger.credit("202610","in_one","re_one"),/live_issuance_not_approved/);assert.equal(f.rows.size,0);});
+
+test("failed delivery has persisted backoff and cannot retry early after process restart",async()=>{
+ const f=setup();await f.ledger.issue("in_one");f.setBroken(true);
+ await assert.rejects(f.ledger.deliver("202610","in_one"),/delivery_failed/);
+ const restarted=createTaxDocumentLedger(f.options);f.setBroken(false);
+ await assert.rejects(restarted.deliver("202610","in_one"),/retry_later/);
+ assert.equal(f.deliveries.length,1);f.advance(60000);await restarted.deliver("202610","in_one");assert.equal(f.deliveries.length,2);
+});

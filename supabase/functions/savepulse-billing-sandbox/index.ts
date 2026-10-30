@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { runTaxDeliveryWorker } from "./shared/taxDeliveryWorker.mjs";
 import { createBillingRiskResolver } from "./shared/billingRiskResolver.mjs";
 import { createBillingRiskInbox } from "./shared/billingRiskInbox.mjs";
 import { selectBotTaxRateDate } from "./shared/taxFxPolicy.mjs";
@@ -121,7 +122,15 @@ Deno.serve(async request => {
       if(!response.ok) throw fail("tax_document_storage_busy");
       const jobs = await response.json(), states = [];
       for(const job of jobs){ if(job.value.nextAttemptAt<=Date.now() && job.value.leaseUntil<=Date.now()){const result=await taxJobs.run(job.value.invoiceId);states.push(result.state);} }
-      return json({mode:"test",processed:states.length,states,risksVerified});
+      const mailerConfigured=Boolean(Deno.env.get("SAVEPULSE_TEST_RESEND_KEY") && Deno.env.get("SAVEPULSE_TEST_FROM_EMAIL"));
+      let delivery={configured:false,accepted:0,review:0,failed:0};
+      if(mailerConfigured){
+        const mailQuery=new URLSearchParams({select:"key,value",key:"like.tax-documents:v1:test:*",order:"updated_at.asc",limit:"100"});
+        const mailResponse=await fetch(`${projectUrl}/rest/v1/scheduler_state?${mailQuery}`,{headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY!,authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`},signal:AbortSignal.timeout(12000)});
+        if(!mailResponse.ok)throw fail("tax_document_storage_busy");
+        delivery=await runTaxDeliveryWorker({rows:await mailResponse.json(),ledger:taxLedger,configured:true,mode:"test",limit:10});
+      }
+      return json({mode:"test",processed:states.length,states,risksVerified,delivery});
     }
     if (request.method === "POST" && operation === "webhook") {
       if (Number(request.headers.get("content-length") || 0) > 262144) throw fail("request_too_large", 413);
