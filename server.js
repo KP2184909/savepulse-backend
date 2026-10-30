@@ -30,7 +30,19 @@ const {
 } = require("./src/plans");
 
 const { createTrialStore, createTrialMailer, createTrialLifecycle } = require("./src/trialLifecycle");
+const { createBillingLifecycle, createStripeApi } = require("./src/billingLifecycle");
+const { buildThaiTaxInvoiceDraft, renderThaiTaxInvoiceDraft } = require("./src/thaiTaxInvoiceDraft");
+const { verifyStripeWebhookSignature } = require("./src/stripeSignature");
 const trialStore = createTrialStore();
+const legacyPaidPlan = trialStore.paidPlan.bind(trialStore);
+let billing;
+trialStore.paidPlan = async email => {
+  if (billing?.enabled) {
+    const status = await billing.reconcileEmail(email);
+    if (status.managed) return status.plan;
+  }
+  return legacyPaidPlan(email);
+};
 const trialConfigured = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.RESEND_API_KEY && process.env.FROM_EMAIL && process.env.TRIAL_ENABLED !== "false");
 let trialDatabaseReady = false;
 const trialProbe = (async () => {
@@ -43,6 +55,7 @@ const trialProbe = (async () => {
   } catch (_) { trialDatabaseReady = false; }
 })();
 const trials = createTrialLifecycle({ store: trialStore, send: createTrialMailer(), enabled: trialConfigured });
+billing = createBillingLifecycle({ store: trialStore, stripe: createStripeApi(), identity: token => trials.identity(token) });
 async function requireTrialReady() {
   await trialProbe;
   if (!trialDatabaseReady) throw Object.assign(new Error("trial_not_available"), { status: 503 });
@@ -397,11 +410,11 @@ function checkoutRequirements(plan, env = process.env) {
 
 function stripeKeyMode(key) {
   const value = String(key || "");
-  if (value.startsWith("sk_live_")) {
+  if (/^(sk|rk)_live_/.test(value)) {
     return "live";
   }
 
-  if (value.startsWith("sk_test_")) {
+  if (/^(sk|rk)_test_/.test(value)) {
     return "test";
   }
 
@@ -628,8 +641,6 @@ async function checkoutPayload(plan, options = {}, env = process.env) {
     };
   }
 
-  const staticUrl = checkoutUrlForPlan(planId, env);
-
   if (options.email && checkoutRequirements(planId, env).length === 0) {
     try {
       const session = await createStripeCheckoutSession({ ...options, plan: planId }, env);
@@ -653,16 +664,6 @@ async function checkoutPayload(plan, options = {}, env = process.env) {
         message: error.message
       };
     }
-  }
-
-  if (staticUrl) {
-    return {
-      plan: planId,
-      configured: true,
-      provider: "payment_link",
-      url: staticUrl,
-      message: "Open this checkout URL to activate the requested plan."
-    };
   }
 
   return {
@@ -874,10 +875,18 @@ async function flushNotificationQueue(now = new Date()) {
 
   for (const job of dueJobs) {
     try {
+      const subscriber = await resolveBillingSubscriber(job.subscriber);
+      const delivery = deliveryDecisionForSignal(subscriber, job.signal);
+      if (!delivery.eligible) {
+        job.status = "skipped";
+        job.finishedAt = new Date().toISOString();
+        job.result = { skipped: true, reason: "current_membership_not_eligible" };
+        continue;
+      }
       const result = await sendSignalEmail({
         signal: job.signal,
         effectiveSignal: job.effectiveSignal,
-        subscriber: job.subscriber
+        subscriber
       });
 
       job.result = result;
@@ -971,60 +980,6 @@ function invoiceExposure(invoice) {
   };
 }
 
-function parseStripeSignatureHeader(header) {
-  return String(header || "")
-    .split(",")
-    .map((part) => part.trim().split("="))
-    .reduce(
-      (acc, [key, value]) => {
-        if (!key || !value) {
-          return acc;
-        }
-
-        if (key === "v1") {
-          acc.v1.push(value);
-          return acc;
-        }
-
-        acc[key] = value;
-        return acc;
-      },
-      { v1: [] }
-    );
-}
-
-function verifyStripeWebhookSignature(rawBody, signatureHeader, secret, nowMs = Date.now(), toleranceSeconds = 300) {
-  if (!secret) {
-    throw new Error("stripe_webhook_secret_not_configured");
-  }
-
-  const parsed = parseStripeSignatureHeader(signatureHeader);
-  const timestamp = Number(parsed.t);
-
-  if (!Number.isFinite(timestamp) || parsed.v1.length === 0) {
-    throw new Error("invalid_stripe_signature_header");
-  }
-
-  if (toleranceSeconds !== null && Math.abs(nowMs / 1000 - timestamp) > toleranceSeconds) {
-    throw new Error("stripe_signature_timestamp_outside_tolerance");
-  }
-
-  const body = Buffer.isBuffer(rawBody) ? rawBody.toString("utf8") : String(rawBody || "");
-  const signedPayload = `${timestamp}.${body}`;
-  const expectedSignature = crypto.createHmac("sha256", secret).update(signedPayload).digest("hex");
-  const expectedBuffer = Buffer.from(expectedSignature, "hex");
-  const hasValidSignature = parsed.v1.some((signature) => {
-    const signatureBuffer = Buffer.from(signature, "hex");
-    return signatureBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(signatureBuffer, expectedBuffer);
-  });
-
-  if (!hasValidSignature) {
-    throw new Error("invalid_stripe_signature");
-  }
-
-  return true;
-}
-
 function planFromStripePriceId(priceId, env = process.env) {
   const normalizedPrice = String(priceId || "").trim();
 
@@ -1058,6 +1013,9 @@ function stripeSubscriptionPriceId(subscription) {
 }
 
 function applyStripeCheckoutCompleted(session, env = process.env) {
+  if (session?.payment_status !== "paid") {
+    return { updated: false, reason: "payment_not_confirmed" };
+  }
   const email = stripeObjectEmail(session);
   const metadataPlan = normalizePlan(session?.metadata?.plan);
   const plan = metadataPlan === "free" ? normalizePlan(session?.metadata?.requested_plan) : metadataPlan;
@@ -1100,6 +1058,10 @@ function applyStripeSubscriptionChanged(subscription, env = process.env) {
 }
 
 function applyStripeEvent(event, env = process.env) {
+  const mode = stripeKeyMode(stripeSecretKey(env));
+  if (typeof event?.livemode === "boolean" && ((mode === "live" && !event.livemode) || (mode === "test" && event.livemode))) {
+    return { updated: false, reason: "stripe_mode_mismatch" };
+  }
   const object = event?.data?.object || {};
 
   switch (event?.type) {
@@ -1252,11 +1214,7 @@ async function handleSubscribe(req, res) {
     requestedPlan,
     upgradeRequired,
     checkout: upgradeRequired
-      ? await checkoutPayload(requestedPlan, {
-          email,
-          locale: record.locale,
-          watchlist: record.watchlist
-        })
+      ? { configured: false, provider: "disabled", url: null, reason: "verified_account_required", message: "Verify your email before starting a paid checkout." }
       : null,
     rejectedWatchlist: watchlistResult.rejected,
     quota: quotaSnapshot()
@@ -1275,6 +1233,21 @@ async function handleBillingCheckout(req, res) {
 
   if (!emailIsValid(email)) {
     sendJson(res, 422, { error: "valid_email_required" });
+    return;
+  }
+
+  if (publicCheckoutEnabled()) {
+    await requireTrialReady();
+    const verifiedEmail = await trials.identity(bearerToken(req));
+    if (verifiedEmail !== email) {
+      sendJson(res, 403, { error: "verified_email_mismatch" });
+      return;
+    }
+    if (!billing.enabled) throw Object.assign(new Error("billing_unavailable"), { status: 503 });
+    const status = await billing.status(bearerToken(req));
+    if (!status.managed && await legacyPaidPlan(email) !== "free") throw Object.assign(new Error("billing_existing_membership_needs_migration"), { status: 409 });
+    const checkout = await billing.checkout(bearerToken(req), body.plan);
+    sendJson(res, 200, { checkout });
     return;
   }
 
@@ -1306,15 +1279,36 @@ async function handleStripeWebhook(req, res) {
     return;
   }
 
-  const result = applyStripeEvent(event);
+  if (!billing.enabled) throw Object.assign(new Error("billing_unavailable"), { status: 503 });
+  const result = await billing.event(event);
+  // This mirror only discovers recipients. Every entitlement read/delivery resolves
+  // the authoritative, mode-scoped billing record again before using its plan.
+  if (result.email) await syncBillingSubscriber(result.email);
   rememberStripeEvent(event, result);
   persistStripeEvent(event, result);
 
   sendJson(res, 200, {
     received: true,
     eventType: event.type,
-    result: sanitizeStripeEventResult(result)
+    result: { updated: result.updated, reason: result.reason || null }
   });
+}
+
+async function syncBillingSubscriber(email) {
+  const status = await billing.reconcileEmail(email);
+  if (!status.managed) return;
+  const existing = subscribers.find(record => record.email === email);
+  const { record } = buildSubscriberRecord(email, {}, existing, status.plan);
+  record.billing = { ...(existing?.billing || {}), provider: "stripe", version: 2, mode: status.mode };
+  // The JSON file is a recipient index, not proof of paid access.
+  saveSubscriberRecord(record);
+}
+
+async function resolveBillingSubscriber(subscriber) {
+  if (!billing.enabled) return subscriber;
+  if (billing.mode === "test" && subscriber.email !== "savepulse.cloud@gmail.com") throw Object.assign(new Error("billing_test_mailbox_required"), { status: 403 });
+  const status = await billing.reconcileEmail(subscriber.email);
+  return status.managed ? { ...subscriber, plan: status.plan } : subscriber.billing?.version === 2 ? { ...subscriber, plan: "free" } : subscriber;
 }
 
 async function handleAdminSubscriberPlan(req, res) {
@@ -1470,6 +1464,25 @@ async function handleRequest(req, res) {
   }
 
   try {
+    if (req.method === "GET" && url.pathname === "/api/v1/billing/catalog") {
+      if (!publicCheckoutEnabled() || !billing.enabled) { sendJson(res, 200, { enabled: false, plans: [], noCardTrialUrl: "/trial/" }); return; }
+      sendJson(res, 200, await billing.catalog()); return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/v1/billing/profile") {
+      await requireTrialReady();
+      sendJson(res, 200, await billing.saveProfile(bearerToken(req), await parseBody(req))); return;
+    }
+    if (url.pathname === "/api/v1/billing/status" || url.pathname === "/api/v1/billing/portal") {
+      await requireTrialReady();
+      const token = bearerToken(req);
+      if (req.method === "GET" && url.pathname.endsWith("/status")) {
+        const status = await billing.status(token);
+        await syncBillingSubscriber(await trials.identity(token));
+        sendJson(res, 200, status); return;
+      }
+      if (req.method === "POST" && url.pathname.endsWith("/portal")) { sendJson(res, 200, await billing.portal(token)); return; }
+      sendJson(res, 405, { error: "method_not_allowed" }); return;
+    }
     if (url.pathname.startsWith("/api/v1/trial/")) {
       res.setHeader("cache-control", "no-store");
       if (req.method === "GET" && url.pathname === "/api/v1/trial/readiness") {
@@ -1575,6 +1588,15 @@ async function handleRequest(req, res) {
         generatedAt: new Date().toISOString()
       });
       return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/v1/admin/billing/tax-invoice-draft") {
+      res.setHeader("cache-control", "no-store");
+      if (!hasAdminSecret(req)) { sendJson(res, 401, { error: "unauthorized_admin_billing" }); return; }
+      const body = await parseBody(req);
+      const payment = await billing.paidInvoiceForTaxDraft(body.invoiceId);
+      const draft = buildThaiTaxInvoiceDraft({ payment, customer: body.customer, fx: body.fx, treatment: body.treatment });
+      sendJson(res, 200, { draft, html: renderThaiTaxInvoiceDraft(draft) }); return;
     }
 
     if (req.method === "GET" && url.pathname === "/api/v1/admin/billing-readiness") {
@@ -1695,6 +1717,7 @@ module.exports = {
   publicNotificationSummary,
   publicCheckoutEnabled,
   quotaSnapshot,
+  resolveBillingSubscriber,
   safeStripeEventSummary,
   server,
   stripeEventsSnapshot,

@@ -77,6 +77,43 @@ test("direct checkout endpoint stays closed during Private Beta", async () => {
   assert.equal(payload.checkout.url, null);
 });
 
+test("enabled direct checkout fails closed when verified identity storage is unavailable", async () => {
+  const old = process.env.PUBLIC_CHECKOUT_ENABLED;
+  process.env.PUBLIC_CHECKOUT_ENABLED = "true";
+  try {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/api/v1/billing/checkout`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "member@example.com", plan: "pro" })
+    });
+    assert.equal(response.status, 503);
+    const payload = await response.json();
+    assert.equal(payload.error, "trial_not_available");
+    assert.equal(payload.checkout, undefined);
+  } finally {
+    if (old === undefined) delete process.env.PUBLIC_CHECKOUT_ENABLED;
+    else process.env.PUBLIC_CHECKOUT_ENABLED = old;
+  }
+});
+
+test("newsletter signup cannot create a paid checkout even if public checkout is enabled", async () => {
+  const old = process.env.PUBLIC_CHECKOUT_ENABLED;
+  process.env.PUBLIC_CHECKOUT_ENABLED = "true";
+  try {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/api/v1/subscribe`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "new-checkout@example.com", plan: "pro" })
+    });
+    const payload = await response.json();
+    assert.equal(response.status, 201);
+    assert.equal(payload.checkout.configured, false);
+    assert.equal(payload.checkout.reason, "verified_account_required");
+    assert.equal(payload.checkout.url, null);
+  } finally {
+    if (old === undefined) delete process.env.PUBLIC_CHECKOUT_ENABLED;
+    else process.env.PUBLIC_CHECKOUT_ENABLED = old;
+  }
+});
+
 test("checkout payload reports missing Stripe configuration without failing", async () => {
   const payload = await checkoutPayload(
     "pro",
@@ -91,6 +128,15 @@ test("checkout payload reports missing Stripe configuration without failing", as
   assert.deepEqual(payload.missing, ["STRIPE_SECRET_KEY", "STRIPE_PRICE_PRO"]);
 });
 
+test("checkout never falls back to an unbound static payment link", async () => {
+  const payload = await checkoutPayload("pro", { email: "member@example.com" }, {
+    PUBLIC_CHECKOUT_ENABLED: "true",
+    CHECKOUT_PRO_URL: "https://buy.stripe.com/example"
+  });
+  assert.equal(payload.configured, false);
+  assert.equal(payload.url, null);
+});
+
 test("Stripe webhook signature verification accepts a matching v1 signature", () => {
   const secret = "whsec_test_secret";
   const rawBody = Buffer.from(JSON.stringify({ id: "evt_test", type: "checkout.session.completed" }));
@@ -101,6 +147,16 @@ test("Stripe webhook signature verification accepts a matching v1 signature", ()
     verifyStripeWebhookSignature(rawBody, `t=${timestamp},v1=${signature}`, secret, timestamp * 1000),
     true
   );
+});
+
+test("Stripe events from a different mode cannot change membership", () => {
+  for (const [key, livemode] of [["sk_test_example", true], ["sk_live_example", false]]) {
+    const result = applyStripeEvent({
+      type: "checkout.session.completed", livemode,
+      data: { object: { payment_status: "paid", metadata: { email: "member@example.com", plan: "pro" } } }
+    }, { STRIPE_SECRET_KEY: key });
+    assert.deepEqual(result, { updated: false, reason: "stripe_mode_mismatch" });
+  }
 });
 
 test("checkout completion upgrades the subscriber plan from Stripe metadata", () => {
@@ -122,6 +178,17 @@ test("checkout completion upgrades the subscriber plan from Stripe metadata", ()
   assert.equal(result.subscriber.plan, "pro");
   assert.equal(result.subscriber.billing.provider, "stripe");
   assert.equal(result.subscriber.billing.status, "paid");
+});
+
+test("checkout completion does not grant access when payment is not confirmed", () => {
+  for (const status of ["unpaid", "no_payment_required", undefined]) {
+    const result = applyStripeEvent({
+      type: "checkout.session.completed",
+      data: { object: { payment_status: status, customer_email: "pending@example.com", metadata: { plan: "pro" } } }
+    });
+    assert.equal(result.updated, false);
+    assert.equal(result.reason, "payment_not_confirmed");
+  }
 });
 
 test("billing readiness snapshot reports live readiness without exposing secrets", () => {
