@@ -14,6 +14,7 @@ import { verifyStripeWebhookSignature } from "./shared/stripeSignature.mjs";
 const projectUrl = "https://sktzydyiwqylpstxjicf.supabase.co";
 const previewUrl = "https://deploy-preview-10--astounding-fenglisu-0ff097.netlify.app";
 const testEmail = "savepulse.cloud@gmail.com";
+const testFrom = Deno.env.get("SAVEPULSE_TEST_FROM_EMAIL") || "SavePulse Sandbox <alerts@savepulse.cloud>";
 const env = {
   BILLING_V2_ENABLED: "true", BILLING_DOMESTIC_VAT_ENABLED: "true", STRIPE_MANUAL_TAX_RATE: "", SUPABASE_URL: Deno.env.get("SUPABASE_URL"),
   SUPABASE_SERVICE_ROLE_KEY: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
@@ -70,7 +71,7 @@ const taxLedger = createTaxDocumentLedger({ store, mode: "test", source: async i
   if(record?.mode!=="test" || record.invoiceId!==invoiceId || record.refundId!==refundId || record.approved!==true) throw fail("credit_reason_review_required",422);
   return riskResolver.verifiedRefund(invoiceId,refundId,record.review);
 }, send: async ({ to, document, idempotencyKey }) => {
-  const key = Deno.env.get("SAVEPULSE_TEST_RESEND_KEY"), from = Deno.env.get("SAVEPULSE_TEST_FROM_EMAIL");
+  const key = Deno.env.get("SAVEPULSE_TEST_RESEND_KEY"), from = testFrom;
   if (!key || !from || to !== testEmail) throw fail("billing_tax_delivery_not_configured");
   const response = await fetch("https://api.resend.com/emails", { method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/json", "idempotency-key": idempotencyKey }, body: JSON.stringify({ from, to: [testEmail], subject: `[TEST] SavePulse tax document ${document.invoiceNumber}`, html: renderTaxDocument(document) }), signal: AbortSignal.timeout(12000) });
   if (!response.ok) throw fail("billing_tax_delivery_failed");
@@ -122,7 +123,7 @@ Deno.serve(async request => {
       if(!response.ok) throw fail("tax_document_storage_busy");
       const jobs = await response.json(), states = [];
       for(const job of jobs){ if(job.value.nextAttemptAt<=Date.now() && job.value.leaseUntil<=Date.now()){const result=await taxJobs.run(job.value.invoiceId);states.push(result.state);} }
-      const mailerConfigured=Boolean(Deno.env.get("SAVEPULSE_TEST_RESEND_KEY") && Deno.env.get("SAVEPULSE_TEST_FROM_EMAIL"));
+      const mailerConfigured=Boolean(Deno.env.get("SAVEPULSE_TEST_RESEND_KEY") && testFrom);
       let delivery={configured:false,accepted:0,review:0,failed:0};
       if(mailerConfigured){
         const mailQuery=new URLSearchParams({select:"key,value",key:"like.tax-documents:v1:test:*",order:"updated_at.asc",limit:"100"});
@@ -169,7 +170,7 @@ Deno.serve(async request => {
       if (job.state !== "issued") return json({ pending:true, state:job.state, nextAttemptAt:job.nextAttemptAt, error:job.lastError || "tax_document_pending" },202);
       const document = job.document;
       let delivery = "not_configured";
-      if (Deno.env.get("SAVEPULSE_TEST_RESEND_KEY") && Deno.env.get("SAVEPULSE_TEST_FROM_EMAIL")) {
+      if (Deno.env.get("SAVEPULSE_TEST_RESEND_KEY") && testFrom) {
         await taxLedger.deliver(document.paymentDate.slice(0,7).replace("-",""), latest); delivery = "sent";
       }
       return json({ document, html: renderTaxDocument(document), delivery });
