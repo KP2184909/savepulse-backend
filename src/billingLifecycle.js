@@ -22,8 +22,8 @@ function keyMode(key) {
 function createStripeApi(env = process.env, fetchImpl = globalThis.fetch) {
   const key = env.STRIPE_SECRET_KEY || env.STRIPE_API_KEY || "";
   return async function stripe(method, route, values = {}, idempotencyKey) {
-    if (!key || !/^\/(account|charges|disputes|radar\/early_fraud_warnings|invoice_payments|prices|invoices|tax_rates|checkout\/sessions|subscriptions|billing_portal\/sessions)(\/|$)/.test(route)) throw fail("billing_unavailable");
-    if (/^\/(charges|disputes|radar\/early_fraud_warnings|invoice_payments)(\/|$)/.test(route) && method !== "GET") throw fail("billing_read_only_route");
+    if (!key || !/^\/(account|refunds|charges|disputes|radar\/early_fraud_warnings|invoice_payments|prices|invoices|tax_rates|checkout\/sessions|subscriptions|billing_portal\/sessions)(\/|$)/.test(route)) throw fail("billing_unavailable");
+    if (/^\/(refunds|charges|disputes|radar\/early_fraud_warnings|invoice_payments)(\/|$)/.test(route) && method !== "GET") throw fail("billing_read_only_route");
     const form = new URLSearchParams();
     const encode = (prefix, value) => {
       if (Array.isArray(value)) value.forEach((entry, i) => encode(`${prefix}[${i}]`, entry));

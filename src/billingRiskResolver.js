@@ -46,6 +46,19 @@ function createBillingRiskResolver({stripe,mode,accountId,invoiceSource}) {
     return {ownershipVerified:true,chargeId,paymentIntentId:intentId,invoices,
       allocationReviewRequired:invoices.length!==1,reviewRequired:true};
   }
-  return {resolve};
+  async function verifiedRefund(invoiceId,refundId,review) {
+    if(!/^in_\w+$/.test(invoiceId||"") || !/^re_\w+$/.test(refundId||"")) fail("credit_verified_refund_required");
+    const refund=await stripe("GET","/refunds/"+refundId);
+    if(refund.id!==refundId || refund.status!=="succeeded" || refund.currency!=="usd" ||
+       !Number.isSafeInteger(refund.amount) || refund.amount<=0 || !/^ch_\w+$/.test(id(refund.charge)||"")) fail("credit_verified_refund_required");
+    // Refund objects don't expose livemode; retrieve the associated charge.
+    const evidence=await resolve({mode,accountId,type:"charge.refunded",objectId:id(refund.charge)});
+    if(evidence.invoices.length!==1 || evidence.invoices[0].invoiceId!==invoiceId ||
+       (id(refund.payment_intent) && id(refund.payment_intent)!==evidence.paymentIntentId)) fail("credit_refund_allocation_review_required");
+    if(review?.reasonCode!=="service_cancelled" || !review.evidenceReference?.trim() || !review.reviewedBy?.trim()) fail("credit_reason_review_required");
+    return {evidenceVerified:true,refund:{id:refund.id,status:refund.status,currency:refund.currency,
+      amount:refund.amount,created:refund.created,invoiceId,mode},review};
+  }
+  return {resolve,verifiedRefund};
 }
 module.exports={createBillingRiskResolver};

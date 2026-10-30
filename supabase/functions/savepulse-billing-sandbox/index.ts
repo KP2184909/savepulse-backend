@@ -63,6 +63,11 @@ const taxLedger = createTaxDocumentLedger({ store, mode: "test", source: async i
   const evidence = await createBotTaxFx({ token: Deno.env.get("BOT_EXCHANGE_RATE_API_KEY"), store })(selection.rateDate);
   const fx = { ...evidence, ...selection };
   return { evidenceVerified: true, mode: "test", recipient: testEmail, fxEvidence: evidence, draft: buildThaiTaxInvoiceDraft({ payment: context.payment, customer: context.customer, fx, treatment: "th_domestic_standard_7_inclusive" }) };
+}, refundSource: async (invoiceId,refundId) => {
+  const reviewKey="billing-credit-review:v1:test:"+crypto.createHash("sha256").update(refundId).digest("hex");
+  const record=await store.get(reviewKey);
+  if(record?.mode!=="test" || record.invoiceId!==invoiceId || record.refundId!==refundId || record.approved!==true) throw fail("credit_reason_review_required",422);
+  return riskResolver.verifiedRefund(invoiceId,refundId,record.review);
 }, send: async ({ to, document, idempotencyKey }) => {
   const key = Deno.env.get("SAVEPULSE_TEST_RESEND_KEY"), from = Deno.env.get("SAVEPULSE_TEST_FROM_EMAIL");
   if (!key || !from || to !== testEmail) throw fail("billing_tax_delivery_not_configured");
@@ -86,6 +91,11 @@ Deno.serve(async request => {
       if (!/^[a-f0-9]{64}$/.test(expected) || !/^[a-f0-9]{64}$/.test(provided) || !crypto.timingSafeEqual(new TextEncoder().encode(provided),new TextEncoder().encode(expected))) throw fail("authentication_required",401);
       await ensureSandboxTaxRate();
       const workerInput = await request.json().catch(() => ({}));
+      if(workerInput.creditNote) {
+        const {period,invoiceId,refundId}=workerInput.creditNote;
+        const document=await taxLedger.credit(period,invoiceId,refundId);
+        return json({mode:"test",document,emailsSent:0});
+      }
       if (workerInput.auditLatestInvoice === true) {
         const account = await store.get(billing.accountKey(testEmail));
         if (!account?.membership?.subscriptionId) throw fail("billing_invoice_required",422);
@@ -165,7 +175,7 @@ Deno.serve(async request => {
     }
     return json({ error: "not_found" }, 404);
   } catch (error) {
-    const allowed = /^(tax_fx_|tax_document_|billing_|authentication_required|verified_email_mismatch|invalid_stripe_signature|sandbox_project_mismatch|request_too_large|trial_storage_unavailable)/;
+    const allowed = /^(credit_|tax_fx_|tax_document_|billing_|authentication_required|verified_email_mismatch|invalid_stripe_signature|sandbox_project_mismatch|request_too_large|trial_storage_unavailable)/;
     return json({ error: allowed.test(error.message) ? error.message : "billing_unavailable" }, error.status || 503);
   }
 });

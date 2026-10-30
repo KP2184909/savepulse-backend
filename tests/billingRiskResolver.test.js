@@ -37,3 +37,14 @@ test("unbound and unrelated invoices are retained for review rather than accepte
  const f=fixture();f.pages[0].data=[];await assert.rejects(f.api.resolve(f.task),/unresolved/);
  const g=fixture();const api=createBillingRiskResolver({...g.options,invoiceSource:async()=>{throw Error("billing_bound_invoice_required");}});await assert.rejects(api.resolve(g.task),/bound_invoice_required/);
 });
+
+test("credit source retrieves a successful refund and requires invoice allocation and reason review",async()=>{
+ const f=fixture();const refund={id:"re_fixture",charge:"ch_fixture",payment_intent:"pi_fixture",status:"succeeded",currency:"usd",amount:100,created:100};
+ const api=createBillingRiskResolver({...f.options,stripe:async(...args)=>args[1]==="/refunds/re_fixture"?refund:f.options.stripe(...args)});
+ const review={reasonCode:"service_cancelled",reviewedBy:"sandbox_qa",evidenceReference:"qa_fixture"};
+ const result=await api.verifiedRefund("in_fixture","re_fixture",review);assert.equal(result.refund.amount,100);assert.equal(result.refund.mode,"test");assert.equal(result.evidenceVerified,true);
+ await assert.rejects(api.verifiedRefund("in_other","re_fixture",review),/allocation_review/);
+ await assert.rejects(api.verifiedRefund("in_fixture","re_fixture",{}),/reason_review/);
+ refund.status="pending";await assert.rejects(api.verifiedRefund("in_fixture","re_fixture",review),/verified_refund/);
+ refund.status="succeeded";refund.payment_intent="pi_other";await assert.rejects(api.verifiedRefund("in_fixture","re_fixture",review),/allocation_review/);
+});
