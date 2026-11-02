@@ -10,14 +10,20 @@ async function runTaxDeliveryWorker({rows,ledger,configured,mode,now=Date.now(),
     const period=row.key.slice(-6);
     for(const item of Object.values(row.value?.documents||{})) {
       if(processed>=limit)return {configured:true,accepted,review,failed};
-      const job=item.delivery;
       if(item.recipient!=="savepulse.cloud@gmail.com" || !item.document?.invoiceNumber?.startsWith("TEST-") || item.document.paymentMode!=="test")continue;
-      if(!job || job.status==="sent" || job.leaseUntil>now || job.nextAttemptAt>now)continue;
-      processed++;
-      try {const result=await ledger.deliver(period,item.document.sourceInvoiceId);if(result.sent && !result.duplicate)accepted++;}
-      catch(error) {
-        if(error.message==="tax_document_delivery_needs_review")review++;
-        else if(!["tax_document_delivery_busy","tax_document_delivery_retry_later"].includes(error.message))failed++;
+      const documents=[{document:item.document,job:item.delivery}];
+      for(const [creditId,credit] of Object.entries(item.credits||{})) documents.push({document:credit,job:item.creditDeliveries?.[creditId]||{status:"pending"}});
+      for(const entry of documents) {
+        if(processed>=limit)return {configured:true,accepted,review,failed};
+        const job=entry.job,doc=entry.document;
+        if(!doc?.invoiceNumber?.startsWith("TEST-") || doc.paymentMode!=="test" || doc.sourceInvoiceId!==item.document.sourceInvoiceId)continue;
+        if(!job || job.status==="sent" || job.leaseUntil>now || job.nextAttemptAt>now)continue;
+        processed++;
+        try {const result=await ledger.deliver(period,doc.sourceInvoiceId,doc.sourceRefundId);if(result.sent && !result.duplicate)accepted++;}
+        catch(error) {
+          if(error.message==="tax_document_delivery_needs_review")review++;
+          else if(!["tax_document_delivery_busy","tax_document_delivery_retry_later"].includes(error.message))failed++;
+        }
       }
     }
   }

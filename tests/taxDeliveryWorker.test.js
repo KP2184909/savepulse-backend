@@ -17,3 +17,11 @@ test("one provider failure does not prevent other documents and ambiguous sends 
  let calls=0;const result=await runTaxDeliveryWorker({mode:"test",configured:true,rows:rows({a:item(),b:item(),c:item()}),ledger:{deliver:async()=>{calls++;if(calls===1)throw Error("tax_document_delivery_needs_review");if(calls===2)throw Error("provider");return{sent:true};}}});
  assert.deepEqual(result,{configured:true,accepted:1,review:1,failed:1});
 });
+
+test("worker sends pending credits even when original invoice is already sent",async()=>{
+ const calls=[];const original=item({delivery:{status:"sent"}});
+ original.credits={credit:{...original.document,invoiceNumber:"TEST-SP-1-CN-001",sourceRefundId:"re_fixture",type:"credit_note"}};
+ const options={mode:"test",configured:true,rows:rows({a:original}),ledger:{deliver:async(...args)=>{calls.push(args);return{sent:true};}}};
+ assert.equal((await runTaxDeliveryWorker(options)).accepted,1);assert.deepEqual(calls,[["202610","in_fixture","re_fixture"]]);
+ original.creditDeliveries={credit:{status:"sent"}};assert.equal((await runTaxDeliveryWorker(options)).accepted,0);
+});

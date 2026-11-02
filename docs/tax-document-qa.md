@@ -95,3 +95,11 @@ Local suite 156/156. Edge version 16 deployed only to sandbox. Worker 94 was inv
 User saved the isolated Resend key through the secure dashboard. Added a sandbox-only default sender `SavePulse Sandbox <alerts@savepulse.cloud>` (same domain as existing SavePulse sender; Production key unchanged). Edge version 18 deployed. Worker 96 HTTP 200: configured true, accepted 1, failed 0. Ledger records one attempt and provider acknowledgment `01a18b0b-340c-7e99-ab98-59251b5ee7d2`.
 
 Gmail connector for savepulse.cloud@gmail.com independently found exactly one matching message, ID `1a18b0b3bbd6446f`, labeled INBOX, received 2026-10-30 04:22:10 UTC / 11:22:10 Asia/Bangkok. Subject `[TEST] SavePulse tax document TEST-SP-TI-202610-000001`. Snippet includes TEST ONLY / NOT VALID FOR TAX FILING / NO REAL PAYMENT. No attachment: this verifies HTML email delivery only, not PDF/A-3, digital signature, time stamp, or legal electronic issuance. Worker 97 repeated HTTP 200 accepted 0; no duplicate send. Local suite 156/156 remains passing. Credit-note email delivery and Production remain unverified/not enabled.
+
+### Credit-note inbox delivery — 2026-11-02
+
+User reports RD supporting documents uploaded; official approval remains pending and has not been independently confirmed. This does not enable live issuance.
+
+Added separate per-refund delivery state for issued TEST credit notes. Invoice and each credit have independent leases, retries and provider idempotency keys; sending a credit never resets the original invoice's delivery. Local tests 158/158 cover original sent + pending credit, retry/restart independence, stable/distinct keys and duplicate suppression. Edge version 19 deployed only to isolated sandbox.
+
+Worker 399 HTTP 200 accepted 1, failed 0. Gmail for authorized test mailbox independently found INBOX message `1a19b2e1beae48ab`, subject `[TEST] SavePulse tax document TEST-SP-TI-202610-000001-CN-001`, received 2026-11-02 07:34:11 UTC / 14:34:11 Asia/Bangkok. HTML contains TEST ONLY / credit note / NOT VALID FOR TAX FILING / NO REAL PAYMENT. No attachment. This verifies HTML test credit-note delivery, not legal e-Tax, PDF/A-3 or time stamp. Repeat worker 400 verifies no duplicate acceptance. Production unchanged.

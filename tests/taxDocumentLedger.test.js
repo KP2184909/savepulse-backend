@@ -41,3 +41,16 @@ test("failed delivery has persisted backoff and cannot retry early after process
  await assert.rejects(restarted.deliver("202610","in_one"),/retry_later/);
  assert.equal(f.deliveries.length,1);f.advance(60000);await restarted.deliver("202610","in_one");assert.equal(f.deliveries.length,2);
 });
+
+test("credit email retries independently from the original and uses a distinct stable key",async()=>{
+ const f=setup();await f.ledger.issue("in_one");await f.ledger.deliver("202610","in_one");
+ const row=f.rows.get("tax-documents:v1:test:202610"),invoiceId=Object.keys(row.documents)[0],item=row.documents[invoiceId];
+ const crypto=require("node:crypto"),creditId=crypto.createHash("sha256").update("re_one").digest("hex");
+ item.credits={[creditId]:{...item.document,type:"credit_note",sourceRefundId:"re_one",invoiceNumber:item.document.invoiceNumber+"-CN-001"}};
+ f.setBroken(true);await assert.rejects(f.ledger.deliver("202610","in_one","re_one"),/delivery_failed/);
+ assert.equal(f.rows.get("tax-documents:v1:test:202610").documents[invoiceId].delivery.status,"sent");
+ f.advance(60000);f.setBroken(false);await f.ledger.deliver("202610","in_one","re_one");
+ const result=await f.ledger.deliver("202610","in_one","re_one");assert.equal(result.duplicate,true);
+ assert.equal(f.deliveries.length,3);assert.equal(f.deliveries[1].idempotencyKey,f.deliveries[2].idempotencyKey);assert.notEqual(f.deliveries[0].idempotencyKey,f.deliveries[1].idempotencyKey);
+ await assert.rejects(f.ledger.deliver("202610","in_one","re_missing"),/not_found/);
+});

@@ -37,40 +37,45 @@ function createTaxDocumentLedger({ store, source, refundSource, send, mode, live
     });
     return structuredClone(row.documents[id].document);
   }
-  async function deliver(period, invoiceId) {
+  async function deliver(period, invoiceId, refundId) {
     if (mode === "live" && !liveIssuanceApproved) throw fail("tax_document_live_issuance_not_approved");
+    if (!/^\d{6}$/.test(period || "") || !/^in_\w+$/.test(invoiceId || "") || (refundId !== undefined && !/^re_\w+$/.test(refundId))) throw fail("tax_document_not_found");
     const key = keyFor(period), id = digest(invoiceId), owner = crypto.randomUUID();
+    const creditId = refundId ? digest(refundId) : null;
+    const select = item => {
+      if (!item || (creditId && !item.credits?.[creditId])) throw fail("tax_document_not_found");
+      return {document: creditId ? item.credits[creditId] : item.document, recipient: item.recipient,
+        delivery: creditId ? item.creditDeliveries?.[creditId] || {status:"pending",attempts:0} : item.delivery};
+    };
+    const withDelivery = (item,delivery) => creditId ? {...item,creditDeliveries:{...item.creditDeliveries,[creditId]:delivery}} : {...item,delivery};
     const row = await change(key, old => {
-      const item = old.documents[id];
-      if (!item) throw fail("tax_document_not_found");
-      const job = item.delivery;
+      const item = old.documents[id], job = select(item).delivery;
       if (job.status === "sent") return null;
-      // A worker may have sent but crashed before saving acknowledgement. Never
-      // retry beyond provider idempotency retention and risk duplicate mail.
       if (job.firstAttemptAt && now() - job.firstAttemptAt >= 23 * 3600000) throw fail("tax_document_delivery_needs_review");
       if (job.leaseUntil > now()) throw fail("tax_document_delivery_busy");
       if (job.nextAttemptAt > now()) throw fail("tax_document_delivery_retry_later");
-      return { ...old, documents: { ...old.documents, [id]: { ...item, delivery: { ...job, status: "sending", owner, leaseUntil: now() + 90000, attempts: job.attempts + 1, firstAttemptAt: job.firstAttemptAt || now() } } } };
+      const delivery={...job,status:"sending",owner,leaseUntil:now()+90000,attempts:job.attempts+1,firstAttemptAt:job.firstAttemptAt || now()};
+      return {...old,documents:{...old.documents,[id]:withDelivery(item,delivery)}};
     });
-    const item = row.documents[id];
-    if (item.delivery.status === "sent") return { sent: true, duplicate: true };
+    const item = select(row.documents[id]);
+    if (item.delivery.status === "sent") return {sent:true,duplicate:true};
     let result;
-    try { result = await send({ to: item.recipient, document: structuredClone(item.document), idempotencyKey: `tax-document/${mode}/${item.document.invoiceNumber}` }); }
+    try { result = await send({to:item.recipient,document:structuredClone(item.document),idempotencyKey:`tax-document/${mode}/${item.document.invoiceNumber}`}); }
     catch (_) {
       await change(key, old => {
-        const current = old.documents[id];
-        if (current.delivery.owner !== owner) return null;
-        return { ...old, documents: { ...old.documents, [id]: { ...current, delivery: { ...current.delivery, status: "failed", leaseUntil: 0, lastFailureAt: new Date(now()).toISOString(), nextAttemptAt: now() + Math.min(3600000,60000 * 2 ** Math.min(current.delivery.attempts - 1,6)) } } } };
+        const current=old.documents[id],job=select(current).delivery;
+        if(job.owner!==owner) return null;
+        return {...old,documents:{...old.documents,[id]:withDelivery(current,{...job,status:"failed",leaseUntil:0,lastFailureAt:new Date(now()).toISOString(),nextAttemptAt:now()+Math.min(3600000,60000*2**Math.min(job.attempts-1,6))})}};
       });
       throw fail("tax_document_delivery_failed");
     }
-    if (!result?.id) throw fail("tax_document_delivery_unconfirmed");
-    await change(key, old => {
-      const current = old.documents[id];
-      if (current.delivery.owner !== owner || current.delivery.leaseUntil <= now()) throw fail("tax_document_delivery_needs_review");
-      return { ...old, documents: { ...old.documents, [id]: { ...current, delivery: { ...current.delivery, status: "sent", leaseUntil: 0, sentAt: new Date(now()).toISOString(), providerId: result.id } } } };
+    if(!result?.id) throw fail("tax_document_delivery_unconfirmed");
+    await change(key,old=>{
+      const current=old.documents[id],job=select(current).delivery;
+      if(job.owner!==owner || job.leaseUntil<=now()) throw fail("tax_document_delivery_needs_review");
+      return {...old,documents:{...old.documents,[id]:withDelivery(current,{...job,status:"sent",leaseUntil:0,sentAt:new Date(now()).toISOString(),providerId:result.id})}};
     });
-    return { sent: true, duplicate: false };
+    return {sent:true,duplicate:false};
   }
   async function credit(period, invoiceId, refundId) {
     if (mode === "live" && !liveIssuanceApproved) throw fail("tax_document_live_issuance_not_approved");
