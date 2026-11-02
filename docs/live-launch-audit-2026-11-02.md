@@ -125,3 +125,21 @@ No actual Live preflight run has been completed yet. Regression suite:162/162.
 Chrome subsequently reported concurrent user changes and the extension could not
 attach to Stripe. Native inspection was stopped to avoid interfering with the
 owner's active work. Backend work continued without changing Live settings.
+
+## Live Product catalog read-through
+
+Read the actual Live Product catalog (3 active products, no next page), not only
+Payment Links. Plus prod_Ub7MmvDu1du8ya has one displayed price,
+price_1Tbxxi1NzGcGzIigj0m9KxUK: THB199/month, default, zero active subscriptions.
+Its detail page says `No other currency options`; it is not the approved USD5
+price. Pro/VIP is displayed as THB499/month; Business shows two prices. No USD5
+or USD15 price is displayed in this active catalog. Archived resources were not
+inspected. The Plus detail page did not expose tax behavior, so it remains
+unverified rather than assumed inclusive/exclusive.
+
+With owner permission to control Chrome again, both native coordinate input and
+tab clicks failed to open webhook details. Native reported no window available;
+tab control timed out/reset. Direct URL navigation and read-only page snapshots
+still work. Requested one manual click on the existing SavePulse webhook row,
+without Edit or revealing signing secrets, to unblock inspection. No Live
+mutation or new payment occurred.
