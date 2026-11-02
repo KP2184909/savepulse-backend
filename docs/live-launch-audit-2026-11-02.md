@@ -104,3 +104,24 @@ Remaining: verify actual Live Price/rate/account values and Portal/event options
 prepare credential handoff where required, finish lawful tax issuance and FX
 exception workflow, then deploy and run Production QA. Mac unlock resolved the
 earlier lock blocker; remaining limitations must not be reported as a locked Mac.
+
+## Read-only preflight tool
+
+`node tools/check-billing-live.js` runs inside a trusted backend environment using
+its existing environment variables. Do not put credentials in command arguments
+or paste its environment into chat. The tool makes GET requests only, outputs
+fixed PASS/FAIL/NOT_VERIFIED checks and never outputs provider objects or errors.
+It verifies exact merchant identity before inspecting further resources, approved
+USD monthly prices, the inclusive TH rate, lifecycle webhook coverage and default
+Portal invoice/card/cancel-at-period-end options. Lists are paginated with bounds;
+incomplete reads cannot produce a PASS.
+
+`ready=true` has scope `configuration_only`: it is not a launch authorization and
+does not validate e-Tax status, FX exceptions, database readiness, risk operations,
+data distribution rights or a real Production payment. Local execution without
+Live configuration correctly returned ready=false and made no provider requests.
+No actual Live preflight run has been completed yet. Regression suite:162/162.
+
+Chrome subsequently reported concurrent user changes and the extension could not
+attach to Stripe. Native inspection was stopped to avoid interfering with the
+owner's active work. Backend work continued without changing Live settings.
