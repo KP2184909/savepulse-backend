@@ -62,3 +62,45 @@ Authoritative sources reviewed:
    must never be represented as a real paid Production transaction.
 
 No public paid signup URL is approved by this audit.
+
+## Follow-up after owner unlocked Mac
+
+Render login was refreshed through the existing GitHub login (no new permission
+grant). Dashboard and Settings confirm service srv-d7u3efpj2pic739fm8kg,
+repository KP2184909/savepulse-backend, branch main, deployed commit
+25cb7efa437c946d920f45e9ea6834a1d93b3e8f, Free instance in Ohio, build
+`npm install`, start `npm start`, blank root directory. This supersedes the
+Render repository/branch/commit NOT VERIFIED row above.
+
+Read-only Environment inventory shows existing STRIPE_PRICE_PLUS/PRO/BUSINESS,
+STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, SUPABASE_URL and
+SUPABASE_SERVICE_ROLE_KEY, email/scheduler settings and WEBHOOK_SECRET. Values
+remained masked. The displayed 22-variable inventory contains none of
+BILLING_V2_ENABLED, BILLING_LIVE_APPROVED, BILLING_TAX_POLICY_CONFIRMED,
+BILLING_DOMESTIC_VAT_ENABLED, STRIPE_EXPECTED_ACCOUNT_ID,
+STRIPE_MANUAL_TAX_RATE or PUBLIC_CHECKOUT_ENABLED. No environment group is
+linked. Presence of old Stripe variables does not verify mode or values.
+
+Live Business USD59 Payment Link plink_1USZVb1NzGcGzIig9rMyZppD is Active,
+monthly, Free trial=No, collect names/business names/addresses/tax IDs=No,
+automatic tax=No, metadata=none. This proves it is not the no-card trial and
+does not establish a compliant domestic billing profile or account binding.
+Automatic tax=No alone does not establish whether a manual rate exists.
+
+Live Event destinations lists the SavePulse Render billing webhook Active,
+listening to 6 events, displayed error rate 0%. A separate Grok destination has
+2 events. The event identities and recent signed payment lifecycle delivery
+were not verified; a displayed 0% error rate without a known event volume is
+not an end-to-end PASS. Do not modify the separate Grok integration.
+
+Customer Portal settings load and expose invoice, customer-information,
+payment-method and cancellation sections, with Portal link offering Activate
+link. Section availability is not proof their saved options are enabled;
+the public login link is also separate from authenticated API portal sessions.
+Chrome's Stripe page subsequently stalled/turned blank during detail clicks.
+No Portal/webhook edit was saved and no Live key was revealed.
+
+Remaining: verify actual Live Price/rate/account values and Portal/event options,
+prepare credential handoff where required, finish lawful tax issuance and FX
+exception workflow, then deploy and run Production QA. Mac unlock resolved the
+earlier lock blocker; remaining limitations must not be reported as a locked Mac.
