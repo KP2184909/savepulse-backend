@@ -41,6 +41,18 @@ function createTrialStore(env = process.env, fetchImpl = globalThis.fetch) {
         if (rows.length < 1000) return all;
       }
     },
+    async billingRiskRows(mode, accountId, pendingOnly) {
+      if (!["test", "live"].includes(mode) || !/^acct_\w+$/.test(accountId || "")) throw fail("billing_risk_configuration_invalid");
+      const prefix = `billing-risk:v1:${mode}:${accountId}:`;
+      const query = new URLSearchParams({ key: `like.${prefix}*`, select: "key,value",
+        order: "updated_at.asc,key.asc", limit: pendingOnly ? "10" : "100" });
+      if (pendingOnly) {
+        query.set("value->>state", "eq.pending_review");
+        query.set("or", `(value->>nextAttemptAt.is.null,value->>nextAttemptAt.lte.${Date.now()})`);
+      }
+      const rows = await request(`scheduler_state?${query}`);
+      return rows.filter(row => row.key?.startsWith(prefix)).map(row => ({ ...row.value, key: row.key }));
+    },
     async paidPlan(email) {
       const rows = await request(`subscribers?email=eq.${encodeURIComponent(email)}&select=plan,payload&limit=1`);
       // Trial never writes the subscriber's paid record. Billing remains authoritative.

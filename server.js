@@ -31,6 +31,8 @@ const {
 
 const { createTrialStore, createTrialMailer, createTrialLifecycle } = require("./src/trialLifecycle");
 const { createBillingLifecycle, createStripeApi } = require("./src/billingLifecycle");
+const { createBillingRiskOperations } = require("./src/billingRiskOperations");
+const { inspectLiveBilling, createLivePreflightReader } = require("./src/billingLivePreflight");
 const { buildThaiTaxInvoiceDraft, renderThaiTaxInvoiceDraft } = require("./src/thaiTaxInvoiceDraft");
 const { verifyStripeWebhookSignature } = require("./src/stripeSignature");
 const trialStore = createTrialStore();
@@ -56,6 +58,8 @@ const trialProbe = (async () => {
 })();
 const trials = createTrialLifecycle({ store: trialStore, send: createTrialMailer(), enabled: trialConfigured });
 billing = createBillingLifecycle({ store: trialStore, stripe: createStripeApi(), identity: token => trials.identity(token) });
+const billingRisks = createBillingRiskOperations({ store: trialStore, stripe: createStripeApi(),
+  invoiceSource: invoiceId => billing.paidInvoiceForTaxDraft(invoiceId, true) });
 async function requireTrialReady() {
   await trialProbe;
   if (!trialDatabaseReady) throw Object.assign(new Error("trial_not_available"), { status: 503 });
@@ -1280,7 +1284,8 @@ async function handleStripeWebhook(req, res) {
   }
 
   if (!billing.enabled) throw Object.assign(new Error("billing_unavailable"), { status: 503 });
-  const result = await billing.event(event);
+  const risk = billingRisks ? await billingRisks.receive(event) : null;
+  const result = risk?.received ? { updated: false, reason: risk.reason } : await billing.event(event);
   // This mirror only discovers recipients. Every entitlement read/delivery resolves
   // the authoritative, mode-scoped billing record again before using its plan.
   if (result.email) await syncBillingSubscriber(result.email);
@@ -1609,6 +1614,20 @@ async function handleRequest(req, res) {
       return;
     }
 
+    if (req.method === "GET" && url.pathname === "/api/v1/admin/billing/risk-review") {
+      res.setHeader("cache-control", "no-store");
+      if (!hasAdminSecret(req)) { sendJson(res, 401, { error: "unauthorized_admin_billing" }); return; }
+      await requireTrialReady();
+      if (!billingRisks) { sendJson(res, 503, { error: "billing_unavailable" }); return; }
+      sendJson(res, 200, await billingRisks.summary()); return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/v1/admin/billing/live-preflight") {
+      res.setHeader("cache-control", "no-store");
+      if (!hasAdminSecret(req)) { sendJson(res, 401, { error: "unauthorized_admin_billing" }); return; }
+      sendJson(res, 200, await inspectLiveBilling({ env: process.env, get: createLivePreflightReader() })); return;
+    }
+
     if (req.method === "GET" && url.pathname === "/api/v1/admin/latest-signals") {
       if (!hasAdminSecret(req)) {
         sendJson(res, 401, { error: "unauthorized_admin_latest_signals" });
@@ -1683,6 +1702,7 @@ async function handleRequest(req, res) {
 const server = http.createServer(handleRequest);
 const trialTimer = setInterval(() => {
   if (trialDatabaseReady) trials.tick().catch(() => console.warn("Trial scheduler failed; retry pending."));
+  if (trialDatabaseReady && billingRisks) billingRisks.tick().catch(() => console.warn("Billing risk review scheduler failed; retry pending."));
 }, 60000);
 trialTimer.unref();
 const notificationTimer = setInterval(() => {

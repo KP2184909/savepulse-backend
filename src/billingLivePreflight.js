@@ -1,5 +1,20 @@
 "use strict";
 const { AMOUNTS, EVENTS, keyMode } = require("./billingLifecycle");
+const { TYPES } = require("./billingRiskInbox");
+const REQUIRED_EVENTS = Object.freeze([...EVENTS, ...Object.keys(TYPES)]);
+
+function createLivePreflightReader(env = process.env, fetchImpl = globalThis.fetch) {
+  return async (route, parameters = {}) => {
+    if (!/^\/(account|prices\/price_\w+|tax_rates\/txr_\w+|webhook_endpoints|billing_portal\/configurations)$/.test(route)) throw Error("read_not_allowed");
+    const query = new URLSearchParams(parameters);
+    const response = await fetchImpl(`https://api.stripe.com/v1${route}${query.size ? `?${query}` : ""}`, {
+      method: "GET", signal: AbortSignal.timeout(12000),
+      headers: { authorization: `Bearer ${env.STRIPE_SECRET_KEY || env.STRIPE_API_KEY}`, "Stripe-Version": "2026-08-26.dahlia" }
+    });
+    if (!response.ok) throw Error("provider_read_failed");
+    return response.json();
+  };
+}
 
 // Read-only provider inspection. A PASS here is configuration evidence, not
 // authorization to open sales or proof of Production payment/fulfillment QA.
@@ -50,7 +65,7 @@ async function inspectLiveBilling({ env, get, now = Date.now() }) {
     const endpoints = await list("/webhook_endpoints");
     return endpoints.some(w => w.livemode === true && w.status === "enabled" &&
       w.url === "https://savepulse-backend.onrender.com/api/v1/billing/webhook" &&
-      EVENTS.every(event => w.enabled_events?.includes(event) || w.enabled_events?.includes("*")));
+      REQUIRED_EVENTS.every(event => w.enabled_events?.includes(event) || w.enabled_events?.includes("*")));
   });
   await check("customer_portal", async () => {
     const configs = await list("/billing_portal/configurations");
@@ -60,4 +75,4 @@ async function inspectLiveBilling({ env, get, now = Date.now() }) {
   });
   return { ready: checks.every(c => c.result === "PASS"), scope: "configuration_only", checks };
 }
-module.exports = { inspectLiveBilling };
+module.exports = { inspectLiveBilling, createLivePreflightReader, REQUIRED_EVENTS };

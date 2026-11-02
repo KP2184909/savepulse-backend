@@ -191,3 +191,31 @@ wire and validate risk operations before adding risk events, and complete
 Production signup/entitlement/Portal QA without unauthorized real charges.
 e-Tax approval remains pending as last reported by the owner; Business sales
 remain disabled pending actual service/data readiness. PR10 is still draft.
+
+## Backend risk operations prepared after provider configuration
+
+The main server now routes the three risk event types through the durable inbox
+after Stripe signature verification, before lifecycle dispatch. Duplicate events
+retain one task. A one-minute worker reads at most ten due pending tasks per
+batch, resolves ownership using Stripe's payment graph, and retains verified
+tasks for review. Provider failures retain bounded retry state; future retries
+are excluded from the due query. This workflow never automatically issues a
+refund/credit note or changes a membership based on a risk webhook.
+
+`GET /api/v1/admin/billing/risk-review` exposes at most100 review summaries with
+the existing administrator authorization and no-store responses. It excludes
+raw provider payloads and customer/payment details. A full100-row result is
+explicitly marked truncated; this is not an exhaustive operations dashboard.
+
+`GET /api/v1/admin/billing/live-preflight` uses the same restricted GET-only
+reader as the CLI and returns sanitized configuration checks. The required
+webhook coverage is now13 events (10 lifecycle plus3 risk), so the currently
+configured10-event Live endpoint intentionally fails that readiness check.
+Add the risk subscriptions only after the receiver/worker is deployed and
+verified. Do not announce that all13 are configured or Production tested.
+
+Validation:166/166 automated tests passed, including actual local HTTP signature
+rejection, durable duplicate risk processing, no entitlement change, unauthorized
+admin denial, resumed worker ownership resolution and bounded due queries.
+Sandbox ESM packaging and git diff checks passed. These are local test results;
+the new operations and preflight endpoint are not deployed to Production yet.

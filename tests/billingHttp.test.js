@@ -88,6 +88,26 @@ test("verified HTTP checkout, signed webhook, reload entitlement, portal, cancel
   await assert.rejects(resolveBillingSubscriber({ email: "real-customer@example.com", plan: "pro" }), /billing_test_mailbox_required/);
 });
 
+test("signed risk webhook persists once and never alters member access", async () => {
+  const event = { id: "evt_risk_http", livemode: false, type: "charge.refunded", data: { object: { id: "ch_risk_http", customer: "private_data" } } };
+  const before = [...rows.keys()].filter(key => typeof key === "string" && key.startsWith("billing-risk:"));
+  assert.equal((await webhook(event, false)).status, 400);
+  assert.equal([...rows.keys()].filter(key => typeof key === "string" && key.startsWith("billing-risk:")).length, before.length);
+  assert.equal((await webhook(event)).data.result.reason, "risk_review_queued");
+  assert.equal((await webhook(event)).data.result.reason, "duplicate_risk_event");
+  const risks = [...rows.entries()].filter(([key]) => typeof key === "string" && key.startsWith("billing-risk:"));
+  assert.equal(risks.length, before.length + 1);
+  assert.equal(risks.at(-1)[1].entitlementChanged, false);
+  assert.ok(!JSON.stringify(risks).includes("private_data"));
+  assert.equal((await api("/api/v1/billing/status")).data.plan, "free");
+  const denied = await api("/api/v1/admin/billing/risk-review");
+  assert.equal(denied.status, 401);
+  assert.equal(denied.headers.get("cache-control"), "no-store");
+  const preflightDenied = await api("/api/v1/admin/billing/live-preflight");
+  assert.equal(preflightDenied.status, 401);
+  assert.equal(preflightDenied.headers.get("cache-control"), "no-store");
+});
+
 test("tax invoice drafts reject a member session without separate administrator authorization", async () => {
   const result = await api("/api/v1/admin/billing/tax-invoice-draft", { invoiceId: "in_http" });
   assert.equal(result.status,401);
