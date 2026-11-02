@@ -63,6 +63,17 @@ test("checkout requires identity, validates USD catalog, persists binding, and n
   assert.ok([...f.rows.keys()].every(k => k.startsWith("billing:v2:test:")));
 });
 
+test("Live checkout cannot use the demo path when domestic VAT configuration is missing", async () => {
+  for (const flag of [undefined, "false", "TRUE"]) {
+    const f = fixture();
+    Object.assign(f.env, { STRIPE_SECRET_KEY: "sk_live_fixture", BILLING_LIVE_APPROVED: "true", BILLING_TAX_POLICY_CONFIRMED: "true", BILLING_DOMESTIC_VAT_ENABLED: flag });
+    const api = createBillingLifecycle(f.options);
+    await assert.rejects(api.checkout("verified-session", "plus"), /billing_live_tax_configuration_required/);
+    assert.equal(f.requests.length, 0);
+    assert.equal(f.rows.size, 0);
+  }
+});
+
 test("repeated and concurrent checkout clicks create at most one session", async () => {
   const f = fixture();
   const results = await Promise.allSettled([f.api.checkout("verified-session", "pro"), f.api.checkout("verified-session", "pro")]);

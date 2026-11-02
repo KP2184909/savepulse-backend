@@ -165,6 +165,9 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
     return rateId;
   }
   async function checkout(token, plan) {
+    // The only implemented tax treatment is domestic TH VAT-inclusive service.
+    // Live approval flags must not accidentally enable the tax-free demo path.
+    if (mode === "live" && env.BILLING_DOMESTIC_VAT_ENABLED !== "true") throw fail("billing_live_tax_configuration_required");
     const email = await authenticated(token);
     await verifyAccount();
     await validatePrice(plan);
