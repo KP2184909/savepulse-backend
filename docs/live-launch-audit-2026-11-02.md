@@ -143,3 +143,51 @@ tab control timed out/reset. Direct URL navigation and read-only page snapshots
 still work. Requested one manual click on the existing SavePulse webhook row,
 without Edit or revealing signing secrets, to unblock inspection. No Live
 mutation or new payment occurred.
+
+## Subsequent Live preparation through the owner-opened in-app browser
+
+The owner opened Stripe in the in-app browser, where controls worked. The
+following supersedes the earlier resource inventory and browser blocker; it
+does not supersede the outstanding launch checks. No charge, subscription,
+Payment Link, paid Stripe Tax service, or credential change was made.
+
+- Live account `acct_1TbuP21NzGcGzIig` was read using Workbench's GET-only
+  `stripe accounts retrieve`: charges_enabled=true, payouts_enabled=true,
+  details_submitted=true, currently_due count=0. Private account fields were
+  not copied into this report.
+- Existing SavePulse webhook `we_1Tbybu1NzGcGzIig15mPycaa` was saved with all
+  10 lifecycle events in billingLifecycle.EVENTS. Added async checkout success
+  and failure, invoice.paid and invoice.payment_action_required. Existing
+  endpoint URL and API version 2026-04-22.dahlia remain unchanged. Grok's
+  separate endpoint was not modified. Zero deliveries is not an E2E PASS.
+- Created Plus USD5/month `price_1UXMqk1NzGcGzIigg8QIVIcY` on the existing
+  Plus product, and Pro USD15/month `price_1UXMsa1NzGcGzIigw2Yn8Rqb` on the
+  existing Pro product. Both displayed zero active subscriptions. Original
+  THB prices and product defaults remain unchanged.
+- Existing Business USD59/month `price_1USZVT1NzGcGzIigFNd6xEER` was verified
+  by a read-only price listing. Its tax_behavior is unspecified. The new
+  Plus/Pro price UI did not explicitly set tax_behavior: do not describe those
+  Price objects as having an inclusive tax_behavior. Backend gross VAT uses
+  the separately validated inclusive manual TaxRate.
+- Created active Thailand VAT7% manual rate
+  `txr_1UXN1P1NzGcGzIigNtsHvtP5`, with calculation Inclusive, verified in
+  the saved list. It is not yet attached to Production checkout. No automatic
+  tax service was activated.
+- Expanded the saved Portal sections: invoice history, payment-method update,
+  and subscription cancellation are enabled; cancellation is at period end.
+  No Portal settings change was needed. A public Portal login link was not
+  activated; authenticated backend Portal sessions remain the intended flow.
+
+Non-secret backend mapping is prepared in
+`ops/savepulse-live-prepared.env.example`, with sales/approval switches false.
+It has not been applied to Render. The full server-side preflight has not run
+with Live credentials. This is provider configuration evidence, not a passed
+Production payment, fulfillment, tax issuance or risk workflow.
+
+Outstanding: apply reviewed backend configuration after tested deployment,
+verify signing-secret/account binding and database state server-side, finish
+FX publication-time/special-case and lawful tax-document delivery handling,
+wire and validate risk operations before adding risk events, and complete
+Production signup/entitlement/Portal QA without unauthorized real charges.
+e-Tax approval remains pending as last reported by the owner; Business sales
+remain disabled pending actual service/data readiness. PR10 is still draft.
