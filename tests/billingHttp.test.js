@@ -10,7 +10,7 @@ const rows = new Map(), mail = [], sessions = new Map();
 const originalFetch = global.fetch;
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "savepulse-billing-http-"));
 const secret = "whsec_local_test";
-let subscription;
+let subscription, failRiskWrite = false;
 Object.assign(process.env, { PORT: "0", HOST: "127.0.0.1", DATA_DIR: dir, SUPABASE_URL: "https://database.invalid", SUPABASE_SERVICE_ROLE_KEY: "fixture", RESEND_API_KEY: "fixture", FROM_EMAIL: "test@example.invalid", BILLING_V2_ENABLED: "true", PUBLIC_CHECKOUT_ENABLED: "true", STRIPE_SECRET_KEY: "rk_test_fixture", STRIPE_EXPECTED_ACCOUNT_ID: "acct_fixture", STRIPE_PRICE_PRO: "price_pro", STRIPE_WEBHOOK_SECRET: secret, APP_BASE_URL: "https://preview.example" });
 global.fetch = async (rawUrl, options = {}) => {
   const url = new URL(rawUrl);
@@ -33,6 +33,7 @@ global.fetch = async (rawUrl, options = {}) => {
   const key = url.searchParams.get("key")?.replace(/^eq\./, "");
   if (options.method === "POST") {
     const record = JSON.parse(options.body);
+    if (failRiskWrite && record.key?.startsWith("billing-risk:")) return Response.json({}, { status: 503 });
     if (rows.has(record.key)) return Response.json([]);
     rows.set(record.key, record.value); return Response.json([record]);
   }
@@ -57,6 +58,38 @@ async function webhook(event, signatureValid = true) {
   const response = await originalFetch(base + "/api/v1/billing/webhook", { method: "POST", headers: { "stripe-signature": `t=${timestamp},v1=${signature}` }, body });
   return { status: response.status, data: await response.json() };
 }
+async function rawWebhook(body, { timestamp = Math.floor(Date.now() / 1000), signedBody = body, missing = false } = {}) {
+  const digest = crypto.createHmac("sha256", secret).update(`${timestamp}.${signedBody}`).digest("hex");
+  const response = await originalFetch(base + "/api/v1/billing/webhook", {
+    method: "POST", headers: missing ? {} : { "stripe-signature": `t=${timestamp},v1=${digest}` }, body
+  });
+  return { status: response.status, data: await response.json() };
+}
+test("HTTP webhook rejects stale, future, missing and tampered signatures before durable writes", async () => {
+  const body = JSON.stringify({ id: "evt_rejected_http", livemode: false, type: "charge.refunded", data: { object: { id: "ch_rejected_http" } } });
+  const before = JSON.stringify([...rows]);
+  for (const options of [{ timestamp: Math.floor(Date.now() / 1000) - 600 }, { timestamp: Math.floor(Date.now() / 1000) + 600 }, { missing: true }, { signedBody: body + " " }]) {
+    assert.equal((await rawWebhook(body, options)).status, 400);
+  }
+  assert.equal((await rawWebhook("{invalid")).data.error, "invalid_stripe_event_json");
+  assert.equal(JSON.stringify([...rows]), before);
+});
+test("HTTP risk webhook retries after storage failure and concurrent replays create one durable task", async () => {
+  const event = { id: "evt_retry_http", livemode: false, type: "charge.refunded", data: { object: { id: "ch_retry_http" } } };
+  const before = [...rows.keys()].filter(key => typeof key === "string" && key.startsWith("billing-risk:")).length;
+  failRiskWrite = true;
+  try {
+    const failed = await webhook(event);
+    assert.equal(failed.status, 503);
+    assert.equal(failed.data.error, "trial_storage_unavailable");
+    assert.equal([...rows.keys()].filter(key => typeof key === "string" && key.startsWith("billing-risk:")).length, before);
+  } finally { failRiskWrite = false; }
+  const retried = await Promise.all(Array.from({ length: 5 }, () => webhook(event)));
+  assert.ok(retried.every(r => r.status === 200));
+  assert.equal(retried.filter(r => r.data.result.reason === "risk_review_queued").length, 1);
+  assert.equal(retried.filter(r => r.data.result.reason === "duplicate_risk_event").length, 4);
+  assert.equal([...rows.keys()].filter(key => typeof key === "string" && key.startsWith("billing-risk:")).length, before + 1);
+});
 test("verified HTTP checkout, signed webhook, reload entitlement, portal, cancellation and delivery gate", async () => {
   assert.equal((await api("/api/v1/billing/catalog")).data.plans[0].amount, 15);
   assert.equal((await api("/api/v1/billing/checkout", { email: "savepulse.cloud@gmail.com", plan: "pro" })).status, 401);
