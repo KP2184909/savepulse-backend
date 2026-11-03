@@ -69,7 +69,7 @@ async function refresh() {
   if (!identityResponse.ok || !verified.email) throw Error("Verify your email before continuing.");
   const status = await api("status");
   account = { ...status, email: verified.email };
-  $("message").textContent = catalog.mode === "test" ? "STRIPE SANDBOX — test only. No real payment or live membership is created." : "Membership status confirmed by the server.";
+  $("message").textContent = !catalog.enabled ? "Paid signup is not open. Your existing membership status is shown below; linked members can still manage billing and renewal." : catalog.mode === "test" ? "STRIPE SANDBOX — test only. No real payment or live membership is created." : "Membership status confirmed by the server.";
 }
 $("refresh").onclick = () => action(refresh);
 $("portal").onclick = () => action(async () => { const result = await api("portal", {}); if (!result.url?.startsWith("https://billing.stripe.com/")) throw Error("Billing portal unavailable."); window.location.assign(result.url); });
@@ -88,7 +88,7 @@ if ($("taxDocument")) $("taxDocument").onclick = () => action(async () => {
 });
 action(async () => {
   catalog = await api("catalog");
-  if (!catalog.enabled) { $("message").textContent = "Paid signup is not open yet. You can use the separate 14-day no-card trial."; return; }
   if (token()) await refresh();
+  else if (!catalog.enabled) $("message").textContent = "Paid signup is not open yet. You can use the separate 14-day no-card trial.";
   else $("message").textContent = "Verify your email, then choose a plan. Your trial will not convert to paid automatically.";
 });
