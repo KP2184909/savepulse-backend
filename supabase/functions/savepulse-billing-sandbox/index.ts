@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { runTaxDeliveryWorker } from "./shared/taxDeliveryWorker.mjs";
 import { createBillingRiskResolver } from "./shared/billingRiskResolver.mjs";
-import { createBillingRiskInbox } from "./shared/billingRiskInbox.mjs";
+import { createBillingRiskOperations } from "./shared/billingRiskOperations.mjs";
 import { selectBotTaxRateDate } from "./shared/taxFxPolicy.mjs";
 import { createTaxDocumentJobs } from "./shared/taxDocumentJobs.mjs";
 import { createBotTaxFx } from "./shared/botTaxFx.mjs";
@@ -45,7 +45,7 @@ async function identity(token: string) {
 const stripe = createStripeApi(env);
 const billing = createBillingLifecycle({ store, stripe, identity, env });
 const riskResolver = createBillingRiskResolver({stripe,mode:"test",accountId:env.STRIPE_EXPECTED_ACCOUNT_ID,invoiceSource:invoiceId=>billing.paidInvoiceForTaxDraft(invoiceId,true)});
-const riskInbox = createBillingRiskInbox({store,mode:"test",accountId:env.STRIPE_EXPECTED_ACCOUNT_ID,resolve:riskResolver.resolve});
+const riskOperations = createBillingRiskOperations({store,stripe,env,invoiceSource:invoiceId=>billing.paidInvoiceForTaxDraft(invoiceId,true)})!;
 async function ensureSandboxTaxRate() {
   const key = "billing:v2:test:inclusive-th-vat7";
   const stored = await store.get(key);
@@ -113,11 +113,7 @@ Deno.serve(async request => {
         const subscription=await stripe("GET",`/subscriptions/${account.membership.subscriptionId}`,{expand:["latest_invoice"]});
         if(subscription.latest_invoice?.status === "paid") await taxJobs.enqueue(subscription.latest_invoice.id);
       }
-      const riskQuery = new URLSearchParams({select:"key",key:`like.billing-risk:v1:test:${env.STRIPE_EXPECTED_ACCOUNT_ID}:*`,"value->>state":"eq.pending_review",order:"updated_at.asc",limit:"10"});
-      const riskResponse = await fetch(`${projectUrl}/rest/v1/scheduler_state?${riskQuery}`,{headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY!,authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`},signal:AbortSignal.timeout(12000)});
-      if(!riskResponse.ok) throw fail("billing_risk_storage_unavailable");
-      let risksVerified=0;
-      for(const risk of await riskResponse.json()){const result=await riskInbox.reconcile(risk.key);if(result.updated)risksVerified++;}
+      const { processed: risksVerified } = await riskOperations.tick();
       const query = new URLSearchParams({select:"key,value",key:"like.tax-job:v1:test:*","value->>state":"in.(pending,retry,working)",order:"updated_at.asc",limit:"20"});
       const response = await fetch(`${projectUrl}/rest/v1/scheduler_state?${query}`,{headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY!,authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`},signal:AbortSignal.timeout(12000)});
       if(!response.ok) throw fail("tax_document_storage_busy");
@@ -140,7 +136,7 @@ Deno.serve(async request => {
       try { verifyStripeWebhookSignature(raw, request.headers.get("stripe-signature"), await signingSecret()); }
       catch (_) { throw fail("invalid_stripe_signature", 400); }
       const event = JSON.parse(raw);
-      const risk = await riskInbox.receive(event);
+      const risk = await riskOperations.receive(event);
       if (risk.received) return json({received:true,updated:false,reason:risk.reason});
       const result = await billing.event(event);
       if ((result.updated || result.reason === "duplicate_event") && result.email === testEmail && ["invoice.paid","invoice.payment_succeeded"].includes(event.type) && /^in_\w+$/.test(event.data?.object?.id || "")) await taxJobs.enqueue(event.data.object.id);
