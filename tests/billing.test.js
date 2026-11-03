@@ -428,3 +428,16 @@ test("safe Stripe event summaries keep customer and subscription IDs hidden", ()
   assert.equal(serialized.includes("sub_secret"), false);
   assert.equal(serialized.includes("cs_live_secret"), false);
 });
+
+test("Live preflight rejects unauthenticated calls without exposing server settings", async () => {
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const denied = await fetch(base + "/api/v1/admin/billing/live-preflight");
+  assert.equal(denied.status,401);
+  assert.equal(denied.headers.get("cache-control"),"no-store");
+  const checked = await fetch(base + "/api/v1/admin/billing/live-preflight", {headers:{"x-savepulse-admin-key":"test-admin-readiness-key"}});
+  assert.equal(checked.status,200);
+  const report = await checked.json();
+  assert.equal(report.ready,false);
+  assert.equal(report.scope,"configuration_only");
+  assert.ok(!JSON.stringify(report).includes("test-admin-readiness-key"));
+});
