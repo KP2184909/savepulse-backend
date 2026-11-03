@@ -31,3 +31,8 @@ test("enabled queue HTTP ingress awaits durable insert and does not wait for Str
   assert.equal((await deliver()).data.result.reason,"duplicate_queued_event");
   assert.equal(rows.size,1);assert.equal([...rows.values()][0].state,"pending");assert.equal(providerCalls,0);
 });
+test("queue health requires administrator authorization and is never cached",async()=>{
+  const response=await originalFetch(base+"/api/v1/admin/billing/webhook-queue");
+  assert.equal(response.status,401);assert.equal(response.headers.get("cache-control"),"no-store");
+  assert.equal((await response.json()).error,"unauthorized_admin_billing");
+});

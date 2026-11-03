@@ -1628,6 +1628,12 @@ async function handleRequest(req, res) {
       return;
     }
 
+    if (req.method === "GET" && url.pathname === "/api/v1/admin/billing/webhook-queue") {
+      res.setHeader("cache-control", "no-store");
+      if (!hasAdminSecret(req)) { sendJson(res, 401, { error: "unauthorized_admin_billing" }); return; }
+      if (!billingWebhookInbox) { sendJson(res, 503, { error: "billing_queue_disabled" }); return; }
+      sendJson(res, 200, await billingWebhookInbox.summary()); return;
+    }
     if (req.method === "GET" && url.pathname === "/api/v1/admin/billing/risk-review") {
       res.setHeader("cache-control", "no-store");
       if (!hasAdminSecret(req)) { sendJson(res, 401, { error: "unauthorized_admin_billing" }); return; }

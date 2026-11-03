@@ -51,6 +51,26 @@ function createBillingWebhookInbox({ store, mode, accountId, processEvent, now =
     for (const row of rows) if ((await run(row.key)).processed) processed++;
     return { processed };
   }
-  return { receive, run, tick, keyFor };
+  async function summary() {
+    const rows = await store.billingWebhookRows(mode, accountId, true);
+    const counts = { pending: 0, working: 0, manual_review_required: 0 };
+    let oldestPendingAgeMs = 0, unknownAge = false, expiredLeases = 0;
+    for (const row of rows.slice(0, 100)) {
+      if (!Object.hasOwn(counts, row.state)) continue;
+      counts[row.state]++;
+      if (row.state !== "manual_review_required") {
+        const received = Date.parse(row.receivedAt);
+        if (!Number.isFinite(received) || received > now()) unknownAge = true;
+        else oldestPendingAgeMs = Math.max(oldestPendingAgeMs, now() - received);
+      }
+      if (row.state === "working" && row.leaseUntil <= now()) expiredLeases++;
+    }
+    const truncated = rows.length > 100;
+    const reasons = [counts.manual_review_required > 0 && "manual_review_required", truncated && "inventory_truncated",
+      unknownAge && "unknown_task_age", oldestPendingAgeMs >= 1800000 && "pending_over_30_minutes", expiredLeases > 0 && "expired_worker_lease"].filter(Boolean);
+    return { mode, counts, countsAreLowerBounds: truncated, truncated, limit: 100,
+      oldestPendingAgeMs, expiredLeases, needsAttention: reasons.length > 0, reasons };
+  }
+  return { receive, run, tick, keyFor, summary };
 }
 module.exports = { createBillingWebhookInbox };

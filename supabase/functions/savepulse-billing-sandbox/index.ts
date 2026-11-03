@@ -97,8 +97,9 @@ Deno.serve(async request => {
       const expected = (await store.get("tax-worker:v1:test:credential"))?.token || "";
       const provided = request.headers.get("x-savepulse-worker-token") || "";
       if (!/^[a-f0-9]{64}$/.test(expected) || !/^[a-f0-9]{64}$/.test(provided) || !crypto.timingSafeEqual(new TextEncoder().encode(provided),new TextEncoder().encode(expected))) throw fail("authentication_required",401);
-      await ensureSandboxTaxRate();
       const workerInput = await request.json().catch(() => ({}));
+      if (workerInput.queueStatusOnly === true) return json({mode:"test",queueHealth:await webhookInbox.summary(),emailsSent:0});
+      await ensureSandboxTaxRate();
       const webhookQueue = await webhookInbox.tick();
       if (workerInput.queueOnly === true) return json({ mode: "test", webhookQueue, emailsSent: 0 });
       if(workerInput.creditNote) {

@@ -50,3 +50,21 @@ test("concurrent workers claim once, and an expired worker cannot overwrite reco
   }finally{release();}
   assert.equal((await slow).state,"lease_lost");assert.equal(f.rows.get(key).state,"processed");
 });
+test("queue health exposes only bounded aggregate counts and flags old, unknown and manual-review tasks",async()=>{
+  const f=fixture();
+  assert.equal((await f.inbox.summary()).needsAttention,false);
+  f.rows.set("fixture",{state:"pending",receivedAt:new Date(0).toISOString(),event:{email:"private@example.invalid"}});
+  f.advance(1800000);
+  assert.ok((await f.inbox.summary()).reasons.includes("pending_over_30_minutes"));
+  f.rows.set("unknown",{state:"working",receivedAt:"invalid",leaseUntil:0});
+  f.rows.set("manual",{state:"manual_review_required",error:"private_provider_data"});
+  const health=await f.inbox.summary();
+  assert.equal(health.counts.manual_review_required,1);assert.equal(health.expiredLeases,1);
+  assert.ok(health.reasons.includes("unknown_task_age"));
+  assert.ok(!JSON.stringify(health).includes("private"));
+  for(let n=0;n<101;n++)f.rows.set(`extra${n}`,{state:"pending",receivedAt:new Date(0).toISOString()});
+  const bounded=await f.inbox.summary();
+  assert.equal(bounded.truncated,true);assert.equal(bounded.countsAreLowerBounds,true);
+  assert.ok(bounded.reasons.includes("inventory_truncated"));
+  assert.equal(Object.values(bounded.counts).reduce((a,b)=>a+b,0),100);
+});

@@ -41,12 +41,13 @@ function createTrialStore(env = process.env, fetchImpl = globalThis.fetch) {
         if (rows.length < 1000) return all;
       }
     },
-    async billingWebhookRows(mode, accountId) {
+    async billingWebhookRows(mode, accountId, summary = false) {
       if (!["test", "live"].includes(mode) || !/^acct_\w+$/.test(accountId || "")) throw fail("billing_inbox_configuration_invalid");
       const prefix = `billing-webhook:v1:${mode}:${accountId}:`;
       const query = new URLSearchParams({ key: `like.${prefix}*`, select: "key,value",
-        "value->>state": "in.(pending,working)", "value->>nextAttemptAt": `lte.${Date.now()}`,
-        "value->>leaseUntil": `lte.${Date.now()}`, order: "updated_at.asc,key.asc", limit: "10" });
+        "value->>state": summary ? "in.(pending,working,manual_review_required)" : "in.(pending,working)",
+        order: "updated_at.asc,key.asc", limit: summary ? "101" : "10" });
+      if (!summary) { query.set("value->>nextAttemptAt", `lte.${Date.now()}`); query.set("value->>leaseUntil", `lte.${Date.now()}`); }
       return (await request(`scheduler_state?${query}`)).filter(row => row.key?.startsWith(prefix)).map(row => ({ ...row.value, key: row.key }));
     },
     async billingRiskRows(mode, accountId, pendingOnly) {
