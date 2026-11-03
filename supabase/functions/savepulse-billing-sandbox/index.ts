@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { createBillingWebhookInbox } from "./shared/billingWebhookInbox.mjs";
 import { runTaxDeliveryWorker } from "./shared/taxDeliveryWorker.mjs";
 import { createBillingRiskResolver } from "./shared/billingRiskResolver.mjs";
 import { createBillingRiskOperations } from "./shared/billingRiskOperations.mjs";
@@ -44,6 +45,11 @@ async function identity(token: string) {
 }
 const stripe = createStripeApi(env);
 const billing = createBillingLifecycle({ store, stripe, identity, env });
+const webhookInbox = createBillingWebhookInbox({ store, mode: "test", accountId: env.STRIPE_EXPECTED_ACCOUNT_ID,
+  processEvent: async event => {
+    const result = await billing.event(event);
+    if ((result.updated || result.reason === "duplicate_event") && result.email === testEmail && ["invoice.paid", "invoice.payment_succeeded"].includes(event.type)) await taxJobs.enqueue(event.data.object.id);
+  } });
 const riskResolver = createBillingRiskResolver({stripe,mode:"test",accountId:env.STRIPE_EXPECTED_ACCOUNT_ID,invoiceSource:invoiceId=>billing.paidInvoiceForTaxDraft(invoiceId,true)});
 const riskOperations = createBillingRiskOperations({store,stripe,env,invoiceSource:invoiceId=>billing.paidInvoiceForTaxDraft(invoiceId,true)})!;
 async function ensureSandboxTaxRate() {
@@ -93,6 +99,8 @@ Deno.serve(async request => {
       if (!/^[a-f0-9]{64}$/.test(expected) || !/^[a-f0-9]{64}$/.test(provided) || !crypto.timingSafeEqual(new TextEncoder().encode(provided),new TextEncoder().encode(expected))) throw fail("authentication_required",401);
       await ensureSandboxTaxRate();
       const workerInput = await request.json().catch(() => ({}));
+      const webhookQueue = await webhookInbox.tick();
+      if (workerInput.queueOnly === true) return json({ mode: "test", webhookQueue, emailsSent: 0 });
       if(workerInput.creditNote) {
         const {period,invoiceId,refundId}=workerInput.creditNote;
         const document=await taxLedger.credit(period,invoiceId,refundId);
@@ -127,7 +135,7 @@ Deno.serve(async request => {
         if(!mailResponse.ok)throw fail("tax_document_storage_busy");
         delivery=await runTaxDeliveryWorker({rows:await mailResponse.json(),ledger:taxLedger,configured:true,mode:"test",limit:10});
       }
-      return json({mode:"test",processed:states.length,states,risksVerified,delivery});
+      return json({mode:"test",processed:states.length,states,risksVerified,delivery,webhookQueue});
     }
     if (request.method === "POST" && operation === "webhook") {
       if (Number(request.headers.get("content-length") || 0) > 262144) throw fail("request_too_large", 413);
@@ -138,9 +146,8 @@ Deno.serve(async request => {
       const event = JSON.parse(raw);
       const risk = await riskOperations.receive(event);
       if (risk.received) return json({received:true,updated:false,reason:risk.reason});
-      const result = await billing.event(event);
-      if ((result.updated || result.reason === "duplicate_event") && result.email === testEmail && ["invoice.paid","invoice.payment_succeeded"].includes(event.type) && /^in_\w+$/.test(event.data?.object?.id || "")) await taxJobs.enqueue(event.data.object.id);
-      return json({ received: true, updated: result.updated, reason: result.reason || null });
+      const queued = await webhookInbox.receive(event);
+      return json({ received: true, updated: false, reason: queued.reason });
     }
     if (request.method === "GET" && operation === "catalog") return json(await billing.catalog());
     const token = request.headers.get("authorization")?.match(/^Bearer (.+)$/i)?.[1] || "";
