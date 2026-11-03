@@ -41,6 +41,14 @@ function createTrialStore(env = process.env, fetchImpl = globalThis.fetch) {
         if (rows.length < 1000) return all;
       }
     },
+    async billingWebhookRows(mode, accountId) {
+      if (!["test", "live"].includes(mode) || !/^acct_\w+$/.test(accountId || "")) throw fail("billing_inbox_configuration_invalid");
+      const prefix = `billing-webhook:v1:${mode}:${accountId}:`;
+      const query = new URLSearchParams({ key: `like.${prefix}*`, select: "key,value",
+        "value->>state": "in.(pending,working)", "value->>nextAttemptAt": `lte.${Date.now()}`,
+        "value->>leaseUntil": `lte.${Date.now()}`, order: "updated_at.asc,key.asc", limit: "10" });
+      return (await request(`scheduler_state?${query}`)).filter(row => row.key?.startsWith(prefix)).map(row => ({ ...row.value, key: row.key }));
+    },
     async billingRiskRows(mode, accountId, pendingOnly) {
       if (!["test", "live"].includes(mode) || !/^acct_\w+$/.test(accountId || "")) throw fail("billing_risk_configuration_invalid");
       const prefix = `billing-risk:v1:${mode}:${accountId}:`;

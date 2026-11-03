@@ -35,6 +35,7 @@ const { createBillingRiskOperations } = require("./src/billingRiskOperations");
 const { inspectLiveBilling, createLivePreflightReader, REQUIRED_EVENTS } = require("./src/billingLivePreflight");
 const { buildThaiTaxInvoiceDraft, renderThaiTaxInvoiceDraft } = require("./src/thaiTaxInvoiceDraft");
 const { verifyStripeWebhookSignature } = require("./src/stripeSignature");
+const { createBillingWebhookInbox } = require("./src/billingWebhookInbox");
 const trialStore = createTrialStore();
 const legacyPaidPlan = trialStore.paidPlan.bind(trialStore);
 let billing;
@@ -60,6 +61,12 @@ const trials = createTrialLifecycle({ store: trialStore, send: createTrialMailer
 billing = createBillingLifecycle({ store: trialStore, stripe: createStripeApi(), identity: token => trials.identity(token) });
 const billingRisks = createBillingRiskOperations({ store: trialStore, stripe: createStripeApi(),
   invoiceSource: invoiceId => billing.paidInvoiceForTaxDraft(invoiceId, true) });
+const billingWebhookInbox = billing.enabled && process.env.BILLING_WEBHOOK_QUEUE_ENABLED === "true"
+  ? createBillingWebhookInbox({ store: trialStore, mode: billing.mode, accountId: process.env.STRIPE_EXPECTED_ACCOUNT_ID,
+    processEvent: async event => {
+      const result = await billing.event(event);
+      if (result.email) await syncBillingSubscriber(result.email);
+    } }) : null;
 async function requireTrialReady() {
   await trialProbe;
   if (!trialDatabaseReady) throw Object.assign(new Error("trial_not_available"), { status: 503 });
@@ -1287,6 +1294,11 @@ async function handleStripeWebhook(req, res) {
 
   if (!billing.enabled) throw Object.assign(new Error("billing_unavailable"), { status: 503 });
   const risk = billingRisks ? await billingRisks.receive(event) : null;
+  if (!risk?.received && billingWebhookInbox) {
+    const queued = await billingWebhookInbox.receive(event);
+    sendJson(res, 200, { received: true, eventType: event.type, result: { updated: false, reason: queued.reason } });
+    return;
+  }
   const result = risk?.received ? { updated: false, reason: risk.reason } : await billing.event(event);
   // This mirror only discovers recipients. Every entitlement read/delivery resolves
   // the authoritative, mode-scoped billing record again before using its plan.
@@ -1705,6 +1717,7 @@ const server = http.createServer(handleRequest);
 const trialTimer = setInterval(() => {
   if (trialDatabaseReady) trials.tick().catch(() => console.warn("Trial scheduler failed; retry pending."));
   if (trialDatabaseReady && billingRisks) billingRisks.tick().catch(() => console.warn("Billing risk review scheduler failed; retry pending."));
+  if (billingWebhookInbox) billingWebhookInbox.tick().catch(() => console.warn("Billing webhook worker failed; retry pending."));
 }, 60000);
 trialTimer.unref();
 const notificationTimer = setInterval(() => {
