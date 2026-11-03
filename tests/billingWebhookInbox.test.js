@@ -8,7 +8,7 @@ function fixture(processEvent = async () => {}) {
     async get(k) { return structuredClone(rows.get(k)); },
     async insert(k,v) { if (unavailable) throw Error("database_failed"); if(rows.has(k))return false; rows.set(k,structuredClone(v));return true; },
     async cas(k,version,v) { if(rows.get(k)?.version!==version)return false;rows.set(k,structuredClone(v));return true; },
-    async billingWebhookRows() {return [...rows].map(([key,value])=>({key,...value}));}
+    async billingWebhookRows(mode,account,summary) {return [...rows].filter(([key])=>!key.startsWith("billing-webhook-health:")).map(([key,value])=>({key,...value}));}
   };
   const options = {store,mode:"test",accountId:"acct_fixture",processEvent,now:()=>time};
   const inbox = createBillingWebhookInbox(options);
@@ -52,6 +52,7 @@ test("concurrent workers claim once, and an expired worker cannot overwrite reco
 });
 test("queue health exposes only bounded aggregate counts and flags old, unknown and manual-review tasks",async()=>{
   const f=fixture();
+  await f.inbox.tick();
   assert.equal((await f.inbox.summary()).needsAttention,false);
   f.rows.set("fixture",{state:"pending",receivedAt:new Date(0).toISOString(),event:{email:"private@example.invalid"}});
   f.advance(1800000);
@@ -67,4 +68,17 @@ test("queue health exposes only bounded aggregate counts and flags old, unknown 
   assert.equal(bounded.truncated,true);assert.equal(bounded.countsAreLowerBounds,true);
   assert.ok(bounded.reasons.includes("inventory_truncated"));
   assert.equal(Object.values(bounded.counts).reduce((a,b)=>a+b,0),100);
+});
+test("worker liveness survives restart, becomes stale, and a failed sweep cannot refresh it",async()=>{
+  const f=fixture();
+  assert.ok((await f.inbox.summary()).reasons.includes("worker_not_recent"));
+  await f.inbox.tick();
+  assert.equal((await createBillingWebhookInbox(f.options).summary()).workerAgeMs,0);
+  f.advance(1800001);
+  assert.ok((await f.inbox.summary()).reasons.includes("worker_not_recent"));
+  const prior=(await f.inbox.summary()).lastCompletedAt;
+  const bad=createBillingWebhookInbox({...f.options,store:{...f.store,billingWebhookRows:async()=>{throw Error("read_failed");}}});
+  await assert.rejects(bad.tick(),/read_failed/);
+  assert.equal((await f.inbox.summary()).lastCompletedAt,prior);
+  await f.inbox.tick();assert.equal((await f.inbox.summary()).workerAgeMs,0);
 });
