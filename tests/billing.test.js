@@ -191,7 +191,7 @@ test("checkout completion does not grant access when payment is not confirmed", 
   }
 });
 
-test("billing readiness snapshot reports live readiness without exposing secrets", () => {
+test("billing snapshot distinguishes configuration presence from verified launch readiness", () => {
   const snapshot = billingReadinessSnapshot({
     APP_BASE_URL: "https://savepulse.cloud",
     STRIPE_SECRET_KEY: "sk_live_do_not_leak",
@@ -207,6 +207,13 @@ test("billing readiness snapshot reports live readiness without exposing secrets
 
   assert.equal(snapshot.endpoints.stripeWebhook, "https://savepulse.cloud/api/v1/billing/webhook");
   assert.equal(snapshot.stripe.mode, "live");
+  assert.equal(snapshot.scope, "configuration_presence_only");
+  assert.equal(snapshot.launchReady, false);
+  assert.equal(snapshot.stripe.lifecycleEnabled, false);
+  assert.equal(snapshot.stripe.liveApproved, false);
+  assert.equal(snapshot.stripe.taxPolicyConfirmed, false);
+  assert.equal(snapshot.stripe.requiredWebhookEvents.length, 13);
+  assert.deepEqual(snapshot.stripe.requiredWebhookEvents, require("../src/billingLivePreflight").REQUIRED_EVENTS);
   assert.equal(snapshot.stripe.publicCheckoutEnabled, false);
   assert.equal(snapshot.stripe.secretKeyConfigured, true);
   assert.equal(snapshot.stripe.webhookSecretConfigured, true);

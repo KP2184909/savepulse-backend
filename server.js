@@ -32,7 +32,7 @@ const {
 const { createTrialStore, createTrialMailer, createTrialLifecycle } = require("./src/trialLifecycle");
 const { createBillingLifecycle, createStripeApi } = require("./src/billingLifecycle");
 const { createBillingRiskOperations } = require("./src/billingRiskOperations");
-const { inspectLiveBilling, createLivePreflightReader } = require("./src/billingLivePreflight");
+const { inspectLiveBilling, createLivePreflightReader, REQUIRED_EVENTS } = require("./src/billingLivePreflight");
 const { buildThaiTaxInvoiceDraft, renderThaiTaxInvoiceDraft } = require("./src/thaiTaxInvoiceDraft");
 const { verifyStripeWebhookSignature } = require("./src/stripeSignature");
 const trialStore = createTrialStore();
@@ -77,14 +77,7 @@ const WEBHOOK_SECRET =
   process.env.WEBHOOK_SECRET ||
   (process.env.NODE_ENV === "production" ? "" : "SAVEPULSE_MASTER_KEY_2026");
 const ADMIN_READINESS_KEY = process.env.ADMIN_READINESS_KEY || process.env.ADMIN_API_KEY || "";
-const STRIPE_REQUIRED_WEBHOOK_EVENTS = Object.freeze([
-  "checkout.session.completed",
-  "customer.subscription.created",
-  "customer.subscription.updated",
-  "customer.subscription.deleted",
-  "invoice.payment_succeeded",
-  "invoice.payment_failed"
-]);
+const STRIPE_REQUIRED_WEBHOOK_EVENTS = REQUIRED_EVENTS;
 const RECENT_STRIPE_EVENT_LIMIT = 25;
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -436,6 +429,9 @@ function billingReadinessSnapshot(env = process.env) {
   const baseUrl = appBaseUrl(env);
   return {
     ok: true,
+    scope: "configuration_presence_only",
+    launchReady: false,
+    requiredNextCheck: "/api/v1/admin/billing/live-preflight",
     generatedAt: new Date().toISOString(),
     endpoints: {
       stripeWebhook: `${baseUrl}/api/v1/billing/webhook`,
@@ -443,6 +439,12 @@ function billingReadinessSnapshot(env = process.env) {
     },
     stripe: {
       publicCheckoutEnabled: publicCheckoutEnabled(env),
+      lifecycleEnabled: env.BILLING_V2_ENABLED === "true",
+      liveApproved: env.BILLING_LIVE_APPROVED === "true",
+      taxPolicyConfirmed: env.BILLING_TAX_POLICY_CONFIRMED === "true",
+      domesticVatEnabled: env.BILLING_DOMESTIC_VAT_ENABLED === "true",
+      expectedAccountConfigured: /^acct_\w+$/.test(env.STRIPE_EXPECTED_ACCOUNT_ID || ""),
+      manualTaxRateConfigured: /^txr_\w+$/.test(env.STRIPE_MANUAL_TAX_RATE || ""),
       mode: stripeKeyMode(stripeSecretKey(env)),
       secretKeyConfigured: Boolean(stripeSecretKey(env)),
       webhookSecretConfigured: Boolean(stripeWebhookSecret(env)),

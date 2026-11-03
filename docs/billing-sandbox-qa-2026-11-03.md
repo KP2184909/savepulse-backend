@@ -37,3 +37,31 @@ labelled for audit. No email was sent during these worker runs. Main server risk
 operations still require deployment and operational review procedures before
 the three additional Live risk-event subscriptions are enabled. No paid launch
 approval is implied.
+
+## Production storage audit and readiness consistency
+
+Read-only inspection of SavePulse Production `knkimiyxcmkslxemcynp` confirmed
+RLS enabled on public.scheduler_state, subscribers and stripe_events. No policies
+on these tables grant anon/authenticated/public browser-role access. The
+scheduler_state key has a valid unique index. This is scoped schema evidence,
+not a full database security audit; no customer rows, secrets or schema were
+changed. The public billing catalog still returned404, consistent with the
+un-deployed PR rather than a working paid signup flow.
+
+The legacy administrator readiness response now uses the same13 required events
+as Live preflight, instead of its stale6-event list. Its response explicitly
+labels scope=configuration_presence_only and launchReady=false, provides the
+provider preflight route, and exposes only boolean setup/approval indicators.
+It does not claim to verify Stripe resources or lawful tax issuance. Regression
+suite remains166/166 after this change; this response change is not deployed.
+
+Still executable before e-Tax approval: review and deploy a closed-sales backend
+release, apply the non-secret Live resource mapping, run authenticated provider
+preflight, verify deployed risk receipt/worker operations before subscribing
+the3 risk events, and complete frontend/mobile membership QA. These are not
+blocked solely by RD approval. However, the current combined draft also contains
+incomplete tax FX exception/issuance operations: do not treat its local PASS as
+approval to open checkout. Overseas/mixed-use checkout remains unsupported and
+must remain blocked. A confirmed lawful issuance/delivery workflow is needed
+before taking real customer payments; pending e-Tax enrollment alone does not
+establish that workflow.
