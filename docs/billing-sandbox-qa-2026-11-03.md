@@ -65,3 +65,31 @@ approval to open checkout. Overseas/mixed-use checkout remains unsupported and
 must remain blocked. A confirmed lawful issuance/delivery workflow is needed
 before taking real customer payments; pending e-Tax enrollment alone does not
 establish that workflow.
+
+## Closed-sales Production preflight release
+
+PR11 extracted only the read-only administrator preflight from the larger billing
+draft. It passed104/104 tests on main and was merged/deployed as
+`37a8f71baefc57c8bd6a6c9ba178faf3bdc395cd`. No frontend, checkout, webhook,
+membership or tax-issuance behavior was changed in this release. PR10 was then
+merged with main and its full regression suite passed167/167.
+
+Verified over Production HTTP after deployment:
+
+- Render `/api/v1/trial/readiness`: ready=true, database=verified,
+  emailConfigured=true, release37a8f71, autoRenew=false. Scheduler timestamp
+  2026-11-03T05:29:29.568Z.
+- Backend and savepulse.cloud `/api/v1/admin/billing/live-preflight`:
+  HTTP401 unauthorized_admin_billing without admin credentials; public-domain
+  response has Cache-Control:no-store.
+- Public `/api/v1/billing/checkout` with approved test mailbox and Plus plan:
+  configured=false, provider=disabled, url=null,
+  reason=public_checkout_disabled. No checkout or payment was created.
+
+The authenticated Live provider report has NOT been run from Production, and
+the non-secret resource mapping has not been applied. Both IAB tab binding and
+WebMCP acquisition currently fail with a browser adapter capability error,
+despite the Stripe tab being present in inventory. This is not a Mac lock or
+an owner login failure. No credentials were exported to bypass browser access.
+The separate closed-sales release makes the next server-side checks possible
+without prematurely deploying PR10's replacement payment handler.
