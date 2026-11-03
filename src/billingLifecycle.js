@@ -53,7 +53,6 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
   let verifiedAccount = false;
   function requireEnabled() {
     if (!enabled || !["test", "live"].includes(mode) || !/^acct_\w+$/.test(expectedAccount) || !/^https:\/\//.test(baseUrl)) throw fail("billing_unavailable");
-    if (mode === "live" && (env.BILLING_LIVE_APPROVED !== "true" || env.BILLING_TAX_POLICY_CONFIRMED !== "true")) throw fail("billing_live_not_ready");
   }
   async function verifyAccount() {
     requireEnabled();
@@ -165,6 +164,10 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
     return rateId;
   }
   async function checkout(token, plan) {
+    requireEnabled();
+    // Closing new sales must not prevent existing-member status, cancellation
+    // portal access or signed lifecycle reconciliation from continuing.
+    if (mode === "live" && (env.BILLING_LIVE_APPROVED !== "true" || env.BILLING_TAX_POLICY_CONFIRMED !== "true")) throw fail("billing_live_not_ready");
     // The only implemented tax treatment is domestic TH VAT-inclusive service.
     // Live approval flags must not accidentally enable the tax-free demo path.
     if (mode === "live" && env.BILLING_DOMESTIC_VAT_ENABLED !== "true") throw fail("billing_live_tax_configuration_required");
@@ -296,6 +299,10 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
     return withContext ? { payment: invoice, customer: binding.billingProfile || null, recipient: row.email } : invoice;
   }
   async function catalog() {
+    requireEnabled();
+    if (mode === "live" && (env.BILLING_LIVE_APPROVED !== "true" || env.BILLING_TAX_POLICY_CONFIRMED !== "true" || env.BILLING_DOMESTIC_VAT_ENABLED !== "true")) {
+      return { enabled: false, plans: [], noCardTrialUrl: "/trial/" };
+    }
     await verifyAccount();
     const plans = [];
     for (const plan of Object.keys(AMOUNTS)) {

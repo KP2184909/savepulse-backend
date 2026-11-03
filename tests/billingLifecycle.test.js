@@ -63,6 +63,34 @@ test("checkout requires identity, validates USD catalog, persists binding, and n
   assert.ok([...f.rows.keys()].every(k => k.startsWith("billing:v2:test:")));
 });
 
+test("closed Live sales still reconcile existing paid members and allow cancellation management", async () => {
+  const f = fixture(), session = await f.opened(), subscription = f.settle(session);
+  await f.api.event(f.event("checkout.session.completed", session));
+  const oldRow = structuredClone(f.rows.get(f.api.accountKey("savepulse.cloud@gmail.com")));
+  Object.assign(f.env, { STRIPE_SECRET_KEY: "rk_live_fixture", BILLING_LIVE_APPROVED: "false", BILLING_TAX_POLICY_CONFIRMED: "false" });
+  const liveResponse = value => {
+    if (Array.isArray(value)) return value.map(liveResponse);
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, key === "livemode" ? true : liveResponse(entry)]));
+  };
+  const live = createBillingLifecycle({ ...f.options, stripe: async (...args) => liveResponse(await f.options.stripe(...args)) });
+  f.rows.set(live.accountKey("savepulse.cloud@gmail.com"), oldRow);
+  f.advance(6 * 60000);
+  assert.equal((await live.status("verified-session")).plan, "pro");
+  assert.ok((await live.portal("verified-session")).url.startsWith("https://billing.stripe.com/"));
+  const before = f.requests.length;
+  await assert.rejects(live.checkout("verified-session", "plus"), /billing_live_not_ready/);
+  assert.equal((await live.catalog()).enabled, false);
+  assert.equal(f.requests.length, before);
+  subscription.cancel_at_period_end = true;
+  const renewalOff = await live.event({ ...f.event("customer.subscription.updated", subscription, "renewal_off"), livemode: true });
+  assert.equal(renewalOff.membership.plan, "pro");
+  assert.equal(renewalOff.membership.renews, false);
+  subscription.status = "canceled";
+  await live.event({ ...f.event("customer.subscription.deleted", subscription, "closed_canceled"), livemode: true });
+  assert.equal((await live.status("verified-session")).plan, "free");
+});
+
 test("Live checkout cannot use the demo path when domestic VAT configuration is missing", async () => {
   for (const flag of [undefined, "false", "TRUE"]) {
     const f = fixture();
