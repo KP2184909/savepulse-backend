@@ -30,6 +30,7 @@ const {
 } = require("./src/plans");
 
 const { createTrialStore, createTrialMailer, createTrialLifecycle } = require("./src/trialLifecycle");
+const { inspectLiveBilling, createLivePreflightReader } = require("./src/billingLivePreflight");
 const trialStore = createTrialStore();
 const trialConfigured = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.RESEND_API_KEY && process.env.FROM_EMAIL && process.env.TRIAL_ENABLED !== "false");
 let trialDatabaseReady = false;
@@ -1575,6 +1576,12 @@ async function handleRequest(req, res) {
         generatedAt: new Date().toISOString()
       });
       return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/v1/admin/billing/live-preflight") {
+      res.setHeader("cache-control", "no-store");
+      if (!hasAdminSecret(req)) { sendJson(res, 401, { error: "unauthorized_admin_billing" }); return; }
+      sendJson(res, 200, await inspectLiveBilling({ env: process.env, get: createLivePreflightReader() })); return;
     }
 
     if (req.method === "GET" && url.pathname === "/api/v1/admin/billing-readiness") {
