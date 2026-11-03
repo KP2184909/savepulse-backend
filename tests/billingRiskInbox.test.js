@@ -53,3 +53,18 @@ test("provider errors persist bounded retries without leaking provider payloads"
  for(let i=1;i<10;i++){time=f.rows.get(key).nextAttemptAt;await api.reconcile(key);}
  assert.equal(f.rows.get(key).state,"manual_review_required");assert.ok(!JSON.stringify(f.rows.get(key)).includes("sensitive"));
 });
+
+test("unconfirmed ownership follows bounded retry policy instead of starving the review queue",async()=>{
+ const f=fixture();let time=1000;
+ f.options.store.get=async key=>structuredClone(f.rows.get(key));
+ f.options.store.cas=async(key,version,value)=>{if(f.rows.get(key)?.version!==version)return false;f.rows.set(key,structuredClone(value));return true;};
+ await f.api.receive(event());const key=[...f.rows.keys()][0];let calls=0;
+ const api=createBillingRiskInbox({...f.options,now:()=>time,resolve:async()=>{calls++;return {ownershipVerified:false,detail:"private provider detail"};}});
+ assert.equal((await api.reconcile(key)).reason,"risk_resolution_requires_review");
+ await api.reconcile(key);assert.equal(calls,1);
+ for(let i=1;i<10;i++){time=f.rows.get(key).nextAttemptAt;await api.reconcile(key);}
+ assert.equal(f.rows.get(key).state,"manual_review_required");
+ assert.equal(f.rows.get(key).ownershipVerified,false);
+ assert.equal(f.rows.get(key).entitlementChanged,false);
+ assert.ok(!JSON.stringify(f.rows.get(key)).includes("private provider detail"));
+});

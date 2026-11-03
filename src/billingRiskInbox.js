@@ -28,7 +28,10 @@ function createBillingRiskInbox({ store, mode, accountId, resolve, now = Date.no
     const row = await store.get(key);
     if (!row || row.state !== "pending_review" || (row.nextAttemptAt || 0) > now()) return {updated:false};
     let result;
-    try { result = await resolve(row); }
+    try {
+      result = await resolve(row);
+      if (result?.ownershipVerified !== true) throw Error("billing_risk_ownership_required");
+    }
     catch (_) {
       // Provider payloads/errors must not leak credentials or customer details.
       const attempts=(row.attempts || 0)+1;
@@ -37,7 +40,6 @@ function createBillingRiskInbox({ store, mode, accountId, resolve, now = Date.no
       await store.cas(key,row.version,next);
       return {updated:false,reason:"risk_resolution_requires_review"};
     }
-    if(result?.ownershipVerified!==true) throw Error("billing_risk_ownership_required");
     const next={...row,version:row.version+1,state:"verified_review_required",ownershipVerified:true,
       evidence:result,verifiedAt:new Date(now()).toISOString()};
     return {updated:await store.cas(key,row.version,next),reason:"risk_ownership_verified"};

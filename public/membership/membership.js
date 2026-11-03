@@ -10,12 +10,19 @@ const errors = {
   billing_membership_exists_use_portal: "You already have a membership. Use Manage billing & receipts.", billing_checkout_already_open: "A checkout is already open for another plan. Complete or cancel it before choosing another plan.",
   billing_existing_membership_needs_migration: "Your existing membership is preserved. Contact support to connect billing management.",
   billing_payment_processing: "Stripe is processing this checkout. Refresh membership after it finishes.", billing_busy_retry: "Another membership action is in progress. Please try again shortly.",
-  billing_unavailable: "Paid signup is not available yet. The no-card trial is separate and remains available."
+  billing_unavailable: "Paid signup is not available yet. The no-card trial is separate and remains available.",
+  billing_live_not_ready: "Paid signup is not open yet. You can use the separate no-card trial.",
+  billing_live_tax_configuration_required: "Paid signup is temporarily unavailable while billing is being prepared. No payment was started.",
+  billing_country_not_supported: "This checkout supports service use in Thailand only. For overseas or mixed use, contact support before paying.",
+  billing_details_required: "Enter your full billing name, address and five-digit Thai postal code before checkout.",
+  billing_tax_details_invalid: "Check your 13-digit Tax ID and five-digit branch code. Use 00000 for the head office.",
+  billing_provider_unavailable: "We could not confirm the latest billing status with Stripe. Refresh membership before trying again.",
+  billing_membership_not_found: "No linked paid membership was found. Refresh membership or contact support if you have already paid."
 };
 async function api(route, body) {
   const response = await fetch(`${billingBase}${route}`, { method: body === undefined ? "GET" : "POST", cache: "no-store", headers: { "content-type": "application/json", ...(token() ? { authorization: `Bearer ${token()}` } : {}) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
   const data = await response.json();
-  if (!response.ok) throw Error(errors[data.error] || "The server could not confirm this action. No access has been granted. Refresh before retrying.");
+  if (!response.ok) throw Error(errors[data.error] || "The server could not confirm this action. Refresh membership before retrying; this message does not confirm a payment or a change to your existing access.");
   return data;
 }
 function draw() {

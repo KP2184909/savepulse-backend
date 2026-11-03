@@ -93,3 +93,19 @@ despite the Stripe tab being present in inventory. This is not a Mac lock or
 an owner login failure. No credentials were exported to bypass browser access.
 The separate closed-sales release makes the next server-side checks possible
 without prematurely deploying PR10's replacement payment handler.
+
+## Unconfirmed ownership retry fix
+
+Found and fixed a risk-inbox edge case: a resolver returning ownershipVerified
+false/null (rather than throwing) previously escaped bounded retry accounting.
+It now follows the same sanitized backoff and ten-attempt manual-review path as
+provider failures. The regression test verifies suppressed premature retries,
+eventual manual review, no entitlement changes and no private detail persistence.
+Local suite passes168/168; membership JavaScript syntax and diff checks pass.
+
+Deployed sandbox billing version21 ACTIVE. Readiness remains isolated/test,
+configured=true, webhookConfigured=true, liveSales=false. This patch is not
+deployed to Production. Customer-facing membership error copy is prepared in
+PR10 for billing detail validation, overseas/mixed-use restriction, unopened
+Live checkout and provider outages; it no longer implies that an existing
+member lost access merely because an action could not be confirmed.
