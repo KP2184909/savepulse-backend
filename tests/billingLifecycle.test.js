@@ -175,6 +175,38 @@ test("fresh Stripe state defeats old active events after cancellation", async ()
   assert.equal((await f.api.status("verified-session")).plan, "free");
 });
 
+test("a stalled webhook is fenced after lease takeover and its retry cannot resurrect canceled access", async () => {
+  const f = fixture(), session = await f.opened(), sub = f.settle(session);
+  await f.api.event(f.event("checkout.session.completed", session, "initial_paid"));
+  let release, entered, reads = 0;
+  const held = new Promise(resolve => { release = resolve; });
+  const started = new Promise(resolve => { entered = resolve; });
+  const worker = createBillingLifecycle({ ...f.options, stripe: async (...args) => {
+    if (args[1] === "/subscriptions/sub_fixture" && ++reads === 2) {
+      entered(); await held;
+    }
+    return f.options.stripe(...args);
+  } });
+  const oldEvent = f.event("customer.subscription.updated", structuredClone(sub), "stalled_old");
+  // Attach rejection handling immediately, including if a later assertion fails.
+  const stalled = worker.event(oldEvent).then(value => ({ value }), error => ({ error }));
+  await started;
+  try {
+    await assert.rejects(f.api.event(f.event("customer.subscription.updated", sub, "busy")), error => error.status === 409 && error.message === "billing_busy_retry");
+    f.advance(90001);
+    sub.status = "canceled";
+    assert.equal((await createBillingLifecycle(f.options).event(f.event("customer.subscription.deleted", sub, "takeover"))).membership.plan, "free");
+  } finally { release(); }
+  const stale = await stalled;
+  assert.equal(stale.error?.message, "billing_busy_retry");
+  assert.equal((await f.api.status("verified-session")).plan, "free");
+  const key = f.api.accountKey("savepulse.cloud@gmail.com");
+  assert.ok(!f.rows.get(key).events.includes(oldEvent.id));
+  assert.equal((await f.api.event(oldEvent)).membership.plan, "free");
+  assert.equal((await f.api.event(oldEvent)).reason, "duplicate_event");
+  assert.equal(f.rows.get(key).membership.status, "canceled");
+});
+
 test("failed renewal never extends paid time; expiry and successful retry are server checked", async () => {
   const f = fixture(), session = await f.opened(), sub = f.settle(session);
   await f.api.event(f.event("checkout.session.completed", session, "paid"));
