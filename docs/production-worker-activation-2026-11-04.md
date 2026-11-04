@@ -25,6 +25,9 @@ No new Checkout, subscription, customer email or actual payment created.
 
 This establishes authenticated worker processing of an empty queue, not valid
 Live Stripe webhook delivery, receipt of lifecycle events or legal tax issuance.
-An automatic cron invocation is verified separately after the first due time.
+Automatic cron run at2026-11-04T04:10:00.110491Z succeeded, completed at
+04:10:02.689039Z. Its independently persisted HTTP result is200/ok=true,
+and the durable heartbeat advanced to1793765401363. This proves a scheduled
+call reached and completed the Production worker without manual invocation.
 The scheduler can wake Render; cold starts may exceed its55-second timeout and
 will be recorded as a generic worker failure for retry at the next run.
