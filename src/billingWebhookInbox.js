@@ -46,10 +46,10 @@ function createBillingWebhookInbox({ store, mode, accountId, processEvent, now =
     const saved = await store.cas(key, claim.version, next);
     return { processed: saved && next.state === "processed", state: saved ? next.state : "lease_lost" };
   }
-  async function tick() {
+  async function tick({ limit = 10 } = {}) {
     const rows = await store.billingWebhookRows(mode, accountId);
     let processed = 0;
-    for (const row of rows) if ((await run(row.key)).processed) processed++;
+    for (const row of rows.slice(0, Math.max(1, Math.min(10, limit)))) if ((await run(row.key)).processed) processed++;
     let saved = false;
     for (let n = 0; n < 3 && !saved; n++) {
       const previous = await store.get(healthKey);

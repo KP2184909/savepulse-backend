@@ -1628,6 +1628,20 @@ async function handleRequest(req, res) {
       return;
     }
 
+    if (req.method === "POST" && url.pathname === "/api/v1/admin/billing/webhook-worker") {
+      res.setHeader("cache-control", "no-store");
+      const expected = process.env.BILLING_WORKER_KEY || "";
+      const provided = String(req.headers["x-savepulse-worker-token"] || "");
+      if (!/^[a-f0-9]{64}$/.test(expected)) { sendJson(res, 503, { error: "billing_worker_not_configured" }); return; }
+      if (!/^[a-f0-9]{64}$/.test(provided) || !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided))) {
+        sendJson(res, 401, { error: "authentication_required" }); return;
+      }
+      if (!billingWebhookInbox) { sendJson(res, 503, { error: "billing_queue_disabled" }); return; }
+      // A scheduled request drains one job. Account leases still fence overlap
+      // with the in-process worker; ingress never waits for this call.
+      const result = await billingWebhookInbox.tick({ limit: 1 });
+      sendJson(res, 200, { ...result, queueHealth: await billingWebhookInbox.summary(), emailsSent: 0 }); return;
+    }
     if (req.method === "GET" && url.pathname === "/api/v1/admin/billing/webhook-queue") {
       res.setHeader("cache-control", "no-store");
       if (!hasAdminSecret(req)) { sendJson(res, 401, { error: "unauthorized_admin_billing" }); return; }
