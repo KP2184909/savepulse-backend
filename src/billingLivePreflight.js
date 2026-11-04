@@ -1,12 +1,7 @@
 "use strict";
-const AMOUNTS = Object.freeze({ plus: 500, pro: 1500, business: 5900 });
-const REQUIRED_EVENTS = Object.freeze([
-  "checkout.session.completed", "checkout.session.async_payment_succeeded", "checkout.session.async_payment_failed",
-  "customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted",
-  "invoice.paid", "invoice.payment_succeeded", "invoice.payment_failed", "invoice.payment_action_required",
-  "charge.refunded", "charge.dispute.created", "radar.early_fraud_warning.created"
-]);
-const keyMode = key => /^(sk|rk)_live_/.test(key || "") ? "live" : "other";
+const { AMOUNTS, EVENTS, keyMode } = require("./billingLifecycle");
+const { TYPES } = require("./billingRiskInbox");
+const REQUIRED_EVENTS = Object.freeze([...EVENTS, ...Object.keys(TYPES)]);
 
 function createLivePreflightReader(env = process.env, fetchImpl = globalThis.fetch) {
   return async (route, parameters = {}) => {

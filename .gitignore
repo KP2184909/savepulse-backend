@@ -7,3 +7,4 @@ npm-debug.log*
 *.zip
 savepulse-netlify-drop-*.zip
 prototypes/
+supabase/functions/savepulse-billing-sandbox/shared/

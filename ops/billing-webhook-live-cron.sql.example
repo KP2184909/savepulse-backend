@@ -1,0 +1,23 @@
+-- PREPARED ONLY. Run in SavePulse Production after the Render worker route
+-- is deployed, its dedicated credential configured, and staging QA accepted.
+-- Never paste a token into this file or a cron command.
+-- Vault secret savepulse_billing_worker_token must match BILLING_WORKER_KEY
+-- in Render. Existing cron/pg_net/Vault must be verified before execution.
+do $$
+begin
+  if not exists(select 1 from vault.decrypted_secrets
+    where name='savepulse_billing_worker_token' and decrypted_secret ~ '^[a-f0-9]{64}$') then
+    raise exception 'Dedicated worker credential must be configured securely first';
+  end if;
+end $$;
+select cron.schedule('savepulse-billing-webhook-live-worker','*/5 * * * *',$job$
+  select net.http_post(
+    url:='https://savepulse-backend.onrender.com/api/v1/admin/billing/webhook-worker',
+    headers:=jsonb_build_object('Content-Type','application/json','x-savepulse-worker-token',
+      (select decrypted_secret from vault.decrypted_secrets where name='savepulse_billing_worker_token')),
+    body:='{}'::jsonb,
+    timeout_milliseconds:=60000
+  );
+$job$);
+-- SQL cron success means enqueued HTTP, not successful application processing.
+-- Verify HTTP response AND advancing queue worker heartbeat separately.

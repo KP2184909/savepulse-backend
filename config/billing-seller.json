@@ -1,0 +1,13 @@
+{
+  "legalNameTh": "บริษัท เดอะ คอนเนคเตอร์ จำกัด",
+  "taxId": "0125554006077",
+  "branchCode": "00000",
+  "branchNameTh": "สำนักงานใหญ่",
+  "addressTh": "43/49 หมู่ 5 ตำบลบางกรวย อำเภอบางกรวย จังหวัดนนทบุรี 11130",
+  "country": "TH",
+  "vatRegistered": true,
+  "stripeMerchantConfirmedByOwner": true,
+  "confirmedOn": "2026-10-29",
+  "priceTaxBehavior": "inclusive",
+  "liveTaxInvoiceEnabled": false
+}

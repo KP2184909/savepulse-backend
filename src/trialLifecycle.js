@@ -41,9 +41,33 @@ function createTrialStore(env = process.env, fetchImpl = globalThis.fetch) {
         if (rows.length < 1000) return all;
       }
     },
+    async billingWebhookRows(mode, accountId, summary = false) {
+      if (!["test", "live"].includes(mode) || !/^acct_\w+$/.test(accountId || "")) throw fail("billing_inbox_configuration_invalid");
+      const prefix = `billing-webhook:v1:${mode}:${accountId}:`;
+      const query = new URLSearchParams({ key: `like.${prefix}*`, select: "key,value",
+        "value->>state": summary ? "in.(pending,working,manual_review_required)" : "in.(pending,working)",
+        order: "updated_at.asc,key.asc", limit: summary ? "101" : "10" });
+      if (!summary) { query.set("value->>nextAttemptAt", `lte.${Date.now()}`); query.set("value->>leaseUntil", `lte.${Date.now()}`); }
+      return (await request(`scheduler_state?${query}`)).filter(row => row.key?.startsWith(prefix)).map(row => ({ ...row.value, key: row.key }));
+    },
+    async billingRiskRows(mode, accountId, pendingOnly) {
+      if (!["test", "live"].includes(mode) || !/^acct_\w+$/.test(accountId || "")) throw fail("billing_risk_configuration_invalid");
+      const prefix = `billing-risk:v1:${mode}:${accountId}:`;
+      const query = new URLSearchParams({ key: `like.${prefix}*`, select: "key,value",
+        order: "updated_at.asc,key.asc", limit: pendingOnly ? "10" : "100" });
+      if (pendingOnly) {
+        query.set("value->>state", "eq.pending_review");
+        query.set("or", `(value->>nextAttemptAt.is.null,value->>nextAttemptAt.lte.${Date.now()})`);
+      }
+      const rows = await request(`scheduler_state?${query}`);
+      return rows.filter(row => row.key?.startsWith(prefix)).map(row => ({ ...row.value, key: row.key }));
+    },
     async paidPlan(email) {
       const rows = await request(`subscribers?email=eq.${encodeURIComponent(email)}&select=plan,payload&limit=1`);
       // Trial never writes the subscriber's paid record. Billing remains authoritative.
+      // A v2 mirror is only a recipient index; missing authoritative billing data
+      // must never restore a cached paid plan from that mirror.
+      if (env.BILLING_V2_ENABLED === "true" && rows[0]?.payload?.billing?.version === 2) return "free";
       const plan = rows[0]?.plan || rows[0]?.payload?.plan;
       return ["plus", "pro", "business"].includes(plan) ? plan : "free";
     }
@@ -222,4 +246,4 @@ function createTrialLifecycle({ store, send, now = Date.now, enabled = true }) {
   }
   return { requestCode, verify, status, start, cancel, tick, identity, logout, qaReminder };
 }
-module.exports = { createTrialStore, createTrialMailer, createTrialLifecycle, accountKey, DAY };
+module.exports = { createTrialStore, createTrialMailer, createTrialLifecycle, canonicalEmail, accountKey, DAY };

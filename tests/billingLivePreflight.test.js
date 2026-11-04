@@ -1,7 +1,7 @@
 "use strict";
 const test = require("node:test"), assert = require("node:assert/strict");
 const { inspectLiveBilling, REQUIRED_EVENTS } = require("../src/billingLivePreflight");
-const EVENTS = REQUIRED_EVENTS.slice(0,10), AMOUNTS = { plus:500, pro:1500, business:5900 };
+const { EVENTS, AMOUNTS } = require("../src/billingLifecycle");
 function fixture() {
   const env = { STRIPE_SECRET_KEY: "sk_live_fixture", STRIPE_EXPECTED_ACCOUNT_ID: "acct_fixture", APP_BASE_URL: "https://savepulse.cloud", STRIPE_PRICE_PLUS: "price_plus", STRIPE_PRICE_PRO: "price_pro", STRIPE_PRICE_BUSINESS: "price_business", BILLING_DOMESTIC_VAT_ENABLED: "true", STRIPE_MANUAL_TAX_RATE: "txr_fixture", STRIPE_WEBHOOK_SECRET: "fixture" };
   const calls = [], objects = {
