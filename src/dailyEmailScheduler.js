@@ -37,6 +37,16 @@ function asDate(value) {
 }
 
 function signalTimestamp(signal = {}) {
+  // Market observation time is authoritative. A replayed webhook must not
+  // refresh old data merely by changing its receipt/update timestamp.
+  const sourceTimes = [signal.pine?.barTime, signal.pine?.bar_time, signal.barTime, signal.bar_time];
+  const supplied = sourceTimes.filter(value => value !== undefined && value !== null && value !== "");
+  if (supplied.length) {
+    const parsed = supplied.map(asDate);
+    if (parsed.some(value => !value)) return null;
+    return parsed.sort((a, b) => a.getTime() - b.getTime())[0];
+  }
+  if (signal.source === "tradingview" || signal.pine) return null;
   const candidates = [
     signal.receivedAt,
     signal.received_at,
