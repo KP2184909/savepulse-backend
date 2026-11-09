@@ -226,7 +226,7 @@ test("failed renewal never extends paid time; expiry and successful retry are se
 test("an unpaid plan upgrade cannot inherit the higher entitlement from an earlier paid plan", async () => {
   const f = fixture(), session = await f.opened("plus"), sub = f.settle(session, "plus");
   await f.api.event(f.event("checkout.session.completed", session, "plus_paid"));
-  sub.items.data[0].price = { id: "price_pro", currency: "usd", unit_amount: 1500 };
+  sub.items.data[0].price = { id: "price_pro", currency: "usd", unit_amount: 3900 };
   sub.latest_invoice.status = "open";
   await f.api.event(f.event("customer.subscription.updated", sub, "unpaid_upgrade"));
   assert.equal((await f.api.status("verified-session")).plan, "plus");
@@ -263,7 +263,7 @@ test("restricted API key modes are recognized and provider errors are sanitized"
  test("tax draft source requires a paid invoice bound to this account and matching customer", async () => {
   const f = fixture(), session = await f.opened();
   const sub = f.settle(session);
-  Object.assign(sub.latest_invoice, { currency: "usd", amount_paid: 1500 });
+  Object.assign(sub.latest_invoice, { currency: "usd", amount_paid: 3900 });
   assert.equal((await f.api.paidInvoiceForTaxDraft("in_fixture")).id,"in_fixture");
   sub.latest_invoice.customer="cus_other";
   await assert.rejects(f.api.paidInvoiceForTaxDraft("in_fixture"),/billing_bound_invoice_required/);
@@ -290,7 +290,7 @@ test("tax source uses invoice VAT snapshot and sends adjustments or exemptions f
   f.env.BILLING_DOMESTIC_VAT_ENABLED = "true";
   f.env.STRIPE_MANUAL_TAX_RATE = "txr_fixture";
   const invoice = sub.latest_invoice;
-  Object.assign(invoice, { currency: "usd", amount_paid: 1500, total: 1500, amount_remaining: 0,
+  Object.assign(invoice, { currency: "usd", amount_paid: 3900, total: 3900, amount_remaining: 0,
     amount_shipping: 0, customer_tax_exempt: "none", default_tax_rates: [{ id: "txr_fixture" }] });
   // A later subscription edit must not rewrite the tax treatment of a paid invoice.
   sub.default_tax_rates = [];
@@ -306,4 +306,15 @@ test("tax source uses invoice VAT snapshot and sends adjustments or exemptions f
     await assert.rejects(f.api.paidInvoiceForTaxDraft("in_fixture", true), /billing_invoice_tax_review_required/);
     Object.keys(invoice).forEach(key => delete invoice[key]); Object.assign(invoice, original);
   }
+});
+
+
+test("legacy Pro keeps its paid access at USD15 without changing new checkout price", async () => {
+  const f = fixture(); const session = await f.opened(); const sub = f.settle(session);
+  f.env.STRIPE_PRICE_PRO_LEGACY = "price_pro_legacy";
+  sub.items.data[0].price = { id: "price_pro_legacy", currency: "usd", unit_amount: 1500 };
+  sub.latest_invoice.lines.data[0].pricing.price_details.price = "price_pro_legacy";
+  await f.api.event(f.event("customer.subscription.updated", sub));
+  assert.equal((await f.api.status("verified-session")).plan, "pro");
+  assert.equal(AMOUNTS.pro, 3900);
 });

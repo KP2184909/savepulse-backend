@@ -1,4 +1,5 @@
 "use strict";
+const { currentPriceId } = require("./billingPriceRevision");
 const { AMOUNTS, EVENTS, keyMode } = require("./billingLifecycle");
 const { TYPES } = require("./billingRiskInbox");
 const REQUIRED_EVENTS = Object.freeze([...EVENTS, ...Object.keys(TYPES)]);
@@ -36,7 +37,7 @@ async function inspectLiveBilling({ env, get, now = Date.now() }) {
   });
   if (checks.at(-1).result !== "PASS") return { ready: false, scope: "configuration_only", checks };
   for (const [plan, amount] of Object.entries(AMOUNTS)) await check(`price_${plan}`, async () => {
-    const priceId = env[`STRIPE_PRICE_${plan.toUpperCase()}`];
+    const priceId = currentPriceId(env, plan);
     if (!/^price_\w+$/.test(priceId || "")) return false;
     const p = await get(`/prices/${priceId}`);
     return p.active === true && p.livemode === true && p.currency === "usd" && p.unit_amount === amount &&

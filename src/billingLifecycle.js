@@ -1,11 +1,12 @@
 "use strict";
 
+const { currentPriceId, legacyProPriceId } = require("./billingPriceRevision");
 const crypto = require("node:crypto");
 const { canonicalEmail } = require("./trialLifecycle");
 const fail = (code, status = 503) => Object.assign(new Error(code), { status });
 const hash = value => crypto.createHash("sha256").update(value).digest("hex");
 const id = value => typeof value === "string" ? value : value?.id;
-const AMOUNTS = Object.freeze({ plus: 500, pro: 1500, business: 5900 });
+const AMOUNTS = Object.freeze({ plus: 500, pro: 3900, business: 5900 });
 const EVENTS = Object.freeze([
   "checkout.session.completed", "checkout.session.async_payment_succeeded", "checkout.session.async_payment_failed",
   "customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted",
@@ -47,7 +48,7 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
   const expectedAccount = env.STRIPE_EXPECTED_ACCOUNT_ID || "";
   const prefix = `billing:v2:${mode}:${expectedAccount}:`;
   const enabled = env.BILLING_V2_ENABLED === "true";
-  const prices = Object.fromEntries(Object.keys(AMOUNTS).map(plan => [plan, env[`STRIPE_PRICE_${plan.toUpperCase()}`] || ""]));
+  const prices = Object.fromEntries(Object.keys(AMOUNTS).map(plan => [plan, currentPriceId(env, plan) || ""]));
   const accountKey = email => `${prefix}${hash(canonicalEmail(email))}`;
   const baseUrl = String(env.APP_BASE_URL || "").replace(/\/$/, "");
   let verifiedAccount = false;
@@ -122,11 +123,12 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
     if (session.livemode !== (mode === "live") || session.mode !== "subscription" || session.metadata?.billing_account !== row.accountRef || session.metadata?.billing_attempt !== subscription.metadata.billing_attempt || id(session.subscription) !== subscription.id || id(session.customer) !== id(subscription.customer)) throw fail("billing_binding_mismatch", 422);
     const items = subscription.items?.data || [];
     const price = items[0]?.price;
-    const plan = Object.keys(prices).find(plan => prices[plan] === id(price));
-    if (items.length !== 1 || items[0].quantity !== 1 || !plan || price.currency !== "usd" || price.unit_amount !== AMOUNTS[plan]) throw fail("billing_price_mismatch", 422);
+    const legacyPro = id(price) === legacyProPriceId(env) && Boolean(legacyProPriceId(env));
+    const plan = legacyPro ? "pro" : Object.keys(prices).find(plan => prices[plan] === id(price));
+    if (items.length !== 1 || items[0].quantity !== 1 || !plan || price.currency !== "usd" || price.unit_amount !== (legacyPro ? 1500 : AMOUNTS[plan])) throw fail("billing_price_mismatch", 422);
     const invoice = subscription.latest_invoice;
     const invoiceSubscription = id(invoice?.subscription) || id(invoice?.parent?.subscription_details?.subscription);
-    const line = invoice?.lines?.data?.find(line => (id(line.price) || id(line.pricing?.price_details?.price)) === prices[plan]);
+    const line = invoice?.lines?.data?.find(line => (id(line.price) || id(line.pricing?.price_details?.price)) === id(price));
     const end = Number(items[0].current_period_end || subscription.current_period_end || 0);
     const paid = session.status === "complete" && session.payment_status === "paid" && invoice?.status === "paid" && invoice.livemode === (mode === "live") && id(invoice.customer) === id(subscription.customer) && invoiceSubscription === subscription.id && line?.period?.start <= now() / 1000 && line?.period?.end > now() / 1000;
     const previous = row.membership?.subscriptionId === subscription.id ? row.membership : null;

@@ -55,7 +55,7 @@ const PLANS = Object.freeze({
     id: "pro",
     name: "Pro",
     audience: "Serious savers tracking currencies, gold, and bitcoin.",
-    prices: { thbMonthly: 499, usdMonthly: 15 },
+    prices: { thbMonthly: 499, usdMonthly: 39 },
     watchlistLimit: 20,
     assetUniverse: ALL_ASSETS,
     alertChannels: ["email", "line", "telegram"],
