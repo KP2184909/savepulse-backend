@@ -6,10 +6,10 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const out = path.join(root, "supabase/functions/savepulse-billing-sandbox/shared");
 fs.mkdirSync(out, { recursive: true });
-for (const name of ["billingWebhookInbox", "billingRiskOperations", "taxDeliveryWorker", "billingRiskResolver", "billingRiskInbox", "trialLifecycle", "billingLifecycle", "stripeSignature", "botTaxFx", "taxDocumentLedger", "thaiTaxInvoiceDraft", "thaiCreditNote", "taxDocumentJobs", "taxFxPolicy"]) {
+for (const name of ["billingPriceRevision", "billingWebhookInbox", "billingRiskOperations", "taxDeliveryWorker", "billingRiskResolver", "billingRiskInbox", "trialLifecycle", "billingLifecycle", "stripeSignature", "botTaxFx", "taxDocumentLedger", "thaiTaxInvoiceDraft", "thaiCreditNote", "taxDocumentJobs", "taxFxPolicy"]) {
   const input = fs.readFileSync(path.join(root, `src/${name}.js`), "utf8");
   let result = input.replace('"use strict";\n', "").replace('const crypto = require("node:crypto");', 'import crypto from "node:crypto";');
-  for (const dependency of ["billingRiskInbox", "billingRiskResolver", "billingLifecycle"]) {
+  for (const dependency of ["billingPriceRevision", "billingRiskInbox", "billingRiskResolver", "billingLifecycle"]) {
     result = result.replace(new RegExp('const \\{ ([^}]+) \\} = require\\("\\./' + dependency + '"\\);'), 'import { $1 } from "./' + dependency + '.mjs";');
   }
   result = result.replace('const { canonicalEmail } = require("./trialLifecycle");', 'import { canonicalEmail } from "./trialLifecycle.mjs";');
