@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { createBillingSandboxClock } from "./shared/billingSandboxClock.mjs";
 import { createBillingWebhookInbox } from "./shared/billingWebhookInbox.mjs";
 import { runTaxDeliveryWorker } from "./shared/taxDeliveryWorker.mjs";
 import { createBillingRiskResolver } from "./shared/billingRiskResolver.mjs";
@@ -44,12 +45,13 @@ async function identity(token: string) {
   if (data.email !== testEmail) throw fail("billing_test_mailbox_required", 403);
   return data.email;
 }
-const stripe = createStripeApi(env);
-const billing = createBillingLifecycle({ store, stripe, identity, env });
+const stripe = createStripeApi(env, fetch, { sandboxClockRoutes: true });
+const simulation = createBillingSandboxClock({ store, stripe, env });
+const billing = createBillingLifecycle({ store, stripe: simulation.stripe, identity, env, now: simulation.now });
 const webhookInbox = createBillingWebhookInbox({ store, mode: "test", accountId: env.STRIPE_EXPECTED_ACCOUNT_ID,
   processEvent: async event => {
     const result = await billing.event(event);
-    if ((result.updated || result.reason === "duplicate_event") && result.email === testEmail && ["invoice.paid", "invoice.payment_succeeded"].includes(event.type)) await taxJobs.enqueue(event.data.object.id);
+    if (!simulation.active() && (result.updated || result.reason === "duplicate_event") && result.email === testEmail && ["invoice.paid", "invoice.payment_succeeded"].includes(event.type)) await taxJobs.enqueue(event.data.object.id);
   } });
 const riskResolver = createBillingRiskResolver({stripe,mode:"test",accountId:env.STRIPE_EXPECTED_ACCOUNT_ID,invoiceSource:invoiceId=>billing.paidInvoiceForTaxDraft(invoiceId,true)});
 const riskOperations = createBillingRiskOperations({store,stripe,env,invoiceSource:invoiceId=>billing.paidInvoiceForTaxDraft(invoiceId,true)})!;
@@ -67,6 +69,7 @@ async function ensureSandboxTaxRate() {
 }
 const taxLedger = createTaxDocumentLedger({ store, mode: "test", source: async invoiceId => {
   const context = await billing.paidInvoiceForTaxDraft(invoiceId, true);
+  if (context.payment.test_clock) throw fail("billing_simulation_tax_documents_disabled",409);
   if (context.recipient !== testEmail || !context.customer) throw fail("billing_tax_profile_missing",422);
   const selection = selectBotTaxRateDate(context.payment.status_transitions.paid_at);
   const evidence = await createBotTaxFx({ token: Deno.env.get("BOT_EXCHANGE_RATE_API_KEY"), store })(selection.rateDate);
@@ -88,7 +91,7 @@ const taxJobs = createTaxDocumentJobs({ store, mode: "test", issue: invoiceId =>
 function json(data: unknown, status = 200) {
   return Response.json(data, { status, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" } });
 }
-Deno.serve(async request => {
+async function handle(request: Request) {
   const operation = new URL(request.url).pathname.split("/").filter(Boolean).at(-1);
   try {
     if (env.SUPABASE_URL !== projectUrl) throw fail("sandbox_project_mismatch");
@@ -99,10 +102,21 @@ Deno.serve(async request => {
       const provided = request.headers.get("x-savepulse-worker-token") || "";
       if (!/^[a-f0-9]{64}$/.test(expected) || !/^[a-f0-9]{64}$/.test(provided) || !crypto.timingSafeEqual(new TextEncoder().encode(provided),new TextEncoder().encode(expected))) throw fail("authentication_required",401);
       const workerInput = await request.json().catch(() => ({}));
+      if (workerInput.finishClockScenario === true) {
+        const account = await store.get(billing.accountKey(testEmail));
+        if (account?.membership && !["canceled", "incomplete_expired"].includes(account.membership.status)) throw fail("billing_simulation_membership_active",409);
+        return json(await simulation.suspend());
+      }
+      if (workerInput.prepareClockScenario === true) {
+        const account = await store.get(billing.accountKey(testEmail));
+        if (account?.membership && !["canceled", "incomplete_expired"].includes(account.membership.status)) throw fail("billing_simulation_membership_active",409);
+        return json(await simulation.prepare());
+      }
       if (workerInput.queueStatusOnly === true) return json({mode:"test",queueHealth:await webhookInbox.summary(),emailsSent:0});
       await ensureSandboxTaxRate();
       const webhookQueue = await webhookInbox.tick();
       if (workerInput.queueOnly === true) return json({ mode: "test", webhookQueue, emailsSent: 0 });
+      if (simulation.active()) return json({ mode:"test", simulation:true, webhookQueue, emailsSent:0, taxDocumentsDisabled:true });
       if(workerInput.creditNote) {
         const {period,invoiceId,refundId}=workerInput.creditNote;
         const document=await taxLedger.credit(period,invoiceId,refundId);
@@ -121,7 +135,7 @@ Deno.serve(async request => {
       const account = await store.get(billing.accountKey(testEmail));
       if(account?.membership?.subscriptionId){
         const subscription=await stripe("GET",`/subscriptions/${account.membership.subscriptionId}`,{expand:["latest_invoice"]});
-        if(subscription.latest_invoice?.status === "paid") await taxJobs.enqueue(subscription.latest_invoice.id);
+        if(!subscription.test_clock && subscription.latest_invoice?.status === "paid") await taxJobs.enqueue(subscription.latest_invoice.id);
       }
       const { processed: risksVerified } = await riskOperations.tick();
       const query = new URLSearchParams({select:"key,value",key:"like.tax-job:v1:test:*","value->>state":"in.(pending,retry,working)",order:"updated_at.asc",limit:"20"});
@@ -163,11 +177,13 @@ Deno.serve(async request => {
     }
     if (request.method === "POST" && operation === "tax-document") {
       const email = await identity(token);
+      if (simulation.active()) throw fail("billing_simulation_tax_documents_disabled",409);
       const raw = await request.text(); if (raw.length > 2048) throw fail("request_too_large",413);
       const body = JSON.parse(raw);
       const row = await store.get(billing.accountKey(email));
       if (!row?.membership?.subscriptionId) throw fail("billing_invoice_required",422);
       const subscription = await stripe("GET", `/subscriptions/${row.membership.subscriptionId}`);
+      if (subscription.test_clock) throw fail("billing_simulation_tax_documents_disabled",409);
       const latest = typeof subscription.latest_invoice === "string" ? subscription.latest_invoice : subscription.latest_invoice?.id;
       if (!latest || (body.invoiceId && body.invoiceId !== latest)) throw fail("billing_invoice_required",422);
       await ensureSandboxTaxRate();
@@ -193,4 +209,10 @@ Deno.serve(async request => {
     const allowed = /^(credit_|tax_fx_|tax_document_|billing_|authentication_required|verified_email_mismatch|invalid_stripe_signature|sandbox_project_mismatch|request_too_large|trial_storage_unavailable)/;
     return json({ error: allowed.test(error.message) ? error.message : "billing_unavailable" }, error.status || 503);
   }
+}
+Deno.serve(async request => {
+  const operation = new URL(request.url).pathname.split("/").filter(Boolean).at(-1);
+  if (["readiness", "catalog", "webhook"].includes(operation || "")) return handle(request);
+  try { return await simulation.run(() => handle(request)); }
+  catch (_) { return json({error:"billing_simulation_clock_unavailable"},503); }
 });

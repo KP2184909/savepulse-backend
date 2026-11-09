@@ -6,9 +6,10 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const out = path.join(root, "supabase/functions/savepulse-billing-sandbox/shared");
 fs.mkdirSync(out, { recursive: true });
-for (const name of ["billingPriceRevision", "billingWebhookInbox", "billingRiskOperations", "taxDeliveryWorker", "billingRiskResolver", "billingRiskInbox", "trialLifecycle", "billingLifecycle", "stripeSignature", "botTaxFx", "taxDocumentLedger", "thaiTaxInvoiceDraft", "thaiCreditNote", "taxDocumentJobs", "taxFxPolicy"]) {
+for (const name of ["billingSandboxClock", "billingPriceRevision", "billingWebhookInbox", "billingRiskOperations", "taxDeliveryWorker", "billingRiskResolver", "billingRiskInbox", "trialLifecycle", "billingLifecycle", "stripeSignature", "botTaxFx", "taxDocumentLedger", "thaiTaxInvoiceDraft", "thaiCreditNote", "taxDocumentJobs", "taxFxPolicy"]) {
   const input = fs.readFileSync(path.join(root, `src/${name}.js`), "utf8");
   let result = input.replace('"use strict";\n', "").replace('const crypto = require("node:crypto");', 'import crypto from "node:crypto";');
+  result = result.replace('const { AsyncLocalStorage } = require("node:async_hooks");', 'import { AsyncLocalStorage } from "node:async_hooks";');
   for (const dependency of ["billingPriceRevision", "billingRiskInbox", "billingRiskResolver", "billingLifecycle"]) {
     result = result.replace(new RegExp('const \\{ ([^}]+) \\} = require\\("\\./' + dependency + '"\\);'), 'import { $1 } from "./' + dependency + '.mjs";');
   }

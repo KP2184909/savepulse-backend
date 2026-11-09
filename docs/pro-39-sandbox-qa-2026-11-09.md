@@ -18,7 +18,9 @@ Deployed savepulse-billing-sandbox version27 ACTIVE, retaining verify_jwt=false 
 | Fresh email verification | PASS |Owner entered OTP in Preview10; authenticated checkout succeeded |
 | New USD39 sandbox payment | PASS |Stripe Checkout livemode=false, USD3900 total; invoice in_1UZjs20su7h1AsZTVDyLMWqW paid; subscription sub_1UZjs40su7h1AsZTYfQm1wmA active |
 | Pro entitlement after reload | PASS |Preview10 server-confirmed pro/active through 9 December 2026; repeat checkout disabled |
-| USD39 renewal/failure | NOT VERIFIED |New price has not yet completed a successful renewal/payment-failure cycle. The completed clock test below establishes cancellation expiry only. |
+| USD39 monthly renewal | PASS |Dedicated clock clock_1UZudl0su7h1AsZTc4yPfKN8; customer cus_Vb6rpnHG3fNEWx; subscription sub_1UZuh80su7h1AsZToObZM15H. Renewal invoice in_1UZui90su7h1AsZTcMu9zmHK: subscription_cycle, amount_paid3900. Server paidUntil advanced to1799509069. |
+| USD39 failed renewal | PASS |Invoice in_1UZujx0su7h1AsZTqhqS5L1A: attempted=true, amount_due3900, amount_paid0; Stripe past_due. Signed queue processed4; server paidUntil remained1799509069; Preview10 free/past_due. |
+| Recovery after failed payment | PASS |Same failed invoice paid using a successful predefined test card; amount_paid3900. Server active/paidUntil1802187469; Preview10 pro/active through9February2027. |
 | End of canceled period | PASS |Stripe Dashboard simulation advanced this QA customer to 2026-12-09 15:06 UTC; subscription canceled. Signed event processed by sandbox queue (HTTP200, processed1, emailsSent0). Preview10 shows free/canceled. No Production time or real customer expiry changed. |
 | USD39 portal cancellation | PASS |Portal cancellation accepted; webhook queue processed; Preview10 shows Renewal off (cancellation scheduled), Pro retained through 9 December. Stripe may use cancel_at rather than cancel_at_period_end; UI handles both. |
 | USD39 test tax document | PASS |TEST-SP-TI-202611-000001, source invoice above; BOT 2026-11-06 USD/THB33.3142; THB1214.25 net +85.00 VAT =1299.25; TEST ONLY |
@@ -30,8 +32,14 @@ No secrets, OTPs, private bindings or customer lists are included here. The only
 
 Browser proof captured locally: pro-active-after-reload.png, tax-document-39.png, cancellation-confirmed.png in /tmp/savepulse-sandbox39-qa. Manual queue-only drain returned HTTP200 processed1 and emailsSent0. A prior attempt used pg_net default5s and timed out; bounded60s invocation succeeded.
 
-## Continuation constraints after the cancellation simulation
+## Controlled renewal simulation
 
-Stripe has moved this QA customer's simulated time to 9 December 2026. Do not treat new invoices from that future clock as current-time payments, alter Production clocks, or clear membership/binding history to force a renewal pass. Successful renewal and failed-renewal QA need a separate controlled simulation with the application's injected test time aligned to the verified Stripe test clock. The shared lifecycle already accepts an injected `now`; the deployed sandbox currently uses real wall time, so future invoice period checks must remain strict until that isolated test path is implemented and reviewed.
+Added test-only clock adapter using AsyncLocalStorage so overlapping requests cannot share the wrong clock. It checks exact Supabase project, Stripe account, test key, authorized QA email, customer-to-clock binding, ready state and a bounded time range. Production does not import the adapter and provider clock routes default off. Explicit opt-in still rejects Live keys, other projects and DELETE routes. Existing membership/binding history is retained.
 
-References: https://docs.stripe.com/billing/testing (test clocks, subscription lifecycle tests, and distinction between synthetic events and full lifecycle).
+Preparation uses a protected existing worker endpoint. Clock-aware Checkout substitutes only its verified test customer, preserves server session bindings and uses customer_update name/address=auto for Stripe Tax ID collection. Failed HTTP400 pre-execution checkout was inspected and corrected before retrying. No real payment, card, credential or Production clock was used.
+
+Simulation invoices cannot generate tax documents/email. Automatic tax recovery skips test-clock subscriptions, and manual/ledger paths reject simulated invoices. During clock advancement the application fails closed until Stripe says ready. A final cancellation was scheduled and the clock advanced to10February2027; Stripe confirmed canceled. Cleanup completed: queued deletion reconciled, membership canceled, worker finish returned HTTP200/simulation=false/emailsSent0 and persisted enabled=false, retaining audit identifiers. Deployed sandbox function version31 ACTIVE. Production was not deployed by this work.
+
+Validation:193/193 local tests PASS, including project/Live guards, request concurrency, customer isolation, provider route opt-in and suspension. Actual sandbox results above are separate from those local fixtures. Production paid checkout remains disabled; no claim of Live lifecycle QA.
+
+References: https://docs.stripe.com/billing/testing and https://docs.stripe.com/testing (test clocks, full lifecycle versus synthetic events, predefined test cards).
