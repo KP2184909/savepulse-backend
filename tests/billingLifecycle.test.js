@@ -226,7 +226,7 @@ test("failed renewal never extends paid time; expiry and successful retry are se
 test("an unpaid plan upgrade cannot inherit the higher entitlement from an earlier paid plan", async () => {
   const f = fixture(), session = await f.opened("plus"), sub = f.settle(session, "plus");
   await f.api.event(f.event("checkout.session.completed", session, "plus_paid"));
-  sub.items.data[0].price = { id: "price_pro", currency: "usd", unit_amount: 3900 };
+  sub.items.data[0].price = { id: "price_pro", currency: "usd", unit_amount: 4900 };
   sub.latest_invoice.status = "open";
   await f.api.event(f.event("customer.subscription.updated", sub, "unpaid_upgrade"));
   assert.equal((await f.api.status("verified-session")).plan, "plus");
@@ -316,5 +316,61 @@ test("legacy Pro keeps its paid access at USD15 without changing new checkout pr
   sub.latest_invoice.lines.data[0].pricing.price_details.price = "price_pro_legacy";
   await f.api.event(f.event("customer.subscription.updated", sub));
   assert.equal((await f.api.status("verified-session")).plan, "pro");
-  assert.equal(AMOUNTS.pro, 3900);
+  assert.equal(AMOUNTS.pro, 4900);
+});
+
+test("prior paid prices keep access, renewal cancellation and portal across the new catalog", async () => {
+  for (const [plan, oldAmount] of Object.entries({ plus: 500, pro: 3900, business: 5900 })) {
+    const f = fixture(), session = await f.opened(plan), sub = f.settle(session, plan);
+    sub.items.data[0].price.unit_amount = oldAmount;
+    f.env[`STRIPE_PRICE_${plan.toUpperCase()}_PREVIOUS`] = `price_${plan}`;
+    f.env[`STRIPE_PRICE_${plan.toUpperCase()}_${AMOUNTS[plan] / 100}`] = `price_revised_${plan}`;
+    const revised = createBillingLifecycle(f.options);
+    await revised.event(f.event("invoice.paid", { subscription: sub.id }, `${plan}_old_paid`));
+    assert.equal((await revised.status("verified-session")).plan, plan);
+    assert.ok((await revised.portal("verified-session")).url.startsWith("https://billing.stripe.com/"));
+    sub.cancel_at_period_end = true;
+    assert.equal((await revised.event(f.event("customer.subscription.updated", sub, `${plan}_cancel`))).membership.renews, false);
+    sub.status = "canceled";
+    await revised.event(f.event("customer.subscription.deleted", sub, `${plan}_ended`));
+    assert.equal((await revised.status("verified-session")).plan, "free");
+    assert.equal(sub.items.data[0].price.unit_amount, oldAmount);
+    assert.equal(f.requests.some(r => r.method === "POST" && r.route.startsWith("/subscriptions/")), false);
+  }
+});
+
+test("old price IDs cannot start new checkout at old amounts", async () => {
+  const f = fixture();
+  const old = createBillingLifecycle({ ...f.options, stripe: async (...args) => {
+    const result = await f.options.stripe(...args);
+    if (args[1] === "/prices/price_plus") result.unit_amount = 500;
+    return result;
+  } });
+  await assert.rejects(old.checkout("verified-session", "plus"), /billing_price_mismatch/);
+  assert.equal(f.sessions.size, 0);
+});
+
+test("price revision expires an open older-price session before creating a replacement", async () => {
+  const f = fixture(), session = await f.opened("plus");
+  const key = f.api.accountKey("savepulse.cloud@gmail.com"), row = f.rows.get(key);
+  row.pending.params.line_items[0].price = "price_plus_old";
+  await f.api.checkout("verified-session", "plus");
+  assert.equal(session.status, "expired");
+  assert.equal(f.sessions.size, 2);
+  assert.equal([...f.sessions.values()].filter(s => s.status === "open").length, 1);
+});
+
+test("ambiguous old-price checkout cannot retry into an outdated payment session", async () => {
+  const f = fixture();
+  const api = createBillingLifecycle({ ...f.options, stripe: async (...args) => {
+    const result = await f.options.stripe(...args);
+    if (args[0] === "POST" && args[1] === "/checkout/sessions") throw Error("lost_response");
+    return result;
+  } });
+  await assert.rejects(api.checkout("verified-session", "plus"), /lost_response/);
+  const row = f.rows.get(api.accountKey("savepulse.cloud@gmail.com"));
+  row.pending.params.line_items[0].price = "price_plus_previous";
+  const before = f.requests.filter(r => r.method === "POST").length;
+  await assert.rejects(f.api.checkout("verified-session", "plus"), /billing_checkout_needs_review/);
+  assert.equal(f.requests.filter(r => r.method === "POST").length, before);
 });
