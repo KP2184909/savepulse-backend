@@ -7,7 +7,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { ACTIONS, TRACKED_ASSETS } = require("../src/signalEngine");
 const { buildDailyDigestEmail } = require("../src/dailyDigestEmail");
-const { signalsForSubscriber } = require("../src/dailyEmailScheduler");
+const { signalsForSubscriber, assessSignalReadiness } = require("../src/dailyEmailScheduler");
 
 const tempDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "savepulse-digest-"));
 
@@ -253,4 +253,19 @@ test("daily email recipient allowlist limits automatic pilot recipients", () => 
     dailyDigestCandidates("", "", env).map((record) => record.email),
     ["owner@example.com", "pilot@example.com"]
   );
+});
+
+ test("a fresh receipt cannot rejuvenate an old, future or invalid source bar", () => {
+  const now = new Date("2026-11-10T02:00:00Z");
+  for (const barTime of ["2026-06-01T00:00:00Z", "2026-11-12T00:00:00Z", "invalid"]) {
+    const result = assessSignalReadiness(completeSignals(now.toISOString(), {
+      USDTHB: { payload: { pine: { barTime } } }
+    }), { now });
+    assert.equal(result.ready, false);
+    assert.ok(result.staleSymbols.includes("USDTHB"));
+  }
+  const fresh = assessSignalReadiness(completeSignals(now.toISOString(), {
+    USDTHB: { payload: { pine: { barTime: now.getTime() } } }
+  }), { now });
+  assert.equal(fresh.ready, true);
 });

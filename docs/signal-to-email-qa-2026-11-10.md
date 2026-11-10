@@ -57,3 +57,11 @@ The temporary `savepulse-digest-qa` function in the isolated sandbox required th
 Replaced the hardcoded 08:30 daily-update promise in all four bilingual email templates with “Snapshot at preparation time” / “สรุปข้อมูล ณ เวลาจัดทำ”. Scheduler configuration still defaults to 08:30 Asia/Bangkok, but configuration alone is not evidence of successful scheduled delivery. Regression checks both languages and all plans; full local suite: 201/201 pass. This follow-up remains a candidate in PR21; the three already received QA emails contain the prior copy and were not resent.
 
 Data-use authorization remains unverified per the owner's decision to continue development first. This is a status record, not a representation that authorization is unnecessary. Production customer sending and paid launch were not enabled.
+
+## Follow-up: scheduled-send source freshness
+
+Inspected the actual bootstrap: `bootstrap.js` loads `serverRuntime.js`, which calls `runScheduledDailyDigest` every five minutes. Scheduling requires the enable flag and an explicit recipient allowlist; code existence does not establish current Live environment values or an executed run. No enable flag or allowlist was changed.
+
+Fixed readiness so an explicit source time (`sourceUpdatedAt`, nested `payload.pine.barTime`, or bar/time fields) takes precedence over webhook receipt/update timestamps. Conflicting source dates use the oldest date conservatively; malformed source times fail closed. Records lacking source timestamps retain receipt-based legacy compatibility and therefore do not independently prove source freshness. Regression covers stale replay, future bar, malformed bar and a valid fresh millisecond bar; full local suite: 202/202 pass. These checks validate timestamps as supplied, not the upstream provider's actual update cadence.
+
+Candidate remains in PR21, not deployed. Next operational verification is a read-only Live configuration/last-run inspection, followed by an isolated recipient-only scheduled test; no customer send is authorized by these local tests.
