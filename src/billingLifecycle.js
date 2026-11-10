@@ -20,10 +20,11 @@ function keyMode(key) {
 }
 
 // Server-side transport only. Provider errors never echo keys, request bodies or URLs.
-function createStripeApi(env = process.env, fetchImpl = globalThis.fetch) {
+function createStripeApi(env = process.env, fetchImpl = globalThis.fetch, { sandboxClockRoutes = false } = {}) {
   const key = env.STRIPE_SECRET_KEY || env.STRIPE_API_KEY || "";
   return async function stripe(method, route, values = {}, idempotencyKey) {
-    if (!key || !/^\/(account|refunds|charges|disputes|radar\/early_fraud_warnings|invoice_payments|prices|invoices|tax_rates|checkout\/sessions|subscriptions|billing_portal\/sessions)(\/|$)/.test(route)) throw fail("billing_unavailable");
+    const clockRoute = sandboxClockRoutes && keyMode(key) === "test" && env.SUPABASE_URL === "https://sktzydyiwqylpstxjicf.supabase.co" && env.STRIPE_EXPECTED_ACCOUNT_ID === "acct_1TbuPE0su7h1AsZT" && ["GET", "POST"].includes(method) && /^\/(customers|test_helpers\/test_clocks)(\/|$)/.test(route);
+    if (!key || (!clockRoute && !/^\/(account|refunds|charges|disputes|radar\/early_fraud_warnings|invoice_payments|prices|invoices|tax_rates|checkout\/sessions|subscriptions|billing_portal\/sessions)(\/|$)/.test(route))) throw fail("billing_unavailable");
     if (/^\/(refunds|charges|disputes|radar\/early_fraud_warnings|invoice_payments)(\/|$)/.test(route) && method !== "GET") throw fail("billing_read_only_route");
     const form = new URLSearchParams();
     const encode = (prefix, value) => {
@@ -229,7 +230,7 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
   async function reconcileEmail(email) {
     requireEnabled();
     const row = await store.get(accountKey(email));
-    if (!row?.membership) {
+    if (!row?.membership || (row.pending?.sessionId && ["canceled", "incomplete_expired"].includes(row.membership.status))) {
       if (!row?.pending?.sessionId) return publicStatus(row);
       await verifyAccount();
       return locked(accountKey(email), async ctx => {
@@ -238,7 +239,8 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
         return sync(ctx, await freshSubscription(id(session.subscription)));
       });
     }
-    if (now() - Date.parse(row.membership.verifiedAt) < 5 * 60000 && row.membership.paidUntil * 1000 > now()) return publicStatus(row);
+    const verifiedAge = now() - Date.parse(row.membership.verifiedAt);
+    if (verifiedAge >= 0 && verifiedAge < 5 * 60000 && row.membership.paidUntil * 1000 > now()) return publicStatus(row);
     await verifyAccount();
     return locked(accountKey(email), async ctx => sync(ctx, await freshSubscription(ctx.row().membership.subscriptionId)));
   }

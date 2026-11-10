@@ -374,3 +374,14 @@ test("ambiguous old-price checkout cannot retry into an outdated payment session
   await assert.rejects(f.api.checkout("verified-session", "plus"), /billing_checkout_needs_review/);
   assert.equal(f.requests.filter(r => r.method === "POST").length, before);
 });
+
+test("new paid checkout after cancellation reconciles on refresh without waiting for webhook", async () => {
+  const f = fixture(), first = await f.opened("plus"), old = f.settle(first, "plus", "sub_old");
+  await f.api.event(f.event("checkout.session.completed", first, "first_paid"));
+  old.status = "canceled";
+  await f.api.event(f.event("customer.subscription.deleted", old, "first_cancel"));
+  const second = await f.opened("pro");
+  f.settle(second, "pro", "sub_new");
+  assert.equal((await f.api.status("verified-session")).plan, "pro");
+  assert.equal(f.rows.get(f.api.accountKey("savepulse.cloud@gmail.com")).membership.subscriptionId, "sub_new");
+});
