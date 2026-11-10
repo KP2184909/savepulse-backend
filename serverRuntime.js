@@ -526,7 +526,9 @@ function dailyDigestScheduleDue(now = new Date(), env = process.env, state = loa
   return { due: true, date: current.date };
 }
 
-async function runScheduledDailyDigest(now = new Date(), env = process.env) {
+let dailyDigestRunning = false;
+
+async function runScheduledDailyDigest(now = new Date(), env = process.env, options = {}) {
   const state = loadJson(SCHEDULER_STATE_FILE, {});
   const schedule = dailyDigestScheduleDue(now, env, state);
 
@@ -534,26 +536,37 @@ async function runScheduledDailyDigest(now = new Date(), env = process.env) {
     return schedule;
   }
 
-  const result = await sendDailyDigestBatch({ dryRun: false }, env);
-  const runResult = {
-    sent: result.sent,
-    skipped: result.skipped,
-    failed: result.failed,
-    recipients: result.recipients,
-    signalReadiness: result.signalReadiness
-  };
+  if (dailyDigestRunning) return { due: false, reason: "already_running" };
+  dailyDigestRunning = true;
+  try {
+    const result = await sendDailyDigestBatch({
+      dryRun: false, now, signals: options.signals, sendEmail: options.sendEmail
+    }, env);
+    const runResult = {
+      sent: result.sent,
+      skipped: result.skipped,
+      failed: result.failed,
+      recipients: result.recipients,
+      signalReadiness: result.signalReadiness
+    };
 
-  saveJson(SCHEDULER_STATE_FILE, {
-    ...state,
-    dailyEmailDate: schedule.date,
-    dailyDigestDate: schedule.date,
-    dailyEmailLastRunAt: new Date().toISOString(),
-    dailyDigestLastRunAt: new Date().toISOString(),
-    dailyEmailLastResult: runResult,
-    dailyDigestLastResult: runResult
-  });
+    saveJson(SCHEDULER_STATE_FILE, {
+      ...state,
+      // Missing/stale signals cause no sends; leave today's job due for the next tick.
+      ...(result.signalReadiness.ready ? {
+        dailyEmailDate: schedule.date,
+        dailyDigestDate: schedule.date
+      } : {}),
+      dailyEmailLastRunAt: now.toISOString(),
+      dailyDigestLastRunAt: now.toISOString(),
+      dailyEmailLastResult: runResult,
+      dailyDigestLastResult: runResult
+    });
 
-  return { ...schedule, result };
+    return { ...schedule, waitingForSignals: !result.signalReadiness.ready, result };
+  } finally {
+    dailyDigestRunning = false;
+  }
 }
 
 function unsubscribeSuccessHtml(locale = "th") {

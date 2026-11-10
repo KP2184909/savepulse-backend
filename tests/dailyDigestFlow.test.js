@@ -281,3 +281,45 @@ test("scheduled runner does not send or mark completion while disabled or missin
   assert.deepEqual(loadEmailLogs(), []);
   assert.equal(fs.readFileSync(SCHEDULER_STATE_FILE, "utf8"), before);
 });
+
+test("scheduled pilot waits for complete source data, sends only to QA, and does not replay", async () => {
+  const qa = "savepulse.cloud@gmail.com";
+  resetState([subscriber(qa, "plus"), subscriber("excluded@example.com", "plus")]);
+  const env = { DAILY_EMAIL_ENABLED: "true", DAILY_EMAIL_RECIPIENTS: qa };
+  const now = new Date("2026-11-10T02:00:00Z");
+  const sendEmail = fakeSendEmail("scheduled-qa");
+  const missing = completeSignals(now.toISOString()).filter(s => s.symbol !== "USDTHB");
+  const first = await runScheduledDailyDigest(now, env, { signals: missing, sendEmail });
+  assert.equal(first.waitingForSignals, true);
+  assert.equal(sendEmail.sent.length, 0);
+  assert.equal(dailyDigestScheduleDue(now, env).due, true);
+  const second = await runScheduledDailyDigest(now, env, { signals: completeSignals(now.toISOString()), sendEmail });
+  assert.equal(second.result.sent, 1);
+  assert.equal(second.waitingForSignals, false);
+  assert.deepEqual(sendEmail.sent.map(x => x.subscriber.email), [qa]);
+  assert.equal(loadEmailLogs().find(x => x.status === "sent").signal_snapshot_date, "2026-11-10");
+  assert.equal((await runScheduledDailyDigest(now, env, { signals: completeSignals(now.toISOString()), sendEmail })).reason,
+    "already_processed_today");
+  assert.equal(sendEmail.sent.length, 1);
+});
+
+test("overlapping scheduled ticks do not dispatch twice in one process", async () => {
+  const qa = "savepulse.cloud@gmail.com";
+  resetState([subscriber(qa, "plus")]);
+  const env = { DAILY_EMAIL_ENABLED: "true", DAILY_EMAIL_RECIPIENTS: qa };
+  const now = new Date("2026-11-10T02:00:00Z");
+  let release;
+  let entered;
+  const sending = new Promise(resolve => { entered = resolve; });
+  const options = { signals: completeSignals(now.toISOString()), sendEmail: async () => {
+    entered();
+    await new Promise(resolve => { release = resolve; });
+    return { ok: true, providerMessageId: "overlap-qa" };
+  }};
+  const first = runScheduledDailyDigest(now, env, options);
+  await sending;
+  assert.equal((await runScheduledDailyDigest(now, env, options)).reason, "already_running");
+  release();
+  assert.equal((await first).result.sent, 1);
+  assert.equal(loadEmailLogs().filter(x => x.status === "sent").length, 1);
+});
