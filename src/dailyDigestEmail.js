@@ -128,7 +128,7 @@ const PLAN_COPY = Object.freeze({
       subject: "SavePulse Business | สรุปผลกระทบค่าเงินต่อใบแจ้งหนี้วันนี้",
       headline: "วันนี้ใบแจ้งหนี้ต่างประเทศ คิดเป็นเงินบาทประมาณเท่าไร",
       subhead: "ใช้เรทอ้างอิงล่าสุดแปลงยอดตัวอย่างเป็นเงินบาทและเรียงวันครบกำหนด เพื่อช่วยทีมการเงินเตรียมเงินสดและรู้ว่าควรตรวจสอบใบไหนก่อน",
-      cta: "เปิดดูใบแจ้งหนี้ทั้งหมด",
+      cta: "เปิดตัวอย่างวางแผนต้นทุน Business",
       date: "อัปเดตทุกเช้า 08:30 น.",
       pill: "BUSINESS"
     },
@@ -138,7 +138,7 @@ const PLAN_COPY = Object.freeze({
       subject: "SavePulse Business | Invoice Risk Brief: How today's rates changed your invoice cost",
       headline: "What foreign invoices are worth in Thai baht today",
       subhead: "Uses the latest reference rates to estimate Thai-baht cost and order upcoming due dates, helping finance teams plan cash and prioritize reviews.",
-      cta: "Open all tracked invoices",
+      cta: "Open the Business planning demo",
       date: "Updated every morning at 08:30",
       pill: "BUSINESS"
     }
@@ -221,7 +221,7 @@ function symbolsForPlan(plan) {
   }
 
   if (planId === "plus") {
-    return ["EURUSD", "JPYTHB", "USDTHB", "EURTHB"].filter((symbol) => FIAT_ASSETS.includes(symbol));
+    return [...FIAT_ASSETS];
   }
 
   return LEGACY_ASSETS;
@@ -713,12 +713,12 @@ function premiumAssetsForPlan(plan, signalMap, locale) {
   }
 
   if (plan === "plus") {
-    return ["EURUSD", "JPYTHB", "USDTHB"].map((symbol) => premiumAssetModel(symbol, signalMap, locale));
+    return FIAT_ASSETS.map((symbol) => premiumAssetModel(symbol, signalMap, locale));
   }
 
   if (plan === "pro") {
     return [
-      ["USDTHB", "EURTHB", "JPYTHB"],
+      [...FIAT_ASSETS],
       ["XAUUSD", "XAUTHB"],
       ["BTCUSD", "BTCTHB"]
     ].map((symbols) => symbols.map((symbol) => premiumAssetModel(symbol, signalMap, locale)));
@@ -744,7 +744,7 @@ function buildDailyDigestEmail({
   const secondaryLanguage = "th";
   const copy = PLAN_COPY[planId][primaryLanguage];
   const signalMap = signalsBySymbol(signals);
-  const resolvedDashboardUrl = baseUrl(dashboardUrl);
+  const resolvedDashboardUrl = planId === "business" ? `${baseUrl(dashboardUrl)}/for-business/` : baseUrl(dashboardUrl);
   const planName = planFor(planId).name;
   const html = renderPremiumDailyDigestEmail({
     plan: planId,

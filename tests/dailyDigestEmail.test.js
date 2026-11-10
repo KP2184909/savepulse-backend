@@ -14,8 +14,24 @@ const {
   sampleSignals
 } = require("../src/dailyDigestEmail");
 const { ACTIONS } = require("../src/signalEngine");
+const { FIAT_ASSETS, ALL_ASSETS } = require("../src/plans");
 
 const PLANS = ["free", "plus", "pro", "business"];
+
+test("paid daily email covers every entitled fiat/advanced asset without commodities", () => {
+  for (const [plan, symbols] of [["plus", FIAT_ASSETS], ["pro", ALL_ASSETS]]) {
+    const { html, text } = buildDailyDigestEmail({ plan, signals: sampleSignals() });
+    for (const symbol of symbols) {
+      const label = labelForSymbol(symbol, "en");
+      assert.ok(html.includes(label.name), `${plan} HTML omits ${symbol}`);
+      assert.ok(text.includes(label.name), `${plan} plain text omits ${symbol}`);
+    }
+    if (plan === "plus") {
+      assert.doesNotMatch(html, /Reference XAU\/USD|Reference BTC\/USD/);
+    }
+    assert.doesNotMatch(html, /Reference COPPER|Reference FCPO|Reference BRENT/);
+  }
+});
 
 test("daily digest email renders all four SavePulse plans", () => {
   for (const plan of PLANS) {
@@ -137,7 +153,9 @@ test("email calls to action describe what opens next", () => {
 
   assert.match(free, /เช็กข้อมูลล่าสุดบนเว็บ/);
   assert.match(plus, /เปิดรายการที่ฉันติดตาม/);
-  assert.match(business, /เปิดดูใบแจ้งหนี้ทั้งหมด/);
+  assert.match(business, /เปิดตัวอย่างวางแผนต้นทุน Business/);
+  assert.match(business, /href="https:\/\/savepulse.cloud\/for-business\/"/);
+  assert.doesNotMatch(business, /Open all tracked invoices/);
   assert.doesNotMatch(free, /ดูการ์ดวันนี้/);
 });
 

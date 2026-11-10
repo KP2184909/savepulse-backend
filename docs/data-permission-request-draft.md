@@ -8,7 +8,7 @@ The Connector Co., Ltd. operates SavePulse, a service under development for indi
 
 We intend to process daily closed-bar data to produce plain-language historical context on exchange-rate conditions. Delivery would be through an authenticated website and customer email. We do not execute trades or guarantee future rates or savings.
 
-Our proposed core symbols are USDTHB, JPYTHB, EURTHB, USDJPY, EURUSD, XAUTHB, BTCTHB, XAUUSD and BTCUSD. Exact vendor-qualified ticker IDs will be supplied before contracting; these canonical names do not assert a particular data source. Commodity futures and freight are excluded from the initial request.
+Our proposed core symbols are USDTHB, JPYTHB, EURTHB, USDJPY, EURUSD, XAUTHB, BTCTHB, XAUUSD and BTCUSD. Saved chart sources inspected on 10 November 2026: OANDA:USDTHB, FX_IDC:JPYTHB, FX_IDC:EURTHB, OANDA:USDJPY, FX:EURUSD, PEPPERSTONE:XAUTHB, BITKUB:BTCTHB, FOREXCOM:XAUUSD and BINANCE:BTCUSD. Please confirm the legal data-provider identities and whether these instruments include CFDs, spot, synthetic or other reference series; ticker labels alone do not establish that classification. Commodity futures and freight are excluded from the initial request.
 
 Please confirm in writing whether the intended ingestion, storage, processing, derived outputs and external paid website/email delivery are permitted, including outputs without raw prices or charts. Please identify any separate data-provider approvals required and any alternative licensed delivery method if TradingView webhooks cannot support this use.
 

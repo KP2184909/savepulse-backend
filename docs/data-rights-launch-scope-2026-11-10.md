@@ -14,8 +14,8 @@ Decision: no current TradingView-fed paid tier is cleared by this audit. This is
 | Tier | Configured asset entitlement | Delivery/feature finding | Release decision |
 |---|---|---|---|
 | Free | USDTHB, JPYTHB, EURTHB, USDJPY, EURUSD | Existing daily template selects USDTHB only | Free delivery is not itself a data-rights exemption; audit source/use before expanding |
-| Plus USD39 | Same five FX symbols | Existing daily template selects EURUSD, JPYTHB, USDTHB, EURTHB; **USDJPY is omitted** despite entitlement | Hold paid data delivery; align promised daily coverage before launch |
-| Pro USD49 | Five FX symbols plus XAUTHB, BTCTHB, XAUUSD, BTCUSD | Nine-asset daily template; watchlist and channel declarations need independent E2E proof | Hold until source/use permission and operational scope are verified |
+| Plus USD39 | Same five FX symbols | Active premium template previously selected three FX assets; candidate patch now covers all five (legacy renderer aligned too) | Hold paid data delivery; align promised daily coverage before launch |
+| Pro USD49 | Five FX symbols plus XAUTHB, BTCTHB, XAUUSD, BTCUSD | Active premium template previously selected seven assets; candidate patch now covers all nine; watchlist/channel declarations still need independent E2E proof | Hold until source/use permission and operational scope are verified |
 | Business USD69 | Same nine symbols as Pro | Invoice routes exist; public business page is a local manual-input scenario calculator/printable brief and research preview | Not a commodity-data package; no release based on entitlement flags or billing QA alone |
 
 `alertChannels` declarations include LINE/Telegram/team_email in some plans. They must not be advertised as tested delivery integrations merely because listed in `plans.js`. A 100-item watchlist limit is not proof of 100 licensed instruments, team seats or multi-user access.
@@ -38,7 +38,7 @@ These are continuous-futures benchmarks, not supplier quotes. FreightPulse CS/BD
 
 Canonical names such as EURUSD or BTCUSD do not identify a vendor, broker, exchange, index owner or license. Record the exact `syminfo.tickerid`, vendor, real-time/delayed/EOD status and source-update timestamp for every saved alert. Current ingestion accepts legacy payloads without `source_ticker`; therefore a valid override alone cannot prove provenance. The commodity chart mapping above is documented configuration, not independent proof of every live alert snapshot.
 
-For each of the nine core symbols, status is **permission not verified / exact current source not verified by this audit**. Do not infer FX or crypto exemption, or infer ownership of a synthetic THB cross. If a cross is computed, document both component feeds, conversion method and rights for the resulting output.
+Follow-up: exact saved alert chart symbols were retrieved through the connected TradingView API on 10 November; see `docs/offer-readiness-2026-11-10.md`. Permission remains unverified for all nine; saved chart identity is not proof of a license, payload source identity, feed freshness or delivery success. Do not infer FX or crypto exemption, or infer ownership of a synthetic THB cross. If a cross is computed, document both component feeds, conversion method and rights for the resulting output.
 
 ## Written permission checklist
 
