@@ -97,3 +97,13 @@ Daily batch requests now supply a stable SHA-256 identity over normalized recipi
 Tests verify identity stability after local-state recreation, different keys for different recipients/dates, and actual adapter header propagation using a fake HTTP provider. Full local suite: 207/207 pass. No actual provider request was made during these tests. Resend documents 24-hour retention and rejection of inconsistent payload reuse: https://resend.com/docs/dashboard/emails/idempotency-keys . Changed content must not silently receive a new key to force a second daily delivery.
 
 This is a limited additional defense, not a durable outbox implementation. Payload freezing, durable pre-send claims, multi-instance coordination and handling of ambiguity beyond provider retention remain unfinished. Automatic provider retry remains disabled. Existing local pending logs suppress repeat attempts while retained, but asynchronous mirroring is not an atomic delivery guarantee. Production flags remain false.
+
+## Durable QA outbox candidate
+
+Added `src/dailyEmailOutbox.js`, using the existing awaited Supabase scheduler_state store's unique insert and version-conditional CAS. It stores a frozen TEST-labeled email before provider invocation, obtains a claim before sending, and records provider success with an awaited write. A recreated worker reads the existing job instead of rebuilding its content. Competing workers cannot both claim a pending record. Hash validation protects the frozen stored payload from inconsistent reads.
+
+A working job left by a crash is not automatically resent: after its two-minute lease it becomes manual_review_required. Provider errors, missing provider IDs and stale unsent jobs likewise require review. The design prioritizes preventing duplicates over silent retry; manual review/reconciliation tools remain to be built. Payloads include the QA recipient and email content in the protected database, with no credentials stored in the job.
+
+The dispatcher integrates this path only when `DAILY_EMAIL_DURABLE_TEST_ENABLED=true`, requires the Resend provider, and rejects every recipient except savepulse.cloud@gmail.com. Existing ordinary dispatch remains unchanged with the flag unset. No flag was enabled, no migration or Production mutation occurred, and no mail was sent in this step.
+
+Regression uses an in-memory CAS store and fake provider, not a real database/scheduler: payload freeze across service recreation, scope rejection, storage failure before send, competing workers, uncertain delivery, result-write failure, and retention expiry. Full suite: 213/213 pass. Existing store HTTP tests cover awaited unique insert/CAS separately; real end-to-end persistence and scheduled delivery of this new path are still NOT VERIFIED.

@@ -716,14 +716,25 @@ async function sendDailyDigestEmail({ subscriber, signals = [], dashboardUrl, un
     dashboardUrl,
     unsubscribeUrl
   });
-  const info = await sendProviderMail({
+  const message = {
     from: defaultFrom(env),
     to: email,
     subject: template.subject,
     text: template.text,
     html: template.html,
     idempotencyKey
-  }, env);
+  };
+  let info;
+  if (env.DAILY_EMAIL_DURABLE_TEST_ENABLED === "true") {
+    if (apiProviderForEnv(env) !== "resend") throw new Error("daily_email_test_provider_required");
+    const { createDailyEmailOutbox } = require("./dailyEmailOutbox");
+    const { createTrialStore } = require("./trialLifecycle");
+    info = await createDailyEmailOutbox({ store: createTrialStore(env),
+      send: frozen => sendProviderMail(frozen, env) }).deliver({ message, idempotencyKey });
+    info.provider = "resend";
+  } else {
+    info = await sendProviderMail(message, env);
+  }
 
   if (info.skipped) {
     return { email, ok: false, skipped: true, reason: info.reason };
