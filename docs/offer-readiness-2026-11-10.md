@@ -66,3 +66,7 @@ Next Live preparation is exact merchant-bound revised inclusive Price configurat
 3. Exact revised Live prices/account/tax/backend binding and operational preflight.
 4. Product acceptance for the actual offered tier; Business customer workflows remain incomplete.
 5. Reviewed deployment and Production QA before opening signup. No existing paid member migration is authorized by these findings.
+
+## Follow-up: actual Gmail desktop review
+
+The owner opened the QA mailbox. Plus and Business observed desktop portions were readable; Pro screenshot was inconsistent with its accessibility state before native Chrome became unavailable. Full-message, Pro visual and mobile acceptance remain unverified. See `signal-to-email-qa-2026-11-10.md` for evidence and limits. No additional email was sent or Production setting changed during this review.
