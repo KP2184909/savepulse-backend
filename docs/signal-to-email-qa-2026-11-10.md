@@ -119,3 +119,11 @@ Successful request1232 returned HTTP200, sent, provider ID `01a1c5e3-c5f4-7ac6-8
 Sandbox cron job4 executed once automatically at `2026-11-10T14:38:00.101658Z`, status succeeded, ending `14:38:00.119388Z`. Its HTTP request1234 completed200 and returned the identical provider ID, proving automatic scheduled replay reached the durable outbox without a new email. The job self-unscheduled before dispatch; readback found zero remaining jobs of that name. This proves sandbox scheduled replay, not a first send triggered by cron or the intended daily 08:30 Render delivery. Gmail recheck still found exactly one matching message.
 
 Afterward replaced the temporary mailer with v6 JWT-protected410 code containing no mail sending implementation. No recurring test job remains. The wrapper initially failed before any job due to a Deno Buffer assumption; fixed it to TextEncoder before the JSONB investigation. Candidate module code, unlike the wrapper adapter, needed only the canonical-key hash fix. No secrets, customer records, real billing or Production settings changed.
+
+## Automatic first-send sandbox proof
+
+On the next isolated run, deployed fixed-payload QA wrapper v7 with a new test-only identity and subject `[TEST] SavePulse PLUS — scheduled first-send QA`. No manual HTTP invocation of this identity was performed. One-shot sandbox cron job5 self-unscheduled and ran automatically at `2026-11-10T14:52:00.051906Z`, status succeeded, ending `14:52:00.067052Z`. Gmail confirmed one INBOX message `1a1c5f1da76de6c2` received at `2026-11-10T14:52:03Z` (21:52:03 Bangkok). This establishes first send triggered by a real scheduler through the isolated durable outbox and Resend to the QA mailbox.
+
+Readback found zero remaining jobs with the QA job name. Closed the temporary wrapper again as v8 JWT-protected410, with no mailer implementation. The snapshot is explicitly dated and marked TEST. No other recipients, Production cron/environment or billing settings were touched.
+
+This closes the sandbox scheduled-first-send gap. It does not validate Render's Production timer, 08:30 punctuality, daily recurrence, current market data readiness, customer unsubscribe flow, full Pro/mobile rendering or live commercial readiness. Local suite remains 214/214 from the preceding code change; this step changes evidence only.
