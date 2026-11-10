@@ -18,6 +18,12 @@ const { FIAT_ASSETS, ALL_ASSETS } = require("../src/plans");
 
 const PLANS = ["free", "plus", "pro", "business"];
 
+test("missing percentile never becomes a fabricated middle-range observation", () => {
+  const html = buildDailyDigestEmail({ plan: "plus", signals: [{ symbol: "USDTHB", price: 33, action: ACTIONS.WAIT_ZONE, percentile: null, receivedAt: new Date().toISOString() }] }).html;
+  assert.match(html, /Historical range position unavailable/);
+  assert.doesNotMatch(html, /In the middle of the historical range|Near the upper end|Near the lower end/);
+});
+
 test("paid daily email covers every entitled fiat/advanced asset without commodities", () => {
   for (const [plan, symbols] of [["plus", FIAT_ASSETS], ["pro", ALL_ASSETS]]) {
     const { html, text } = buildDailyDigestEmail({ plan, signals: sampleSignals() });

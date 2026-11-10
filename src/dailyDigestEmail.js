@@ -202,7 +202,7 @@ function sampleSignals() {
 }
 
 function signalsBySymbol(inputSignals = []) {
-  const defaults = Object.fromEntries(sampleSignals().map((signal) => [signal.symbol, signal]));
+  const defaults = Object.fromEntries(LEGACY_ASSETS.map(symbol => [symbol, createDefaultSignal(symbol)]));
 
   for (const signal of inputSignals) {
     if (signal && signal.symbol) {
@@ -688,7 +688,9 @@ function premiumAssetModel(symbol, signalMap, locale) {
   const signal = signalMap[symbol] || createDefaultSignal(symbol);
   const label = labelForSymbol(symbol, locale);
   const decision = decisionForSignal(signal, locale, signal?.userDirection || {});
-  const percent = Math.max(0, Math.min(100, Math.round(percentFromSignal(signal))));
+  const rawPercent = signal?.percentile && typeof signal.percentile === "object" ? signal.percentile.percent : signal?.percentile;
+  const hasPercent = rawPercent !== null && rawPercent !== undefined && rawPercent !== "" && Number.isFinite(Number(rawPercent)) && Number(rawPercent) >= 0 && Number(rawPercent) <= 100;
+  const percent = hasPercent ? Math.round(Number(rawPercent)) : null;
   const thai = localeKey(locale) === "th";
 
   return {
@@ -702,7 +704,7 @@ function premiumAssetModel(symbol, signalMap, locale) {
     price: Number.isFinite(Number(signal?.price)) ? Number(signal.price) : null,
     percent,
     observationIntro: thai ? "ตำแหน่งราคาเทียบข้อมูลย้อนหลัง" : "Price position in the historical range",
-    observationLabel: observationLevelFromPercent(percent, locale),
+    observationLabel: hasPercent ? observationLevelFromPercent(percent, locale) : (thai ? "ไม่มีข้อมูลตำแหน่งในช่วงย้อนหลัง" : "Historical range position unavailable"),
     observationExplanation: thai ? "บอกตำแหน่งราคา ไม่ใช่โอกาสสำเร็จ" : "Shows price position, not a success probability"
   };
 }
