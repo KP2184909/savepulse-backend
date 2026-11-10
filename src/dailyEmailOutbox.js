@@ -2,6 +2,8 @@
 const crypto = require("node:crypto");
 const QA_RECIPIENT = "savepulse.cloud@gmail.com";
 const digest = value => crypto.createHash("sha256").update(value).digest("hex");
+// Message fields are flat strings; JSONB may reorder keys on round-trip.
+const payloadDigest = message => digest(JSON.stringify(message, Object.keys(message).sort()));
 
 // Test pilot only. Awaited insert/CAS persist before provider side effects.
 function createDailyEmailOutbox({ store, send, now = Date.now }) {
@@ -18,7 +20,7 @@ function createDailyEmailOutbox({ store, send, now = Date.now }) {
       idempotencyKey }));
     const createdAt = now();
     await store.insert(key, { version: 1, state: "pending", createdAt,
-      message: frozen, payloadHash: digest(JSON.stringify(frozen)) });
+      message: frozen, payloadHash: payloadDigest(frozen) });
     let job = await store.get(key);
     if (!job) throw new Error("daily_email_storage_unavailable");
     if (job.state === "working") {
@@ -30,7 +32,7 @@ function createDailyEmailOutbox({ store, send, now = Date.now }) {
     }
     if (job.state !== "pending") return result(job);
     if (job.message?.to !== QA_RECIPIENT || job.message?.idempotencyKey !== idempotencyKey ||
-        digest(JSON.stringify(job.message)) !== job.payloadHash) {
+        payloadDigest(job.message) !== job.payloadHash) {
       throw new Error("daily_email_frozen_payload_invalid");
     }
     // Avoid first delivery after a stale job has waited longer than provider key retention.

@@ -67,3 +67,21 @@ test("expired unsent jobs require review rather than late automatic delivery", a
   assert.equal((await createDailyEmailOutbox(f.options).deliver(f.input)).reason, "manual_review_required");
   assert.equal(f.sent.length, 0);
 });
+
+test("JSONB key order does not invalidate a frozen payload; real content changes still fail closed", async () => {
+  const f = fixture(); const get = f.store.get;
+  f.store.get = async key => {
+    const row = await get(key);
+    if (row) row.message = Object.fromEntries(Object.entries(row.message).reverse());
+    return row;
+  };
+  assert.equal((await createDailyEmailOutbox(f.options).deliver(f.input)).ok, true);
+  const g = fixture(); const get2 = g.store.get;
+  g.store.get = async key => {
+    const row = await get2(key);
+    if (row) row.message.html = "altered";
+    return row;
+  };
+  await assert.rejects(createDailyEmailOutbox(g.options).deliver(g.input), /frozen_payload_invalid/);
+  assert.equal(g.sent.length, 0);
+});
