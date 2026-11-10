@@ -20,6 +20,7 @@ process.env.ADMIN_READINESS_KEY = "test-admin-key";
 const {
   dailyDigestCandidates,
   dailyDigestScheduleDue,
+  runScheduledDailyDigest,
   dailyEmailRecipientAllowlist,
   loadEmailLogs,
   saveEmailLogs,
@@ -268,4 +269,15 @@ test("daily email recipient allowlist limits automatic pilot recipients", () => 
     USDTHB: { payload: { pine: { barTime: now.getTime() } } }
   }), { now });
   assert.equal(fresh.ready, true);
+});
+
+test("scheduled runner does not send or mark completion while disabled or missing allowlist", async () => {
+  resetState([subscriber("savepulse.cloud@gmail.com", "plus")]);
+  const before = fs.readFileSync(SCHEDULER_STATE_FILE, "utf8");
+  const now = new Date("2026-11-10T02:00:00Z");
+  assert.equal((await runScheduledDailyDigest(now, {})).reason, "disabled");
+  assert.equal((await runScheduledDailyDigest(now, { DAILY_EMAIL_ENABLED: "true" })).reason,
+    "recipient_allowlist_required");
+  assert.deepEqual(loadEmailLogs(), []);
+  assert.equal(fs.readFileSync(SCHEDULER_STATE_FILE, "utf8"), before);
 });

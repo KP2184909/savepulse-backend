@@ -65,3 +65,11 @@ Inspected the actual bootstrap: `bootstrap.js` loads `serverRuntime.js`, which c
 Fixed readiness so an explicit source time (`sourceUpdatedAt`, nested `payload.pine.barTime`, or bar/time fields) takes precedence over webhook receipt/update timestamps. Conflicting source dates use the oldest date conservatively; malformed source times fail closed. Records lacking source timestamps retain receipt-based legacy compatibility and therefore do not independently prove source freshness. Regression covers stale replay, future bar, malformed bar and a valid fresh millisecond bar; full local suite: 202/202 pass. These checks validate timestamps as supplied, not the upstream provider's actual update cadence.
 
 Candidate remains in PR21, not deployed. Next operational verification is a read-only Live configuration/last-run inspection, followed by an isolated recipient-only scheduled test; no customer send is authorized by these local tests.
+
+## Follow-up: Live scheduled-send audit
+
+Read-only Production SQL on 10 November returned no scheduler_state rows for the six dailyEmail/dailyDigest date, last-run and last-result keys. Aggregate email_logs: 4 rows total, newest `2026-06-18T08:16:56.856Z`, zero since 10 November Bangkok midnight. No subscriber identities or secret values were retrieved. This is absence of retained evidence, not proof that every possible mail path is disabled.
+
+Render service inspection reached GitHub sign-in, so current Live enable flags, recipient allowlist, SMTP readiness and deployed revision remain NOT VERIFIED. Owner was asked to sign in through the secure browser page; no credentials were requested in chat.
+
+Added actual scheduled-runner regression for disabled and missing-allowlist conditions, verifying no email log or completion-state mutation. Full local suite: 203/203 pass. No outbound email or Production mutation was performed in this follow-up.
