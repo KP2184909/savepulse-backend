@@ -73,3 +73,11 @@ Read-only Production SQL on 10 November returned no scheduler_state rows for the
 Render service inspection reached GitHub sign-in, so current Live enable flags, recipient allowlist, SMTP readiness and deployed revision remain NOT VERIFIED. Owner was asked to sign in through the secure browser page; no credentials were requested in chat.
 
 Added actual scheduled-runner regression for disabled and missing-allowlist conditions, verifying no email log or completion-state mutation. Full local suite: 203/203 pass. No outbound email or Production mutation was performed in this follow-up.
+
+## Render verified after owner sign-in
+
+Read-only UI verification on 10 November: service `srv-d7u3efpj2pic739fm8kg` is `savepulse-backend`, Production, Node Free, repository KP2184909/savepulse-backend, branch main. Live successful revision is `a92a7ec` (short revision shown by Render). It is the PR15 merge for the earlier 5/39/59 pricing, not PR19/20/21.
+
+Noncredential settings inspected: `DAILY_EMAIL_ENABLED=false`, `DAILY_DIGEST_ENABLED=false`, `DAILY_EMAIL_TIME=08:30`, `DAILY_EMAIL_TIMEZONE=Asia/Bangkok`, `DAILY_EMAIL_SIGNAL_MAX_AGE_HOURS=36`, `EMAIL_PROVIDER=resend`. No credential reveal controls were used. These disabled flags explain why this configured daily scheduler does not send; this does not rule out unrelated mail paths. The service warns that its Free instance sleeps on inactivity, so an in-process timer cannot establish punctual unattended delivery.
+
+No environment edits, rebuild, deploy or email send occurred. Before a scheduled pilot: deploy reviewed candidate code, verify a single QA recipient allowlist, verify provider availability without exposing its key, and invoke through a durable scheduling path that remains effective while Render sleeps. Keep customer recipients excluded; record receipt, job result, and replay suppression. The existing private billing-worker schedule is not evidence of daily-email invocation.
