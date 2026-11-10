@@ -89,3 +89,11 @@ Fixed the scheduled runner so incomplete/stale required signals do not mark the 
 Local integration test with a fake provider: allowlist contains only savepulse.cloud@gmail.com, an excluded subscriber is present, first tick has a missing instrument and sends nothing, the next complete tick sends to QA only, and a third same-day tick is suppressed. A concurrent-tick test verifies one dispatch within the process. No real email was sent. Full suite: 205/205 pass.
 
 Render flags remain false and Live code remains unchanged. Scheduled delivery in Production is still NOT VERIFIED; these are candidate-code regression results, not a completed real scheduled pilot.
+
+## Provider duplicate protection
+
+Daily batch requests now supply a stable SHA-256 identity over normalized recipient, template type and Bangkok snapshot date; the email address is not embedded in the key. The Resend adapter forwards it in the Idempotency-Key HTTP header, not the email body. Welcome and individual signal sends are unchanged.
+
+Tests verify identity stability after local-state recreation, different keys for different recipients/dates, and actual adapter header propagation using a fake HTTP provider. Full local suite: 207/207 pass. No actual provider request was made during these tests. Resend documents 24-hour retention and rejection of inconsistent payload reuse: https://resend.com/docs/dashboard/emails/idempotency-keys . Changed content must not silently receive a new key to force a second daily delivery.
+
+This is a limited additional defense, not a durable outbox implementation. Payload freezing, durable pre-send claims, multi-instance coordination and handling of ambiguity beyond provider retention remain unfinished. Automatic provider retry remains disabled. Existing local pending logs suppress repeat attempts while retained, but asynchronous mirroring is not an atomic delivery guarantee. Production flags remain false.

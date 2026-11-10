@@ -69,8 +69,8 @@ function completeSignals(timestamp = "2026-06-02T01:31:00.000Z", overrides = {})
 
 function fakeSendEmail(prefix = "msg") {
   const sent = [];
-  const sendEmail = async ({ subscriber: targetSubscriber, signals }) => {
-    sent.push({ subscriber: targetSubscriber, signals });
+  const sendEmail = async ({ subscriber: targetSubscriber, signals, idempotencyKey }) => {
+    sent.push({ subscriber: targetSubscriber, signals, idempotencyKey });
     return { ok: true, email: targetSubscriber.email, providerMessageId: `${prefix}-${sent.length}` };
   };
   sendEmail.sent = sent;
@@ -322,4 +322,21 @@ test("overlapping scheduled ticks do not dispatch twice in one process", async (
   release();
   assert.equal((await first).result.sent, 1);
   assert.equal(loadEmailLogs().filter(x => x.status === "sent").length, 1);
+});
+
+test("daily delivery identity survives local state recreation and changes by recipient or date", async () => {
+  const qa = "savepulse.cloud@gmail.com";
+  const sender = fakeSendEmail("identity");
+  const dispatch = async (email, date) => {
+    resetState([subscriber(email, "plus")]);
+    await sendDailyDigestBatch({ now: new Date(date), signals: completeSignals(date), sendEmail: sender }, {});
+    return sender.sent.at(-1).idempotencyKey;
+  };
+  const first = await dispatch(qa, "2026-11-10T02:00:00Z");
+  const replay = await dispatch(qa, "2026-11-10T03:00:00Z");
+  assert.match(first, /^daily-digest\/v1\/[a-f0-9]{64}$/);
+  assert.equal(replay, first);
+  assert.notEqual(await dispatch(qa, "2026-11-11T02:00:00Z"), first);
+  assert.notEqual(await dispatch("different@example.com", "2026-11-10T02:00:00Z"), first);
+  assert.equal(first.includes(qa), false);
 });

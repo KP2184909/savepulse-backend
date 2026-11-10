@@ -412,6 +412,9 @@ async function sendDailyDigestBatch(
         signals: signalsForSubscriber(signalList, subscriber),
         dashboardUrl,
         unsubscribeUrl,
+        idempotencyKey: `daily-digest/v1/${crypto.createHash("sha256")
+          .update(JSON.stringify([String(subscriber.email).trim().toLowerCase(), templateType, signalSnapshotDate]))
+          .digest("hex")}`,
         env
       });
 

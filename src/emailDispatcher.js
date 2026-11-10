@@ -101,12 +101,13 @@ async function sendBrevoMail({ from, to, subject, text, html }, env = process.en
   return { messageId: payload.messageId || payload.messageIds?.[0] || "" };
 }
 
-async function sendResendMail({ from, to, subject, text, html }, env = process.env) {
+async function sendResendMail({ from, to, subject, text, html, idempotencyKey }, env = process.env) {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       authorization: `Bearer ${env.RESEND_API_KEY}`,
-      "content-type": "application/json"
+      "content-type": "application/json",
+      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {})
     },
     body: JSON.stringify({
       from,
@@ -697,7 +698,7 @@ async function sendSignalEmail({ signal, effectiveSignal, subscriber, env = proc
   return { email, plan: subscriber?.plan || "free", ok: true, provider: info.provider, id: info.messageId };
 }
 
-async function sendDailyDigestEmail({ subscriber, signals = [], dashboardUrl, unsubscribeUrl, env = process.env }) {
+async function sendDailyDigestEmail({ subscriber, signals = [], dashboardUrl, unsubscribeUrl, idempotencyKey, env = process.env }) {
   const email = String(subscriber?.email || "").trim().toLowerCase();
 
   if (!email) {
@@ -720,7 +721,8 @@ async function sendDailyDigestEmail({ subscriber, signals = [], dashboardUrl, un
     to: email,
     subject: template.subject,
     text: template.text,
-    html: template.html
+    html: template.html,
+    idempotencyKey
   }, env);
 
   if (info.skipped) {
