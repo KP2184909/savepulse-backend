@@ -51,3 +51,9 @@ The temporary `savepulse-digest-qa` function in the isolated sandbox required th
 - **Mobile Gmail rendering: NOT VERIFIED.** No actual mobile client was inspected.
 - **Schedule copy needs verification before release.** The received templates display “Updated every morning at 08:30”; the Production scheduler was not verified in this run. The test snapshot banner does not establish that service promise.
 - Raw snapshot bar dates, source freshness versus webhook receipt, data-use authorization, actual unsubscribe E2E and live offer acceptance remain separate requirements. Do not call Business customer invoice workflow complete because its demo email arrives.
+
+## Follow-up: unverified schedule promise removed
+
+Replaced the hardcoded 08:30 daily-update promise in all four bilingual email templates with “Snapshot at preparation time” / “สรุปข้อมูล ณ เวลาจัดทำ”. Scheduler configuration still defaults to 08:30 Asia/Bangkok, but configuration alone is not evidence of successful scheduled delivery. Regression checks both languages and all plans; full local suite: 201/201 pass. This follow-up remains a candidate in PR21; the three already received QA emails contain the prior copy and were not resent.
+
+Data-use authorization remains unverified per the owner's decision to continue development first. This is a status record, not a representation that authorization is unnecessary. Production customer sending and paid launch were not enabled.

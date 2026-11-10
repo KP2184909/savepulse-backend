@@ -63,7 +63,7 @@ const PLAN_COPY = Object.freeze({
       headline: "ข้อสังเกตวันนี้ก่อนคุณแลกเงินก้อนใหญ่",
       subhead: "สรุปแบบ Lite ให้เห็นความเคลื่อนไหวสำคัญ โดยยังล็อกรายละเอียดลึกไว้สำหรับแผนที่สูงกว่า",
       cta: "เช็กข้อมูลล่าสุดบนเว็บ",
-      date: "อัปเดตทุกเช้า 08:30 น.",
+      date: "สรุปข้อมูล ณ เวลาจัดทำ",
       pill: "FREE"
     },
     en: {
@@ -73,7 +73,7 @@ const PLAN_COPY = Object.freeze({
       headline: "Which rate is worth watching before you exchange late",
       subhead: "A Lite daily snapshot that shows one important movement while deeper context stays unlocked for paid plans.",
       cta: "Check the latest details online",
-      date: "Updated every morning at 08:30",
+      date: "Snapshot at preparation time",
       pill: "FREE"
     }
   },
@@ -85,7 +85,7 @@ const PLAN_COPY = Object.freeze({
       headline: "รายการที่คุณเฝ้าอยู่ มีข้อสังเกตใหม่วันนี้",
       subhead: "การ์ดสรุปจากเรทอ้างอิง เพื่อช่วยประกอบการตัดสินใจอย่างมีข้อมูลมากขึ้น",
       cta: "เปิดรายการที่ฉันติดตาม",
-      date: "อัปเดตทุกเช้า 08:30 น.",
+      date: "สรุปข้อมูล ณ เวลาจัดทำ",
       pill: "PLUS"
     },
     en: {
@@ -95,7 +95,7 @@ const PLAN_COPY = Object.freeze({
       headline: "Your watchlist has timing changes today",
       subhead: "A simple decision card based on current rate context, built for calmer planning.",
       cta: "Open my watchlist",
-      date: "Updated every morning at 08:30",
+      date: "Snapshot at preparation time",
       pill: "PLUS"
     }
   },
@@ -107,7 +107,7 @@ const PLAN_COPY = Object.freeze({
       headline: "ทองคำ บิตคอยน์ และค่าเงิน วันนี้ตัวไหนน่าจับตาเป็นพิเศษ",
       subhead: "สรุปจังหวะสำคัญจากข้อมูลสถิติย้อนหลัง เพื่อช่วยให้คุณทบทวนก่อนตัดสินใจ",
       cta: "เปิดดูค่าเงิน ทอง และบิตคอยน์",
-      date: "อัปเดตทุกเช้า 08:30 น.",
+      date: "สรุปข้อมูล ณ เวลาจัดทำ",
       pill: "PRO"
     },
     en: {
@@ -117,7 +117,7 @@ const PLAN_COPY = Object.freeze({
       headline: "Gold, bitcoin, and currencies: which areas deserve attention today",
       subhead: "A wider timing radar based on historical context, built for confident review.",
       cta: "Open currency, gold, and bitcoin details",
-      date: "Updated every morning at 08:30",
+      date: "Snapshot at preparation time",
       pill: "PRO"
     }
   },
@@ -129,7 +129,7 @@ const PLAN_COPY = Object.freeze({
       headline: "วันนี้ใบแจ้งหนี้ต่างประเทศ คิดเป็นเงินบาทประมาณเท่าไร",
       subhead: "ใช้เรทอ้างอิงล่าสุดแปลงยอดตัวอย่างเป็นเงินบาทและเรียงวันครบกำหนด เพื่อช่วยทีมการเงินเตรียมเงินสดและรู้ว่าควรตรวจสอบใบไหนก่อน",
       cta: "เปิดตัวอย่างวางแผนต้นทุน Business",
-      date: "อัปเดตทุกเช้า 08:30 น.",
+      date: "สรุปข้อมูล ณ เวลาจัดทำ",
       pill: "BUSINESS"
     },
     en: {
@@ -139,7 +139,7 @@ const PLAN_COPY = Object.freeze({
       headline: "What foreign invoices are worth in Thai baht today",
       subhead: "Uses the latest reference rates to estimate Thai-baht cost and order upcoming due dates, helping finance teams plan cash and prioritize reviews.",
       cta: "Open the Business planning demo",
-      date: "Updated every morning at 08:30",
+      date: "Snapshot at preparation time",
       pill: "BUSINESS"
     }
   }

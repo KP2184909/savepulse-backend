@@ -64,7 +64,7 @@ test("daily digest emails include legal disclaimer and unsubscribe placeholder",
 test("daily digest emails render English first and Thai second in one message", () => {
   for (const plan of PLANS) {
     const template = buildDailyDigestEmail({ plan, locale: "th", signals: sampleSignals() });
-    const englishIndex = template.text.indexOf("Updated every morning");
+    const englishIndex = template.text.indexOf("Snapshot at preparation time");
     const thaiIndex = template.text.indexOf("ภาษาไทย");
 
     assert.equal(template.subject.includes("SavePulse"), true);
@@ -231,4 +231,13 @@ test("plus daily digest uses user-facing direction for JPYTHB row", () => {
   assert.match(template.text, /อยู่ช่วงล่างของข้อมูลย้อนหลัง/);
   assert.match(template.text, /ไม่ใช่โอกาสสำเร็จ/);
   assert.doesNotMatch(template.text, /BUY_ZONE|SELL_ZONE|STRONG_BUY|WAIT_ZONE/);
+});
+
+ test("email metadata does not promise an unverified delivery time", () => {
+  for (const plan of ["free", "plus", "pro", "business"]) {
+    const { html, text } = buildDailyDigestEmail({ plan });
+    assert.doesNotMatch(html + text, /Updated every morning|อัปเดตทุกเช้า|08:30/);
+    assert.match(text, /Snapshot at preparation time/);
+    assert.match(text, /สรุปข้อมูล ณ เวลาจัดทำ/);
+  }
 });
