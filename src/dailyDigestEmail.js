@@ -221,7 +221,7 @@ function symbolsForPlan(plan) {
   }
 
   if (planId === "plus") {
-    return [...FIAT_ASSETS];
+    return [...ADVANCED_ASSETS];
   }
 
   return LEGACY_ASSETS;
@@ -514,7 +514,7 @@ function renderFreeEmail({ locale, copy, signalMap, dashboardUrl, unsubscribeUrl
         <td style="padding:14px 22px 0;">${simpleInfoBox({
           icon: "▣",
           title: thai ? "ปลดล็อกการ์ด Gold และ BTC" : "Unlock Gold and BTC cards",
-          body: thai ? "ข้อมูลเต็มยังล็อกไว้ หัวข้อทองคำและบิตคอยน์เป็นเฉพาะ Pro" : "Full detail is locked. Gold and bitcoin are Pro-only.",
+          body: thai ? "ดูทองคำและบิตคอยน์ใน Plus หรือ Pro" : "Gold and bitcoin are covered by Plus and Pro.",
           tone: "teal"
         })}</td>
       </tr>
@@ -715,7 +715,7 @@ function premiumAssetsForPlan(plan, signalMap, locale) {
   }
 
   if (plan === "plus") {
-    return FIAT_ASSETS.map((symbol) => premiumAssetModel(symbol, signalMap, locale));
+    return ADVANCED_ASSETS.map((symbol) => premiumAssetModel(symbol, signalMap, locale));
   }
 
   if (plan === "pro") {

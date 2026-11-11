@@ -32,10 +32,10 @@ const PLANS = Object.freeze({
   plus: {
     id: "plus",
     name: "Plus",
-    audience: "Travelers and currency savers who want real-time fiat alerts.",
+    audience: "People tracking gold and bitcoin against USD and THB.",
     prices: { thbMonthly: 199, usdMonthly: 5 },
     watchlistLimit: 5,
-    assetUniverse: FIAT_ASSETS,
+    assetUniverse: ADVANCED_ASSETS,
     alertChannels: ["email", "line", "telegram"],
     realTimeAlerts: true,
     alertDelayMinutes: 0,
@@ -44,7 +44,7 @@ const PLANS = Object.freeze({
     twoWayAlerts: false,
     features: [
       "Five watchlist items",
-      "Real-time fiat opportunity alerts",
+      "Gold and bitcoin observations",
       "Daily decision card",
       "Personalized historical examples",
       "Timing window visibility",

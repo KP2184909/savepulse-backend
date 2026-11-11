@@ -39,10 +39,12 @@ test("free watchlist is capped to one fiat asset", () => {
   );
 });
 
-test("plus excludes gold and bitcoin while pro includes them", () => {
-  assert.equal(isAssetAllowedForPlan("XAUUSD", "plus"), false);
-  assert.equal(isAssetAllowedForPlan("BTCUSD", "plus"), false);
+test("plus includes only gold and bitcoin; pro also includes currencies", () => {
+  assert.equal(isAssetAllowedForPlan("XAUUSD", "plus"), true);
+  assert.equal(isAssetAllowedForPlan("BTCUSD", "plus"), true);
   assert.equal(isAssetAllowedForPlan("XAUUSD", "pro"), true);
+  assert.equal(isAssetAllowedForPlan("USDTHB", "plus"), false);
+  assert.equal(isAssetAllowedForPlan("USDTHB", "pro"), true);
   assert.equal(isAssetAllowedForPlan("BTCUSD", "business"), true);
 });
 

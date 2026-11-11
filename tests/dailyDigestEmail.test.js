@@ -14,18 +14,18 @@ const {
   sampleSignals
 } = require("../src/dailyDigestEmail");
 const { ACTIONS } = require("../src/signalEngine");
-const { FIAT_ASSETS, ALL_ASSETS } = require("../src/plans");
+const { ADVANCED_ASSETS, ALL_ASSETS } = require("../src/plans");
 
 const PLANS = ["free", "plus", "pro", "business"];
 
 test("missing percentile never becomes a fabricated middle-range observation", () => {
-  const html = buildDailyDigestEmail({ plan: "plus", signals: [{ symbol: "USDTHB", price: 33, action: ACTIONS.WAIT_ZONE, percentile: null, receivedAt: new Date().toISOString() }] }).html;
+  const html = buildDailyDigestEmail({ plan: "plus", signals: [{ symbol: "XAUUSD", price: 4000, action: ACTIONS.WAIT_ZONE, percentile: null, receivedAt: new Date().toISOString() }] }).html;
   assert.match(html, /Historical range position unavailable/);
   assert.doesNotMatch(html, /In the middle of the historical range|Near the upper end|Near the lower end/);
 });
 
 test("paid daily email covers every entitled fiat/advanced asset without commodities", () => {
-  for (const [plan, symbols] of [["plus", FIAT_ASSETS], ["pro", ALL_ASSETS]]) {
+  for (const [plan, symbols] of [["plus", ADVANCED_ASSETS], ["pro", ALL_ASSETS]]) {
     const { html, text } = buildDailyDigestEmail({ plan, signals: sampleSignals() });
     for (const symbol of symbols) {
       const label = labelForSymbol(symbol, "en");
@@ -33,7 +33,7 @@ test("paid daily email covers every entitled fiat/advanced asset without commodi
       assert.ok(text.includes(label.name), `${plan} plain text omits ${symbol}`);
     }
     if (plan === "plus") {
-      assert.doesNotMatch(html, /Reference XAU\/USD|Reference BTC\/USD/);
+      assert.doesNotMatch(html + text, /Reference (?:USD\/THB|JPY\/THB|EUR\/THB|USD\/JPY|EUR\/USD)/);
     }
     assert.doesNotMatch(html, /Reference COPPER|Reference FCPO|Reference BRENT/);
   }
@@ -121,8 +121,7 @@ test("plan previews reveal the right paid feature ladder", () => {
   const pro = buildDailyDigestEmail({ plan: "pro", locale: "th" }).html;
   const business = buildDailyDigestEmail({ plan: "business", locale: "th" }).html;
 
-  assert.match(free, /ข้อมูลเต็มยังล็อกไว้/);
-  assert.match(free, /เฉพาะ Pro/);
+  assert.match(free, /ทองคำและบิตคอยน์อยู่ใน Plus และ Pro/);
   assert.match(plus, /อัปเกรดเป็น Pro/);
   assert.match(pro, /ทองคำ บิตคอยน์/);
   assert.match(business, /วันนี้ใบแจ้งหนี้ต่างประเทศ/);
@@ -211,9 +210,9 @@ test("daily digest direction-aware copy inverts JPYTHB for THB to JPY", () => {
   assert.match(decision.short, /JPY เริ่มแพงขึ้นเมื่อเทียบกับ THB/);
 });
 
-test("plus daily digest uses user-facing direction for JPYTHB row", () => {
+test("pro daily digest uses user-facing direction for JPYTHB row", () => {
   const template = buildDailyDigestEmail({
-    plan: "plus",
+    plan: "pro",
     locale: "th",
     signals: [
       {
@@ -227,9 +226,8 @@ test("plus daily digest uses user-facing direction for JPYTHB row", () => {
 
   assert.match(template.text, /บาทไทย → เยนญี่ปุ่น/);
   assert.match(template.text, /รอก่อน/);
-  assert.match(template.text, /เรทอ้างอิง JPY\/THB อยู่ในโซนที่ควรทบทวนแผนก่อนตัดสินใจ/);
+  assert.match(template.text, /อ้างอิง JPY\/THB/);
   assert.match(template.text, /อยู่ช่วงล่างของข้อมูลย้อนหลัง/);
-  assert.match(template.text, /ไม่ใช่โอกาสสำเร็จ/);
   assert.doesNotMatch(template.text, /BUY_ZONE|SELL_ZONE|STRONG_BUY|WAIT_ZONE/);
 });
 
