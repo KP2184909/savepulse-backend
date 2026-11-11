@@ -659,16 +659,22 @@ function dailyEmailPilotReady(env = process.env) {
 
 async function handleDailyEmailPilot(req, res) {
   if (!hasAdminSecret(req)) return sendJson(res, 401, { error: "unauthorized" });
-  if (!dailyEmailPilotReady()) return sendJson(res, 503, { error: "daily_email_pilot_not_ready" });
   const body = await parseBody(req);
   if (!body || Array.isArray(body) || typeof body !== "object" ||
       Object.keys(body).some(key => key !== "send") ||
       (body.send !== undefined && typeof body.send !== "boolean")) {
     return sendJson(res, 400, { error: "invalid_pilot_request" });
   }
-  const result = await sendDailyDigestBatch({ dryRun: body.send !== true, email: DAILY_QA_EMAIL });
+  const sendConfigured = dailyEmailPilotReady();
+  if (body.send === true && !sendConfigured) {
+    return sendJson(res, 503, { error: "daily_email_pilot_not_ready" });
+  }
+  const result = await sendDailyDigestBatch(
+    { dryRun: body.send !== true, email: DAILY_QA_EMAIL },
+    { ...process.env, DAILY_EMAIL_RECIPIENTS: DAILY_QA_EMAIL }
+  );
   return sendJson(res, 200, {
-    dryRun: result.dryRun, recipients: result.recipients, sent: result.sent,
+    dryRun: result.dryRun, sendConfigured, recipients: result.recipients, sent: result.sent,
     failed: result.failed, skipped: result.skipped, signalReadiness: result.signalReadiness,
     outcomes: result.results.map(row => ({ plan: row.plan, ok: row.ok,
       skipped: Boolean(row.skipped), reason: row.skippedReason || row.reason || null }))

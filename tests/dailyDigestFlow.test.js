@@ -356,9 +356,16 @@ test("QA pilot requires exactly one approved recipient and disables the ordinary
 
 test("pilot HTTP endpoint requires admin authentication and stays off by default", async () => {
   const url = `http://127.0.0.1:${server.address().port}/api/v1/admin/daily-email-pilot`;
-  const call = headers => fetch(url, { method: "POST", headers, body: "{}" });
+  const call = (headers, body = "{}") => fetch(url, { method: "POST", headers, body });
   assert.equal((await call({ "x-webhook-secret": "test-master-secret" })).status, 401);
-  const disabled = await call({ "x-savepulse-admin-key": "test-admin-key" });
+  const headers = { "x-savepulse-admin-key": "test-admin-key" };
+  const preview = await call(headers);
+  assert.equal(preview.status, 200);
+  const status = await preview.json();
+  assert.equal(status.dryRun, true);
+  assert.equal(status.sendConfigured, false);
+  assert.equal(status.sent, 0);
+  const disabled = await call(headers, '{"send":true}');
   assert.equal(disabled.status, 503);
   assert.equal((await disabled.json()).error, "daily_email_pilot_not_ready");
 });
