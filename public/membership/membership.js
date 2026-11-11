@@ -33,8 +33,8 @@ function draw() {
     const card = document.createElement("section"); card.className = "plan";
     const title = document.createElement("h2"); title.textContent = names[plan.id];
     const price = document.createElement("p"); price.className = "price"; price.textContent = `$${plan.amount} USD / month`;
-    const note = document.createElement("p"); note.textContent = catalog.mode === "test" ? `Sandbox demonstration. No real charge. Test access only.${catalog.taxLabel ? " " + catalog.taxLabel : ""}` : "Charged at signup. Renews monthly until cancelled.";
-    const button = document.createElement("button"); button.textContent = catalog.mode === "test" ? `Test ${names[plan.id]} checkout` : `Subscribe to ${names[plan.id]}`;
+    const note = document.createElement("p"); note.textContent = catalog.mode === "test" ? `Sandbox demonstration. No real charge. Test access only.${catalog.taxLabel ? " " + catalog.taxLabel : ""}` : catalog.enabled ? "Charged at signup. Renews monthly until cancelled." : "Listed price. Online checkout is currently closed.";
+    const button = document.createElement("button"); button.textContent = catalog.mode === "test" ? `Test ${names[plan.id]} checkout` : catalog.enabled ? `Subscribe to ${names[plan.id]}` : "Checkout not available";
     button.disabled = busy || !account?.email || !catalog.enabled || (account?.managed && !["canceled", "incomplete_expired"].includes(account.status));
     button.onclick = () => action(async () => {
       if (!account?.email) throw Error("Verify your email before continuing.");
