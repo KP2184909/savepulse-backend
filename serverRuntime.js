@@ -505,6 +505,9 @@ function bangkokDateParts(now = new Date()) {
 }
 
 function dailyDigestScheduleDue(now = new Date(), env = process.env, state = loadJson(SCHEDULER_STATE_FILE, {})) {
+  if (env.DAILY_EMAIL_DURABLE_TEST_ENABLED === "true") {
+    return { due: false, reason: "qa_pilot_only" };
+  }
   if (!dailyEmailEnabled(env)) {
     return { due: false, reason: "disabled" };
   }
@@ -642,12 +645,46 @@ function handleUnsubscribe(url, res) {
   sendText(res, 200, unsubscribeSuccessHtml(locale), "text/html; charset=utf-8");
 }
 
+const DAILY_QA_EMAIL = "savepulse.cloud@gmail.com";
+
+function dailyEmailPilotReady(env = process.env) {
+  const enabled = value => String(value || "").trim().toLowerCase() === "true";
+  return env.DAILY_EMAIL_DURABLE_TEST_ENABLED === "true" &&
+    !enabled(env.DAILY_EMAIL_ENABLED) && !enabled(env.DAILY_DIGEST_ENABLED) &&
+    String(env.DAILY_EMAIL_RECIPIENTS || "").trim().toLowerCase() === DAILY_QA_EMAIL &&
+    !String(env.DAILY_DIGEST_RECIPIENTS || "").trim() &&
+    env.EMAIL_PROVIDER === "resend" && Boolean(env.RESEND_API_KEY) &&
+    Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
+async function handleDailyEmailPilot(req, res) {
+  if (!hasAdminSecret(req)) return sendJson(res, 401, { error: "unauthorized" });
+  if (!dailyEmailPilotReady()) return sendJson(res, 503, { error: "daily_email_pilot_not_ready" });
+  const body = await parseBody(req);
+  if (!body || Array.isArray(body) || typeof body !== "object" ||
+      Object.keys(body).some(key => key !== "send") ||
+      (body.send !== undefined && typeof body.send !== "boolean")) {
+    return sendJson(res, 400, { error: "invalid_pilot_request" });
+  }
+  const result = await sendDailyDigestBatch({ dryRun: body.send !== true, email: DAILY_QA_EMAIL });
+  return sendJson(res, 200, {
+    dryRun: result.dryRun, recipients: result.recipients, sent: result.sent,
+    failed: result.failed, skipped: result.skipped, signalReadiness: result.signalReadiness,
+    outcomes: result.results.map(row => ({ plan: row.plan, ok: row.ok,
+      skipped: Boolean(row.skipped), reason: row.skippedReason || row.reason || null }))
+  });
+}
+
 async function handleDailyDigestSend(req, res) {
   const body = await parseBody(req);
 
   if (!hasMasterSecret(req, body) && !hasAdminSecret(req)) {
     sendJson(res, 401, { error: "unauthorized" });
     return;
+  }
+
+  if (body.dryRun === false && process.env.DAILY_EMAIL_DURABLE_TEST_ENABLED === "true") {
+    return sendJson(res, 409, { error: "use_daily_email_pilot" });
   }
 
   const result = await sendDailyDigestBatch(
@@ -674,6 +711,11 @@ async function patchedHandleRequest(req, res) {
 
     if (req.method === "GET" && url.pathname === "/unsubscribe") {
       handleUnsubscribe(url, res);
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/v1/admin/daily-email-pilot") {
+      await handleDailyEmailPilot(req, res);
       return;
     }
 
@@ -755,6 +797,7 @@ module.exports = {
   dailyDigestRecipients,
   dailyDigestScheduleDue,
   dailyEmailEnabled,
+  dailyEmailPilotReady,
   dailyEmailRecipientAllowlist,
   dailyEmailSignalMaxAgeHours,
   dailyEmailTime,

@@ -127,3 +127,11 @@ On the next isolated run, deployed fixed-payload QA wrapper v7 with a new test-o
 Readback found zero remaining jobs with the QA job name. Closed the temporary wrapper again as v8 JWT-protected410, with no mailer implementation. The snapshot is explicitly dated and marked TEST. No other recipients, Production cron/environment or billing settings were touched.
 
 This closes the sandbox scheduled-first-send gap. It does not validate Render's Production timer, 08:30 punctuality, daily recurrence, current market data readiness, customer unsubscribe flow, full Pro/mobile rendering or live commercial readiness. Local suite remains 214/214 from the preceding code change; this step changes evidence only.
+
+## Render candidate pilot entry point — 11 November
+
+Added admin-authenticated POST /api/v1/admin/daily-email-pilot to the Render runtime. Defaults to dry run; only {"send":true} requests delivery. It uses the current server time, current stored signals and the existing eligible QA subscriber. It does not create or opt in a subscriber, and refuses caller-supplied recipients, plans, dates or other overrides. The response shows counts and skip reasons without subscriber addresses.
+
+The pilot requires DAILY_EMAIL_DURABLE_TEST_ENABLED=true, both normal schedule flags off, DAILY_EMAIL_RECIPIENTS containing only the QA mailbox, no legacy recipient list, and Resend and Supabase configured. In pilot mode the normal timer is disabled even if misconfigured, and the ordinary manual send endpoint cannot send. The pilot remains off by default.
+
+Local suite: 216/216 pass, including HTTP admin authentication and default-off behavior, exact recipient/configuration checks, and ordinary scheduler suppression. No Production settings or deploy changed. Review and deploy the candidate with flags off first, run the authenticated pilot dry run, and only proceed to one QA send if the existing mailbox is eligible and required source signals are fresh. This does not enable customer sending or verify the Production 08:30 schedule.

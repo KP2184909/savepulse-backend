@@ -340,3 +340,25 @@ test("daily delivery identity survives local state recreation and changes by rec
   assert.notEqual(await dispatch("different@example.com", "2026-11-10T02:00:00Z"), first);
   assert.equal(first.includes(qa), false);
 });
+
+test("QA pilot requires exactly one approved recipient and disables the ordinary schedule", () => {
+  const { dailyEmailPilotReady } = require("../serverRuntime");
+  const env = { DAILY_EMAIL_DURABLE_TEST_ENABLED: "true", DAILY_EMAIL_RECIPIENTS: "savepulse.cloud@gmail.com",
+    EMAIL_PROVIDER: "resend", RESEND_API_KEY: "fake", SUPABASE_URL: "https://example.invalid", SUPABASE_SERVICE_ROLE_KEY: "fake" };
+  assert.equal(dailyEmailPilotReady(env), true);
+  for (const overrides of [{ DAILY_EMAIL_ENABLED: "true" }, { DAILY_DIGEST_ENABLED: "true" },
+    { DAILY_EMAIL_RECIPIENTS: "savepulse.cloud@gmail.com,other@example.com" },
+    { DAILY_DIGEST_RECIPIENTS: "other@example.com" }, { RESEND_API_KEY: "" }]) {
+    assert.equal(dailyEmailPilotReady({ ...env, ...overrides }), false);
+  }
+  assert.equal(dailyDigestScheduleDue(new Date(), { ...env, DAILY_EMAIL_ENABLED: "true" }, {}).reason, "qa_pilot_only");
+});
+
+test("pilot HTTP endpoint requires admin authentication and stays off by default", async () => {
+  const url = `http://127.0.0.1:${server.address().port}/api/v1/admin/daily-email-pilot`;
+  const call = headers => fetch(url, { method: "POST", headers, body: "{}" });
+  assert.equal((await call({ "x-webhook-secret": "test-master-secret" })).status, 401);
+  const disabled = await call({ "x-savepulse-admin-key": "test-admin-key" });
+  assert.equal(disabled.status, 503);
+  assert.equal((await disabled.json()).error, "daily_email_pilot_not_ready");
+});
