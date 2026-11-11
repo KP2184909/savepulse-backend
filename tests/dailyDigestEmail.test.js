@@ -14,8 +14,30 @@ const {
   sampleSignals
 } = require("../src/dailyDigestEmail");
 const { ACTIONS } = require("../src/signalEngine");
+const { FIAT_ASSETS, ALL_ASSETS } = require("../src/plans");
 
 const PLANS = ["free", "plus", "pro", "business"];
+
+test("missing percentile never becomes a fabricated middle-range observation", () => {
+  const html = buildDailyDigestEmail({ plan: "plus", signals: [{ symbol: "USDTHB", price: 33, action: ACTIONS.WAIT_ZONE, percentile: null, receivedAt: new Date().toISOString() }] }).html;
+  assert.match(html, /Historical range position unavailable/);
+  assert.doesNotMatch(html, /In the middle of the historical range|Near the upper end|Near the lower end/);
+});
+
+test("paid daily email covers every entitled fiat/advanced asset without commodities", () => {
+  for (const [plan, symbols] of [["plus", FIAT_ASSETS], ["pro", ALL_ASSETS]]) {
+    const { html, text } = buildDailyDigestEmail({ plan, signals: sampleSignals() });
+    for (const symbol of symbols) {
+      const label = labelForSymbol(symbol, "en");
+      assert.ok(html.includes(label.name), `${plan} HTML omits ${symbol}`);
+      assert.ok(text.includes(label.name), `${plan} plain text omits ${symbol}`);
+    }
+    if (plan === "plus") {
+      assert.doesNotMatch(html, /Reference XAU\/USD|Reference BTC\/USD/);
+    }
+    assert.doesNotMatch(html, /Reference COPPER|Reference FCPO|Reference BRENT/);
+  }
+});
 
 test("daily digest email renders all four SavePulse plans", () => {
   for (const plan of PLANS) {
@@ -42,7 +64,7 @@ test("daily digest emails include legal disclaimer and unsubscribe placeholder",
 test("daily digest emails render English first and Thai second in one message", () => {
   for (const plan of PLANS) {
     const template = buildDailyDigestEmail({ plan, locale: "th", signals: sampleSignals() });
-    const englishIndex = template.text.indexOf("Updated every morning");
+    const englishIndex = template.text.indexOf("Snapshot at preparation time");
     const thaiIndex = template.text.indexOf("ภาษาไทย");
 
     assert.equal(template.subject.includes("SavePulse"), true);
@@ -137,7 +159,9 @@ test("email calls to action describe what opens next", () => {
 
   assert.match(free, /เช็กข้อมูลล่าสุดบนเว็บ/);
   assert.match(plus, /เปิดรายการที่ฉันติดตาม/);
-  assert.match(business, /เปิดดูใบแจ้งหนี้ทั้งหมด/);
+  assert.match(business, /เปิดตัวอย่างวางแผนต้นทุน Business/);
+  assert.match(business, /href="https:\/\/savepulse.cloud\/for-business\/"/);
+  assert.doesNotMatch(business, /Open all tracked invoices/);
   assert.doesNotMatch(free, /ดูการ์ดวันนี้/);
 });
 
@@ -207,4 +231,13 @@ test("plus daily digest uses user-facing direction for JPYTHB row", () => {
   assert.match(template.text, /อยู่ช่วงล่างของข้อมูลย้อนหลัง/);
   assert.match(template.text, /ไม่ใช่โอกาสสำเร็จ/);
   assert.doesNotMatch(template.text, /BUY_ZONE|SELL_ZONE|STRONG_BUY|WAIT_ZONE/);
+});
+
+ test("email metadata does not promise an unverified delivery time", () => {
+  for (const plan of ["free", "plus", "pro", "business"]) {
+    const { html, text } = buildDailyDigestEmail({ plan });
+    assert.doesNotMatch(html + text, /Updated every morning|อัปเดตทุกเช้า|08:30/);
+    assert.match(text, /Snapshot at preparation time/);
+    assert.match(text, /สรุปข้อมูล ณ เวลาจัดทำ/);
+  }
 });

@@ -37,6 +37,19 @@ function asDate(value) {
 }
 
 function signalTimestamp(signal = {}) {
+  // A new webhook receipt must not rejuvenate an old source bar.
+  // Invalid explicitly supplied source timestamps fail closed.
+  const sourceCandidates = [
+    signal.sourceUpdatedAt, signal.source_updated_at,
+    signal.payload?.pine?.barTime,
+    signal.barTime, signal.bar_time, signal.time
+  ].filter((value) => value !== undefined && value !== null && value !== "");
+  if (sourceCandidates.length) {
+    const dates = sourceCandidates.map(asDate);
+    if (dates.some((date) => !date)) return null;
+    return dates.sort((a, b) => a.getTime() - b.getTime())[0];
+  }
+  // Legacy records without source time retain receipt-based compatibility.
   const candidates = [
     signal.receivedAt,
     signal.received_at,

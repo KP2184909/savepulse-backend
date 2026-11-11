@@ -63,7 +63,7 @@ const PLAN_COPY = Object.freeze({
       headline: "ข้อสังเกตวันนี้ก่อนคุณแลกเงินก้อนใหญ่",
       subhead: "สรุปแบบ Lite ให้เห็นความเคลื่อนไหวสำคัญ โดยยังล็อกรายละเอียดลึกไว้สำหรับแผนที่สูงกว่า",
       cta: "เช็กข้อมูลล่าสุดบนเว็บ",
-      date: "อัปเดตทุกเช้า 08:30 น.",
+      date: "สรุปข้อมูล ณ เวลาจัดทำ",
       pill: "FREE"
     },
     en: {
@@ -73,7 +73,7 @@ const PLAN_COPY = Object.freeze({
       headline: "Which rate is worth watching before you exchange late",
       subhead: "A Lite daily snapshot that shows one important movement while deeper context stays unlocked for paid plans.",
       cta: "Check the latest details online",
-      date: "Updated every morning at 08:30",
+      date: "Snapshot at preparation time",
       pill: "FREE"
     }
   },
@@ -85,7 +85,7 @@ const PLAN_COPY = Object.freeze({
       headline: "รายการที่คุณเฝ้าอยู่ มีข้อสังเกตใหม่วันนี้",
       subhead: "การ์ดสรุปจากเรทอ้างอิง เพื่อช่วยประกอบการตัดสินใจอย่างมีข้อมูลมากขึ้น",
       cta: "เปิดรายการที่ฉันติดตาม",
-      date: "อัปเดตทุกเช้า 08:30 น.",
+      date: "สรุปข้อมูล ณ เวลาจัดทำ",
       pill: "PLUS"
     },
     en: {
@@ -95,7 +95,7 @@ const PLAN_COPY = Object.freeze({
       headline: "Your watchlist has timing changes today",
       subhead: "A simple decision card based on current rate context, built for calmer planning.",
       cta: "Open my watchlist",
-      date: "Updated every morning at 08:30",
+      date: "Snapshot at preparation time",
       pill: "PLUS"
     }
   },
@@ -107,7 +107,7 @@ const PLAN_COPY = Object.freeze({
       headline: "ทองคำ บิตคอยน์ และค่าเงิน วันนี้ตัวไหนน่าจับตาเป็นพิเศษ",
       subhead: "สรุปจังหวะสำคัญจากข้อมูลสถิติย้อนหลัง เพื่อช่วยให้คุณทบทวนก่อนตัดสินใจ",
       cta: "เปิดดูค่าเงิน ทอง และบิตคอยน์",
-      date: "อัปเดตทุกเช้า 08:30 น.",
+      date: "สรุปข้อมูล ณ เวลาจัดทำ",
       pill: "PRO"
     },
     en: {
@@ -117,7 +117,7 @@ const PLAN_COPY = Object.freeze({
       headline: "Gold, bitcoin, and currencies: which areas deserve attention today",
       subhead: "A wider timing radar based on historical context, built for confident review.",
       cta: "Open currency, gold, and bitcoin details",
-      date: "Updated every morning at 08:30",
+      date: "Snapshot at preparation time",
       pill: "PRO"
     }
   },
@@ -128,8 +128,8 @@ const PLAN_COPY = Object.freeze({
       subject: "SavePulse Business | สรุปผลกระทบค่าเงินต่อใบแจ้งหนี้วันนี้",
       headline: "วันนี้ใบแจ้งหนี้ต่างประเทศ คิดเป็นเงินบาทประมาณเท่าไร",
       subhead: "ใช้เรทอ้างอิงล่าสุดแปลงยอดตัวอย่างเป็นเงินบาทและเรียงวันครบกำหนด เพื่อช่วยทีมการเงินเตรียมเงินสดและรู้ว่าควรตรวจสอบใบไหนก่อน",
-      cta: "เปิดดูใบแจ้งหนี้ทั้งหมด",
-      date: "อัปเดตทุกเช้า 08:30 น.",
+      cta: "เปิดตัวอย่างวางแผนต้นทุน Business",
+      date: "สรุปข้อมูล ณ เวลาจัดทำ",
       pill: "BUSINESS"
     },
     en: {
@@ -138,8 +138,8 @@ const PLAN_COPY = Object.freeze({
       subject: "SavePulse Business | Invoice Risk Brief: How today's rates changed your invoice cost",
       headline: "What foreign invoices are worth in Thai baht today",
       subhead: "Uses the latest reference rates to estimate Thai-baht cost and order upcoming due dates, helping finance teams plan cash and prioritize reviews.",
-      cta: "Open all tracked invoices",
-      date: "Updated every morning at 08:30",
+      cta: "Open the Business planning demo",
+      date: "Snapshot at preparation time",
       pill: "BUSINESS"
     }
   }
@@ -202,7 +202,7 @@ function sampleSignals() {
 }
 
 function signalsBySymbol(inputSignals = []) {
-  const defaults = Object.fromEntries(sampleSignals().map((signal) => [signal.symbol, signal]));
+  const defaults = Object.fromEntries(LEGACY_ASSETS.map(symbol => [symbol, createDefaultSignal(symbol)]));
 
   for (const signal of inputSignals) {
     if (signal && signal.symbol) {
@@ -221,7 +221,7 @@ function symbolsForPlan(plan) {
   }
 
   if (planId === "plus") {
-    return ["EURUSD", "JPYTHB", "USDTHB", "EURTHB"].filter((symbol) => FIAT_ASSETS.includes(symbol));
+    return [...FIAT_ASSETS];
   }
 
   return LEGACY_ASSETS;
@@ -688,7 +688,9 @@ function premiumAssetModel(symbol, signalMap, locale) {
   const signal = signalMap[symbol] || createDefaultSignal(symbol);
   const label = labelForSymbol(symbol, locale);
   const decision = decisionForSignal(signal, locale, signal?.userDirection || {});
-  const percent = Math.max(0, Math.min(100, Math.round(percentFromSignal(signal))));
+  const rawPercent = signal?.percentile && typeof signal.percentile === "object" ? signal.percentile.percent : signal?.percentile;
+  const hasPercent = rawPercent !== null && rawPercent !== undefined && rawPercent !== "" && Number.isFinite(Number(rawPercent)) && Number(rawPercent) >= 0 && Number(rawPercent) <= 100;
+  const percent = hasPercent ? Math.round(Number(rawPercent)) : null;
   const thai = localeKey(locale) === "th";
 
   return {
@@ -702,7 +704,7 @@ function premiumAssetModel(symbol, signalMap, locale) {
     price: Number.isFinite(Number(signal?.price)) ? Number(signal.price) : null,
     percent,
     observationIntro: thai ? "ตำแหน่งราคาเทียบข้อมูลย้อนหลัง" : "Price position in the historical range",
-    observationLabel: observationLevelFromPercent(percent, locale),
+    observationLabel: hasPercent ? observationLevelFromPercent(percent, locale) : (thai ? "ไม่มีข้อมูลตำแหน่งในช่วงย้อนหลัง" : "Historical range position unavailable"),
     observationExplanation: thai ? "บอกตำแหน่งราคา ไม่ใช่โอกาสสำเร็จ" : "Shows price position, not a success probability"
   };
 }
@@ -713,12 +715,12 @@ function premiumAssetsForPlan(plan, signalMap, locale) {
   }
 
   if (plan === "plus") {
-    return ["EURUSD", "JPYTHB", "USDTHB"].map((symbol) => premiumAssetModel(symbol, signalMap, locale));
+    return FIAT_ASSETS.map((symbol) => premiumAssetModel(symbol, signalMap, locale));
   }
 
   if (plan === "pro") {
     return [
-      ["USDTHB", "EURTHB", "JPYTHB"],
+      [...FIAT_ASSETS],
       ["XAUUSD", "XAUTHB"],
       ["BTCUSD", "BTCTHB"]
     ].map((symbols) => symbols.map((symbol) => premiumAssetModel(symbol, signalMap, locale)));
@@ -744,7 +746,7 @@ function buildDailyDigestEmail({
   const secondaryLanguage = "th";
   const copy = PLAN_COPY[planId][primaryLanguage];
   const signalMap = signalsBySymbol(signals);
-  const resolvedDashboardUrl = baseUrl(dashboardUrl);
+  const resolvedDashboardUrl = planId === "business" ? `${baseUrl(dashboardUrl)}/for-business/` : baseUrl(dashboardUrl);
   const planName = planFor(planId).name;
   const html = renderPremiumDailyDigestEmail({
     plan: planId,
