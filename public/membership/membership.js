@@ -88,6 +88,18 @@ if ($("taxDocument")) $("taxDocument").onclick = () => action(async () => {
 });
 action(async () => {
   catalog = await api("catalog");
+  if (billingBase === "/api/v1/billing/" && catalog.enabled === false && !catalog.plans?.length) {
+    // List published prices while billing stays closed; these never become checkout prices.
+    try {
+      const response = await fetch("/api/v1/plans", { cache: "no-store" });
+      if (response.ok) {
+        const { plans } = await response.json();
+        catalog.plans = (Array.isArray(plans) ? plans : [])
+          .filter(plan => Object.hasOwn(names, plan.id) && Number.isFinite(plan.prices?.usdMonthly) && plan.prices.usdMonthly > 0)
+          .map(plan => ({ id: plan.id, amount: plan.prices.usdMonthly, currency: "USD", interval: "month" }));
+      }
+    } catch (_) { /* Billing remains closed even if the public plan catalog is unavailable. */ }
+  }
   if (token()) await refresh();
   else if (!catalog.enabled) $("message").textContent = "Paid signup is not open yet. You can use the separate 14-day no-card trial.";
   else $("message").textContent = "Verify your email, then choose a plan. Your trial will not convert to paid automatically.";
