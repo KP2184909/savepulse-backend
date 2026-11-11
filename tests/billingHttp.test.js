@@ -17,7 +17,7 @@ global.fetch = async (rawUrl, options = {}) => {
   if (url.hostname === "api.resend.com") { mail.push(JSON.parse(options.body)); return Response.json({ id: "test-provider" }); }
   if (url.hostname === "api.stripe.com") {
     if (url.pathname === "/v1/account") return Response.json({ id: "acct_fixture" });
-    if (url.pathname === "/v1/prices/price_pro") return Response.json({ id: "price_pro", active: true, livemode: false, currency: "usd", unit_amount: 3900, type: "recurring", recurring: { interval: "month", interval_count: 1 } });
+    if (url.pathname === "/v1/prices/price_pro") return Response.json({ id: "price_pro", active: true, livemode: false, currency: "usd", unit_amount: 4900, type: "recurring", recurring: { interval: "month", interval_count: 1 } });
     if (url.pathname === "/v1/checkout/sessions") {
       const data = new URLSearchParams(options.body);
       const session = { id: "cs_test_http", mode: "subscription", livemode: false, status: "open", payment_status: "unpaid", metadata: { service: data.get("metadata[service]"), billing_account: data.get("metadata[billing_account]"), billing_attempt: data.get("metadata[billing_attempt]") }, url: "https://checkout.stripe.com/c/pay/cs_test_http" };
@@ -91,7 +91,7 @@ test("HTTP risk webhook retries after storage failure and concurrent replays cre
   assert.equal([...rows.keys()].filter(key => typeof key === "string" && key.startsWith("billing-risk:")).length, before + 1);
 });
 test("verified HTTP checkout, signed webhook, reload entitlement, portal, cancellation and delivery gate", async () => {
-  assert.equal((await api("/api/v1/billing/catalog")).data.plans[0].amount, 39);
+  assert.equal((await api("/api/v1/billing/catalog")).data.plans[0].amount, 49);
   assert.equal((await api("/api/v1/billing/checkout", { email: "savepulse.cloud@gmail.com", plan: "pro" })).status, 401);
   await api("/api/v1/trial/code", { email: "savepulse.cloud@gmail.com" });
   const auth = await api("/api/v1/trial/verify", { email: "savepulse.cloud@gmail.com", code: mail.at(-1).text.match(/code is (\d{6})/)[1] });
@@ -103,7 +103,7 @@ test("verified HTTP checkout, signed webhook, reload entitlement, portal, cancel
   const session = sessions.get("cs_test_http");
   Object.assign(session, { status: "complete", payment_status: "paid", customer: "cus_http", subscription: "sub_http" });
   const time = Math.floor(Date.now() / 1000), end = time + 30 * 86400;
-  subscription = { id: "sub_http", livemode: false, metadata: session.metadata, customer: "cus_http", status: "active", items: { data: [{ quantity: 1, current_period_end: end, price: { id: "price_pro", unit_amount: 3900, currency: "usd" } }] }, latest_invoice: { id: "in_http", livemode: false, customer: "cus_http", status: "paid", parent: { subscription_details: { subscription: "sub_http" } }, lines: { data: [{ pricing: { price_details: { price: "price_pro" } }, period: { start: time, end } }] } } };
+  subscription = { id: "sub_http", livemode: false, metadata: session.metadata, customer: "cus_http", status: "active", items: { data: [{ quantity: 1, current_period_end: end, price: { id: "price_pro", unit_amount: 4900, currency: "usd" } }] }, latest_invoice: { id: "in_http", livemode: false, customer: "cus_http", status: "paid", parent: { subscription_details: { subscription: "sub_http" } }, lines: { data: [{ pricing: { price_details: { price: "price_pro" } }, period: { start: time, end } }] } } };
   const event = { id: "evt_http", livemode: false, type: "checkout.session.completed", data: { object: session } };
   assert.equal((await webhook(event, false)).status, 400);
   assert.equal((await webhook(event)).data.result.updated, true);

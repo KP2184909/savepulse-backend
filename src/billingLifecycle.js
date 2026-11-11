@@ -1,12 +1,12 @@
 "use strict";
 
-const { currentPriceId, legacyProPriceId } = require("./billingPriceRevision");
+const { currentPriceId, legacyPrice } = require("./billingPriceRevision");
 const crypto = require("node:crypto");
 const { canonicalEmail } = require("./trialLifecycle");
 const fail = (code, status = 503) => Object.assign(new Error(code), { status });
 const hash = value => crypto.createHash("sha256").update(value).digest("hex");
 const id = value => typeof value === "string" ? value : value?.id;
-const AMOUNTS = Object.freeze({ plus: 500, pro: 3900, business: 5900 });
+const AMOUNTS = Object.freeze({ plus: 3900, pro: 4900, business: 6900 });
 const EVENTS = Object.freeze([
   "checkout.session.completed", "checkout.session.async_payment_succeeded", "checkout.session.async_payment_failed",
   "customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted",
@@ -123,9 +123,9 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
     if (session.livemode !== (mode === "live") || session.mode !== "subscription" || session.metadata?.billing_account !== row.accountRef || session.metadata?.billing_attempt !== subscription.metadata.billing_attempt || id(session.subscription) !== subscription.id || id(session.customer) !== id(subscription.customer)) throw fail("billing_binding_mismatch", 422);
     const items = subscription.items?.data || [];
     const price = items[0]?.price;
-    const legacyPro = id(price) === legacyProPriceId(env) && Boolean(legacyProPriceId(env));
-    const plan = legacyPro ? "pro" : Object.keys(prices).find(plan => prices[plan] === id(price));
-    if (items.length !== 1 || items[0].quantity !== 1 || !plan || price.currency !== "usd" || price.unit_amount !== (legacyPro ? 1500 : AMOUNTS[plan])) throw fail("billing_price_mismatch", 422);
+    const currentPlan = Object.keys(prices).find(plan => prices[plan] === id(price) && price?.unit_amount === AMOUNTS[plan]);
+    const plan = currentPlan || legacyPrice(env, id(price), price?.unit_amount);
+    if (items.length !== 1 || items[0].quantity !== 1 || !plan || price.currency !== "usd") throw fail("billing_price_mismatch", 422);
     const invoice = subscription.latest_invoice;
     const invoiceSubscription = id(invoice?.subscription) || id(invoice?.parent?.subscription_details?.subscription);
     const line = invoice?.lines?.data?.find(line => (id(line.price) || id(line.pricing?.price_details?.price)) === id(price));
@@ -190,7 +190,7 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
         const existing = await stripe("GET", `/checkout/sessions/${pending.sessionId}`);
         if (existing.status === "complete") throw fail("billing_payment_processing", 409);
         if (existing.status === "open") {
-          if (pending.plan === plan) return { configured: true, provider: "stripe", mode, url: existing.url };
+          if (pending.plan === plan && pending.params?.line_items?.[0]?.price === prices[plan]) return { configured: true, provider: "stripe", mode, url: existing.url };
           // Choosing a different plan first closes the old payment opportunity.
           // A race with completed payment causes Stripe to reject expiry; no new checkout is created.
           const expired = await stripe("POST", `/checkout/sessions/${pending.sessionId}/expire`);
@@ -202,6 +202,9 @@ function createBillingLifecycle({ store, stripe, identity, env = process.env, no
         pending = null;
       }
       if (pending && now() - pending.createdAt >= 23 * 3600000) throw fail("billing_checkout_needs_review", 409);
+      // With a lost provider response, the old idempotency key might already
+      // refer to a created session. Do not retry it at an outdated price.
+      if (pending && pending.params?.line_items?.[0]?.price !== prices[pending.plan]) throw fail("billing_checkout_needs_review", 409);
       if (pending && pending.plan !== plan) throw fail("billing_checkout_already_open", 409);
       if (!pending) {
         const attempt = crypto.randomUUID(), accountRef = hash(canonicalEmail(email));
