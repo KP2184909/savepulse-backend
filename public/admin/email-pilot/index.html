@@ -20,7 +20,7 @@ button{background:#075e63;color:white}pre{white-space:pre-wrap;overflow-wrap:any
 <form id="pilot">
 <label for="key">รหัสแอดมิน SavePulse</label>
 <input id="key" type="password" required autocomplete="off">
-<button id="check">ตรวจความพร้อมโดยไม่ส่ง</button>
+<button id="check">ตรวจรายงาน Plus โดยไม่ส่ง</button>
 </form>
 <pre id="result" role="status" aria-live="polite"></pre>
 </main>
@@ -40,7 +40,7 @@ form.addEventListener("submit", async event => {
     const response = await fetch("/api/v1/admin/daily-email-pilot", {
       method: "POST", cache: "no-store", credentials: "omit",
       headers: { "Content-Type": "application/json", "x-savepulse-admin-key": adminKey },
-      body: JSON.stringify({ send: false })
+      body: JSON.stringify({ send: false, report: "plus" })
     });
     const data = await response.json();
     if (!response.ok) {
