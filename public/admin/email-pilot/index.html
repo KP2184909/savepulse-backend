@@ -20,7 +20,8 @@ button{background:#075e63;color:white}pre{white-space:pre-wrap;overflow-wrap:any
 <form id="pilot">
 <label for="key">รหัสแอดมิน SavePulse</label>
 <input id="key" type="password" required autocomplete="off">
-<button id="check">ตรวจรายงาน Plus โดยไม่ส่ง</button>
+<label for="report">แพ็กเกจ</label> <select id="report"><option value="plus">Plus</option><option value="pro">Pro</option></select>
+<button id="check">ตรวจรายงานโดยไม่ส่ง</button>
 </form>
 <pre id="result" role="status" aria-live="polite"></pre>
 </main>
@@ -33,6 +34,8 @@ const check = document.getElementById("check");
 form.addEventListener("submit", async event => {
   event.preventDefault();
   check.disabled = true;
+  report.disabled = true;
+  const selectedReport = report.value;
   const adminKey = key.value.trim();
   key.value = "";
   result.textContent = "กำลังตรวจ…";
@@ -40,7 +43,7 @@ form.addEventListener("submit", async event => {
     const response = await fetch("/api/v1/admin/daily-email-pilot", {
       method: "POST", cache: "no-store", credentials: "omit",
       headers: { "Content-Type": "application/json", "x-savepulse-admin-key": adminKey },
-      body: JSON.stringify({ send: false, report: "plus" })
+      body: JSON.stringify({ send: false, report: selectedReport })
     });
     const data = await response.json();
     if (!response.ok) {
@@ -51,7 +54,7 @@ form.addEventListener("submit", async event => {
     }
     result.textContent = JSON.stringify(data, null, 2);
   } catch (_) { result.textContent = "ติดต่อ backend ไม่สำเร็จ"; }
-  finally { check.disabled = false; }
+  finally { check.disabled = false; report.disabled = false; }
 });
 </script>
 </body>

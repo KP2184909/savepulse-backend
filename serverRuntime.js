@@ -335,15 +335,15 @@ function schedulerStateForAdmin() {
 }
 
 async function sendDailyDigestBatch(
-  { dryRun = false, plan = "", email = "", qaPlusReport = false, signals, now = new Date(), sendEmail = sendDailyDigestEmail } = {},
+  { dryRun = false, plan = "", email = "", qaReport = "", signals, now = new Date(), sendEmail = sendDailyDigestEmail } = {},
   env = process.env
 ) {
   const recipients = [];
   for (const subscriber of dailyDigestCandidates(plan, email, env)) {
     try {
       const resolved = await baseServer.resolveBillingSubscriber(subscriber);
-      recipients.push(qaPlusReport && resolved.email === DAILY_QA_EMAIL
-        ? { ...resolved, plan: "plus" }
+      recipients.push(["plus", "pro"].includes(qaReport) && resolved.email === DAILY_QA_EMAIL
+        ? { ...resolved, plan: qaReport }
         : resolved);
     }
     catch (_) { recipients.push({ ...subscriber, billingLookupFailed: true }); }
@@ -667,7 +667,7 @@ async function handleDailyEmailPilot(req, res) {
   const body = await parseBody(req);
   if (!body || Array.isArray(body) || typeof body !== "object" ||
       Object.keys(body).some(key => key !== "send" && key !== "report") ||
-      (body.report !== undefined && body.report !== "plus") ||
+      (body.report !== undefined && !["plus", "pro"].includes(body.report)) ||
       (body.send !== undefined && typeof body.send !== "boolean")) {
     return sendJson(res, 400, { error: "invalid_pilot_request" });
   }
@@ -676,7 +676,7 @@ async function handleDailyEmailPilot(req, res) {
     return sendJson(res, 503, { error: "daily_email_pilot_not_ready" });
   }
   const result = await sendDailyDigestBatch(
-    { dryRun: body.send !== true, email: DAILY_QA_EMAIL, qaPlusReport: body.report === "plus" },
+    { dryRun: body.send !== true, email: DAILY_QA_EMAIL, qaReport: body.report },
     { ...process.env, DAILY_EMAIL_RECIPIENTS: DAILY_QA_EMAIL }
   );
   return sendJson(res, 200, {

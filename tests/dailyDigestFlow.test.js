@@ -370,18 +370,18 @@ test("pilot HTTP endpoint requires admin authentication and stays off by default
   assert.equal((await disabled.json()).error, "daily_email_pilot_not_ready");
 });
 
-test("admin can preview Plus for the QA mailbox without changing its Free membership", async () => {
+for (const plan of ["plus", "pro"]) test(`admin can preview ${plan} for the QA mailbox without changing its Free membership`, async () => {
   resetState([subscriber("savepulse.cloud@gmail.com"), subscriber("excluded@example.com")]);
   const before = fs.readFileSync(SUBSCRIBERS_FILE, "utf8");
   const response = await fetch(`http://127.0.0.1:${server.address().port}/api/v1/admin/daily-email-pilot`, {
     method: "POST",
     headers: { "x-savepulse-admin-key": "test-admin-key" },
-    body: '{"send":false,"report":"plus"}'
+    body: JSON.stringify({ send: false, report: plan })
   });
   assert.equal(response.status, 200);
   const result = await response.json();
   assert.equal(result.recipients, 1);
-  assert.equal(result.outcomes[0].plan, "plus");
+  assert.equal(result.outcomes[0].plan, plan);
   assert.equal(result.sent, 0);
   assert.equal(fs.readFileSync(SUBSCRIBERS_FILE, "utf8"), before);
 });
