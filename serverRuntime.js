@@ -540,7 +540,8 @@ function dailyDigestScheduleDue(now = new Date(), env = process.env, state = loa
 let dailyDigestRunning = false;
 
 async function runScheduledDailyDigest(now = new Date(), env = process.env, options = {}) {
-  const state = loadJson(SCHEDULER_STATE_FILE, {});
+  const stateFile = options.qaReport ? path.join(DATA_DIR, "scheduler-email-qa.json") : SCHEDULER_STATE_FILE;
+  const state = loadJson(stateFile, {});
   const schedule = dailyDigestScheduleDue(now, env, state);
 
   if (!schedule.due) {
@@ -551,7 +552,8 @@ async function runScheduledDailyDigest(now = new Date(), env = process.env, opti
   dailyDigestRunning = true;
   try {
     const result = await sendDailyDigestBatch({
-      dryRun: false, now, signals: options.signals, sendEmail: options.sendEmail
+      dryRun: false, now, signals: options.signals, sendEmail: options.sendEmail,
+      email: options.qaReport ? DAILY_QA_EMAIL : "", qaReport: options.qaReport
     }, env);
     const runResult = {
       sent: result.sent,
@@ -561,7 +563,7 @@ async function runScheduledDailyDigest(now = new Date(), env = process.env, opti
       signalReadiness: result.signalReadiness
     };
 
-    saveJson(SCHEDULER_STATE_FILE, {
+    saveJson(stateFile, {
       ...state,
       // Missing/stale signals cause no sends; leave today's job due for the next tick.
       ...(result.signalReadiness.ready ? {
@@ -735,7 +737,17 @@ async function patchedHandleRequest(req, res) {
       if (recipients.length !== 1 || recipients[0] !== DAILY_QA_EMAIL) {
         return sendJson(res, 409, { error: "qa_recipient_required" });
       }
-      const { result, ...status } = await runScheduledDailyDigest();
+      const env = process.env;
+      if (env.DAILY_EMAIL_SCHEDULED_QA_ENABLED !== "true" ||
+          dailyEmailEnabled(env) || dailyEmailEnabled({ DAILY_EMAIL_ENABLED: env.DAILY_DIGEST_ENABLED })) {
+        return sendJson(res, 200, { due: false, reason: "scheduled_qa_disabled" });
+      }
+      const { result, ...status } = await runScheduledDailyDigest(new Date(), {
+        ...env,
+        DAILY_EMAIL_ENABLED: "true",
+        DAILY_EMAIL_DURABLE_TEST_ENABLED: "false",
+        DAILY_EMAIL_RECIPIENTS: DAILY_QA_EMAIL
+      }, { qaReport: "pro" });
       return sendJson(res, 200, { ...status, ...(result && {
         sent: result.sent, skipped: result.skipped, failed: result.failed
       }) });
