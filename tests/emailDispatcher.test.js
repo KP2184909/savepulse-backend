@@ -205,3 +205,27 @@ test("signal alert email uses premium compact design without legacy table copy",
   assert.doesNotMatch(`${template.subject} ${template.text} ${template.html}`, /SAVEPULSE FREE ALERT|เปอร์เซ็นไทล์|pending|เปิดการ์ดตัดสินใจวันนี้/);
   assert.doesNotMatch(`${template.subject} ${template.text} ${template.html}`, /BUY_ZONE|SELL_ZONE|STRONG_BUY|WAIT_ZONE/);
 });
+
+test("daily digest forwards provider idempotency key outside email content", async () => {
+  const { sendDailyDigestEmail } = require("../src/emailDispatcher");
+  const originalFetch = global.fetch;
+  const requests = [];
+  global.fetch = async (url, options) => {
+    requests.push({ url, headers: options.headers, body: JSON.parse(options.body) });
+    return { ok: true, json: async () => ({ id: "same-message" }) };
+  };
+  try {
+    const input = {
+      subscriber: { email: "savepulse.cloud@gmail.com", plan: "plus" },
+      idempotencyKey: "daily-digest/v1/test-deterministic-key",
+      env: { EMAIL_PROVIDER: "resend", RESEND_API_KEY: "test-only", FROM_EMAIL: "test@example.com" }
+    };
+    await sendDailyDigestEmail(input);
+    await sendDailyDigestEmail(input);
+    assert.equal(requests.length, 2);
+    for (const request of requests) {
+      assert.equal(request.headers["Idempotency-Key"], input.idempotencyKey);
+      assert.equal(JSON.stringify(request.body).includes(input.idempotencyKey), false);
+    }
+  } finally { global.fetch = originalFetch; }
+});

@@ -7,7 +7,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { ACTIONS, TRACKED_ASSETS } = require("../src/signalEngine");
 const { buildDailyDigestEmail } = require("../src/dailyDigestEmail");
-const { signalsForSubscriber } = require("../src/dailyEmailScheduler");
+const { signalsForSubscriber, assessSignalReadiness } = require("../src/dailyEmailScheduler");
 
 const tempDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "savepulse-digest-"));
 
@@ -20,6 +20,7 @@ process.env.ADMIN_READINESS_KEY = "test-admin-key";
 const {
   dailyDigestCandidates,
   dailyDigestScheduleDue,
+  runScheduledDailyDigest,
   dailyEmailRecipientAllowlist,
   loadEmailLogs,
   saveEmailLogs,
@@ -68,8 +69,8 @@ function completeSignals(timestamp = "2026-06-02T01:31:00.000Z", overrides = {})
 
 function fakeSendEmail(prefix = "msg") {
   const sent = [];
-  const sendEmail = async ({ subscriber: targetSubscriber, signals }) => {
-    sent.push({ subscriber: targetSubscriber, signals });
+  const sendEmail = async ({ subscriber: targetSubscriber, signals, idempotencyKey }) => {
+    sent.push({ subscriber: targetSubscriber, signals, idempotencyKey });
     return { ok: true, email: targetSubscriber.email, providerMessageId: `${prefix}-${sent.length}` };
   };
   sendEmail.sent = sent;
@@ -253,4 +254,111 @@ test("daily email recipient allowlist limits automatic pilot recipients", () => 
     dailyDigestCandidates("", "", env).map((record) => record.email),
     ["owner@example.com", "pilot@example.com"]
   );
+});
+
+ test("a fresh receipt cannot rejuvenate an old, future or invalid source bar", () => {
+  const now = new Date("2026-11-10T02:00:00Z");
+  for (const barTime of ["2026-06-01T00:00:00Z", "2026-11-12T00:00:00Z", "invalid"]) {
+    const result = assessSignalReadiness(completeSignals(now.toISOString(), {
+      USDTHB: { payload: { pine: { barTime } } }
+    }), { now });
+    assert.equal(result.ready, false);
+    assert.ok(result.staleSymbols.includes("USDTHB"));
+  }
+  const fresh = assessSignalReadiness(completeSignals(now.toISOString(), {
+    USDTHB: { payload: { pine: { barTime: now.getTime() } } }
+  }), { now });
+  assert.equal(fresh.ready, true);
+});
+
+test("scheduled runner does not send or mark completion while disabled or missing allowlist", async () => {
+  resetState([subscriber("savepulse.cloud@gmail.com", "plus")]);
+  const before = fs.readFileSync(SCHEDULER_STATE_FILE, "utf8");
+  const now = new Date("2026-11-10T02:00:00Z");
+  assert.equal((await runScheduledDailyDigest(now, {})).reason, "disabled");
+  assert.equal((await runScheduledDailyDigest(now, { DAILY_EMAIL_ENABLED: "true" })).reason,
+    "recipient_allowlist_required");
+  assert.deepEqual(loadEmailLogs(), []);
+  assert.equal(fs.readFileSync(SCHEDULER_STATE_FILE, "utf8"), before);
+});
+
+test("scheduled pilot waits for complete source data, sends only to QA, and does not replay", async () => {
+  const qa = "savepulse.cloud@gmail.com";
+  resetState([subscriber(qa, "plus"), subscriber("excluded@example.com", "plus")]);
+  const env = { DAILY_EMAIL_ENABLED: "true", DAILY_EMAIL_RECIPIENTS: qa };
+  const now = new Date("2026-11-10T02:00:00Z");
+  const sendEmail = fakeSendEmail("scheduled-qa");
+  const missing = completeSignals(now.toISOString()).filter(s => s.symbol !== "USDTHB");
+  const first = await runScheduledDailyDigest(now, env, { signals: missing, sendEmail });
+  assert.equal(first.waitingForSignals, true);
+  assert.equal(sendEmail.sent.length, 0);
+  assert.equal(dailyDigestScheduleDue(now, env).due, true);
+  const second = await runScheduledDailyDigest(now, env, { signals: completeSignals(now.toISOString()), sendEmail });
+  assert.equal(second.result.sent, 1);
+  assert.equal(second.waitingForSignals, false);
+  assert.deepEqual(sendEmail.sent.map(x => x.subscriber.email), [qa]);
+  assert.equal(loadEmailLogs().find(x => x.status === "sent").signal_snapshot_date, "2026-11-10");
+  assert.equal((await runScheduledDailyDigest(now, env, { signals: completeSignals(now.toISOString()), sendEmail })).reason,
+    "already_processed_today");
+  assert.equal(sendEmail.sent.length, 1);
+});
+
+test("overlapping scheduled ticks do not dispatch twice in one process", async () => {
+  const qa = "savepulse.cloud@gmail.com";
+  resetState([subscriber(qa, "plus")]);
+  const env = { DAILY_EMAIL_ENABLED: "true", DAILY_EMAIL_RECIPIENTS: qa };
+  const now = new Date("2026-11-10T02:00:00Z");
+  let release;
+  let entered;
+  const sending = new Promise(resolve => { entered = resolve; });
+  const options = { signals: completeSignals(now.toISOString()), sendEmail: async () => {
+    entered();
+    await new Promise(resolve => { release = resolve; });
+    return { ok: true, providerMessageId: "overlap-qa" };
+  }};
+  const first = runScheduledDailyDigest(now, env, options);
+  await sending;
+  assert.equal((await runScheduledDailyDigest(now, env, options)).reason, "already_running");
+  release();
+  assert.equal((await first).result.sent, 1);
+  assert.equal(loadEmailLogs().filter(x => x.status === "sent").length, 1);
+});
+
+test("daily delivery identity survives local state recreation and changes by recipient or date", async () => {
+  const qa = "savepulse.cloud@gmail.com";
+  const sender = fakeSendEmail("identity");
+  const dispatch = async (email, date) => {
+    resetState([subscriber(email, "plus")]);
+    await sendDailyDigestBatch({ now: new Date(date), signals: completeSignals(date), sendEmail: sender }, {});
+    return sender.sent.at(-1).idempotencyKey;
+  };
+  const first = await dispatch(qa, "2026-11-10T02:00:00Z");
+  const replay = await dispatch(qa, "2026-11-10T03:00:00Z");
+  assert.match(first, /^daily-digest\/v1\/[a-f0-9]{64}$/);
+  assert.equal(replay, first);
+  assert.notEqual(await dispatch(qa, "2026-11-11T02:00:00Z"), first);
+  assert.notEqual(await dispatch("different@example.com", "2026-11-10T02:00:00Z"), first);
+  assert.equal(first.includes(qa), false);
+});
+
+test("QA pilot requires exactly one approved recipient and disables the ordinary schedule", () => {
+  const { dailyEmailPilotReady } = require("../serverRuntime");
+  const env = { DAILY_EMAIL_DURABLE_TEST_ENABLED: "true", DAILY_EMAIL_RECIPIENTS: "savepulse.cloud@gmail.com",
+    EMAIL_PROVIDER: "resend", RESEND_API_KEY: "fake", SUPABASE_URL: "https://example.invalid", SUPABASE_SERVICE_ROLE_KEY: "fake" };
+  assert.equal(dailyEmailPilotReady(env), true);
+  for (const overrides of [{ DAILY_EMAIL_ENABLED: "true" }, { DAILY_DIGEST_ENABLED: "true" },
+    { DAILY_EMAIL_RECIPIENTS: "savepulse.cloud@gmail.com,other@example.com" },
+    { DAILY_DIGEST_RECIPIENTS: "other@example.com" }, { RESEND_API_KEY: "" }]) {
+    assert.equal(dailyEmailPilotReady({ ...env, ...overrides }), false);
+  }
+  assert.equal(dailyDigestScheduleDue(new Date(), { ...env, DAILY_EMAIL_ENABLED: "true" }, {}).reason, "qa_pilot_only");
+});
+
+test("pilot HTTP endpoint requires admin authentication and stays off by default", async () => {
+  const url = `http://127.0.0.1:${server.address().port}/api/v1/admin/daily-email-pilot`;
+  const call = headers => fetch(url, { method: "POST", headers, body: "{}" });
+  assert.equal((await call({ "x-webhook-secret": "test-master-secret" })).status, 401);
+  const disabled = await call({ "x-savepulse-admin-key": "test-admin-key" });
+  assert.equal(disabled.status, 503);
+  assert.equal((await disabled.json()).error, "daily_email_pilot_not_ready");
 });
