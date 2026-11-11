@@ -32,7 +32,7 @@ const PLANS = Object.freeze({
   plus: {
     id: "plus",
     name: "Plus",
-    audience: "Travelers and currency savers who want real-time fiat alerts.",
+    audience: "People reviewing supported currency pairs before exchanging money. Paid availability is under review.",
     prices: { thbMonthly: 199, usdMonthly: 5 },
     watchlistLimit: 5,
     assetUniverse: FIAT_ASSETS,
@@ -44,11 +44,10 @@ const PLANS = Object.freeze({
     twoWayAlerts: false,
     features: [
       "Five watchlist items",
-      "Real-time fiat opportunity alerts",
-      "Daily decision card",
-      "Personalized historical examples",
-      "Timing window visibility",
-      "Email plus LINE or Telegram routing"
+      "Five supported currency pairs",
+      "Historical decision context",
+      "Email delivery is subject to service availability",
+      "Paid signup is not open; data-use permissions are being confirmed"
     ]
   },
   pro: {
@@ -65,12 +64,10 @@ const PLANS = Object.freeze({
     majorAlertsOnly: false,
     twoWayAlerts: true,
     features: [
-      "Twenty watchlist items",
-      "Fiat, gold, and bitcoin alerts",
-      "Two-way opportunity and expensive-zone alerts",
-      "Advanced confidence score",
-      "Historical replay windows",
-      "Priority alert queue"
+      "Supported currency, gold and bitcoin views",
+      "Favorable and caution-zone historical context",
+      "Email delivery is subject to service availability",
+      "Paid signup is not open; data-use permissions are being confirmed"
     ]
   },
   business: {
@@ -87,12 +84,10 @@ const PLANS = Object.freeze({
     majorAlertsOnly: false,
     twoWayAlerts: true,
     features: [
-      "Team watchlists",
-      "Invoice exposure tracking",
-      "Due-date currency alerts",
-      "Weekly FX risk report",
-      "CSV-ready workflow",
-      "Business support queue"
+      "Free scenario calculator using your own assumptions",
+      "Print or save the illustrative scenario brief",
+      "Paid Business service is not available",
+      "Team accounts, automated invoice alerts and integrations are not included"
     ]
   }
 });
