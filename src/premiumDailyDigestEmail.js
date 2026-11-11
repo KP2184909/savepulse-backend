@@ -121,7 +121,7 @@ function planContent(plan, locale, assets) {
       warm: true
     }) + infoCard({
       icon: "⌕",
-      title: languageKey === "th" ? "ข้อมูลเต็มยังล็อกไว้ — การ์ด Gold และ BTC เป็นเฉพาะ Pro" : "Full detail stays locked — Gold and BTC cards are Pro-only",
+      title: languageKey === "th" ? "ทองคำและบิตคอยน์อยู่ใน Plus และ Pro" : "Gold and bitcoin are covered by Plus and Pro",
       body: languageKey === "th" ? "ดูภาพรวมหลายสินทรัพย์และติดตามรายการได้มากขึ้น" : "See a wider multi-asset view and follow more items."
     });
   }
@@ -130,7 +130,7 @@ function planContent(plan, locale, assets) {
     return assets.map((asset) => assetCard(asset)).join("") + infoCard({
       icon: "◎",
       title: languageKey === "th" ? "อัปเกรดเป็น Pro" : "Upgrade to Pro",
-      body: languageKey === "th" ? "เพิ่มเรดาร์ทองคำ บิตคอยน์ และภาพรวมหลายสินทรัพย์ในอีเมลเดียว" : "Add gold, bitcoin, and a broader multi-asset radar.",
+      body: languageKey === "th" ? "เพิ่มรายงานค่าเงิน 5 คู่ พร้อมทองคำและบิตคอยน์ในอีเมลเดียว" : "Add all five currency pairs alongside gold and bitcoin.",
       warm: true
     });
   }

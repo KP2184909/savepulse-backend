@@ -198,12 +198,12 @@ test("direction-aware copy is used for subscriber watchlists", () => {
   const signals = completeSignals("2026-06-02T01:31:00.000Z", {
     JPYTHB: { action: ACTIONS.BUY_ZONE }
   });
-  const thbToJpy = subscriber("direction@example.com", "plus", {
+  const thbToJpy = subscriber("direction@example.com", "pro", {
     watchlist: [{ symbol: "JPYTHB", from: "THB", to: "JPY" }]
   });
 
   const email = buildDailyDigestEmail({
-    plan: "plus",
+    plan: "pro",
     locale: "th",
     signals: signalsForSubscriber(signals, thbToJpy),
     dashboardUrl: "https://savepulse.cloud",
