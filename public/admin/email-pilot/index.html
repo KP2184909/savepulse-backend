@@ -16,12 +16,12 @@ button{background:#075e63;color:white}pre{white-space:pre-wrap;overflow-wrap:any
 <body><main>
 <a href="/">SavePulse</a>
 <h1>ตรวจความพร้อมอีเมล QA</h1>
-<p>ตรวจความพร้อมรายงาน Plus สำหรับ savepulse.cloud@gmail.com</p>
+<p>ตรวจข้อมูลและสถานะผู้รับทดสอบเท่านั้น หน้านี้ไม่ส่งอีเมล</p>
 <form id="pilot">
 <label for="key">รหัสแอดมิน SavePulse</label>
 <input id="key" type="password" required autocomplete="off">
-<button id="check" type="submit">ตรวจรายงาน Plus โดยไม่ส่ง</button>
-<button id="send" type="submit" hidden>ส่ง Plus ทดสอบ 1 ฉบับ</button>
+<label for="report">แพ็กเกจ</label> <select id="report"><option value="plus">Plus</option><option value="pro">Pro</option></select>
+<button id="check">ตรวจรายงานโดยไม่ส่ง</button>
 </form>
 <pre id="result" role="status" aria-live="polite"></pre>
 </main>
@@ -31,20 +31,19 @@ const form = document.getElementById("pilot");
 const key = document.getElementById("key");
 const result = document.getElementById("result");
 const check = document.getElementById("check");
-const sendButton = document.getElementById("send");
 form.addEventListener("submit", async event => {
   event.preventDefault();
-  const send = event.submitter === sendButton && !sendButton.hidden;
-  sendButton.hidden = true;
   check.disabled = true;
+  report.disabled = true;
+  const selectedReport = report.value;
   const adminKey = key.value.trim();
   key.value = "";
-  result.textContent = send ? "กำลังส่งอีเมลทดสอบ…" : "กำลังตรวจ…";
+  result.textContent = "กำลังตรวจ…";
   try {
     const response = await fetch("/api/v1/admin/daily-email-pilot", {
       method: "POST", cache: "no-store", credentials: "omit",
       headers: { "Content-Type": "application/json", "x-savepulse-admin-key": adminKey },
-      body: JSON.stringify({ send, report: "plus" })
+      body: JSON.stringify({ send: false, report: selectedReport })
     });
     const data = await response.json();
     if (!response.ok) {
@@ -54,11 +53,8 @@ form.addEventListener("submit", async event => {
       return;
     }
     result.textContent = JSON.stringify(data, null, 2);
-    sendButton.hidden = send || !data.dryRun || !data.sendConfigured ||
-      !data.signalReadiness?.ready || data.recipients !== 1 ||
-      data.outcomes?.[0]?.plan !== "plus" || !data.outcomes[0].ok || data.outcomes[0].skipped;
   } catch (_) { result.textContent = "ติดต่อ backend ไม่สำเร็จ"; }
-  finally { check.disabled = false; }
+  finally { check.disabled = false; report.disabled = false; }
 });
 </script>
 </body>
