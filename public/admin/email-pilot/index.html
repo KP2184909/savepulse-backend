@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>SavePulse · Email QA preflight</title>
+<style>
+body{margin:0;background:#eef8f9;color:#101827;font:1rem/1.55 system-ui,sans-serif}
+main{max-width:42rem;margin:3rem auto;padding:1.5rem;background:white;border:1px solid #cce2e4;border-radius:1rem}
+input,button{font:inherit;padding:.6rem;border:1px solid #829da3;border-radius:.4rem}
+input{box-sizing:border-box;width:100%;margin:.4rem 0 .8rem}
+button{background:#075e63;color:white}pre{white-space:pre-wrap;overflow-wrap:anywhere}
+</style>
+</head>
+<body><main>
+<a href="/">SavePulse</a>
+<h1>ตรวจความพร้อมอีเมล QA</h1>
+<p>ตรวจข้อมูลและสถานะผู้รับทดสอบเท่านั้น หน้านี้ไม่ส่งอีเมล</p>
+<form id="pilot">
+<label for="key">รหัสแอดมิน SavePulse</label>
+<input id="key" type="password" required autocomplete="off">
+<button id="check">ตรวจความพร้อมโดยไม่ส่ง</button>
+</form>
+<pre id="result" role="status" aria-live="polite"></pre>
+</main>
+<script>
+"use strict";
+const form = document.getElementById("pilot");
+const key = document.getElementById("key");
+const result = document.getElementById("result");
+const check = document.getElementById("check");
+form.addEventListener("submit", async event => {
+  event.preventDefault();
+  check.disabled = true;
+  const adminKey = key.value.trim();
+  key.value = "";
+  result.textContent = "กำลังตรวจ…";
+  try {
+    const response = await fetch("/api/v1/admin/daily-email-pilot", {
+      method: "POST", cache: "no-store", credentials: "omit",
+      headers: { "Content-Type": "application/json", "x-savepulse-admin-key": adminKey },
+      body: JSON.stringify({ send: false })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      result.textContent = response.status === 401 ? "รหัสแอดมินไม่ผ่านการตรวจสอบ"
+        : data.error === "daily_email_pilot_not_ready" ? "ระบบ QA ยังไม่ได้เปิดหรือค่าตั้งไม่ครบ"
+        : "ตรวจไม่สำเร็จ (HTTP " + response.status + ")";
+      return;
+    }
+    result.textContent = JSON.stringify(data, null, 2);
+  } catch (_) { result.textContent = "ติดต่อ backend ไม่สำเร็จ"; }
+  finally { check.disabled = false; }
+});
+</script>
+</body>
+</html>
