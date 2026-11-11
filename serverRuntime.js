@@ -726,6 +726,21 @@ async function patchedHandleRequest(req, res) {
       return;
     }
 
+    if (req.method === "POST" && url.pathname === "/api/v1/admin/daily-email-tick") {
+      if (!process.env.DAILY_EMAIL_TICK_KEY ||
+          !timingSafeEqualString(req.headers["x-savepulse-daily-email-key"], process.env.DAILY_EMAIL_TICK_KEY)) {
+        return sendJson(res, 401, { error: "unauthorized" });
+      }
+      const recipients = dailyEmailRecipientAllowlist();
+      if (recipients.length !== 1 || recipients[0] !== DAILY_QA_EMAIL) {
+        return sendJson(res, 409, { error: "qa_recipient_required" });
+      }
+      const { result, ...status } = await runScheduledDailyDigest();
+      return sendJson(res, 200, { ...status, ...(result && {
+        sent: result.sent, skipped: result.skipped, failed: result.failed
+      }) });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/v1/admin/daily-email-pilot") {
       await handleDailyEmailPilot(req, res);
       return;

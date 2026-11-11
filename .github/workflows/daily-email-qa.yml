@@ -1,0 +1,23 @@
+name: Wake daily email QA
+on:
+  schedule:
+    - cron: '30 1 * * *'
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: daily-email-qa
+  cancel-in-progress: false
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      DAILY_EMAIL_TICK_KEY: ${{ secrets.DAILY_EMAIL_TICK_KEY }}
+    steps:
+      - name: Run the scheduled QA check
+        if: vars.DAILY_EMAIL_QA_ENABLED == 'true'
+        run: |
+          test -n "$DAILY_EMAIL_TICK_KEY"
+          curl --fail-with-body --max-time 110 -X POST \
+            -H "x-savepulse-daily-email-key: $DAILY_EMAIL_TICK_KEY" \
+            https://savepulse-backend.onrender.com/api/v1/admin/daily-email-tick
