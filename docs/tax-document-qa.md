@@ -103,3 +103,43 @@ User reports RD supporting documents uploaded; official approval remains pending
 Added separate per-refund delivery state for issued TEST credit notes. Invoice and each credit have independent leases, retries and provider idempotency keys; sending a credit never resets the original invoice's delivery. Local tests 158/158 cover original sent + pending credit, retry/restart independence, stable/distinct keys and duplicate suppression. Edge version 19 deployed only to isolated sandbox.
 
 Worker 399 HTTP 200 accepted 1, failed 0. Gmail for authorized test mailbox independently found INBOX message `1a19b2e1beae48ab`, subject `[TEST] SavePulse tax document TEST-SP-TI-202610-000001-CN-001`, received 2026-11-02 07:34:11 UTC / 14:34:11 Asia/Bangkok. HTML contains TEST ONLY / credit note / NOT VALID FOR TAX FILING / NO REAL PAYMENT. No attachment. This verifies HTML test credit-note delivery, not legal e-Tax, PDF/A-3 or time stamp. Repeat worker 400 verifies no duplicate acceptance. Production unchanged.
+
+### Time Stamp sender authorization — 2026-11-24
+
+The company activated its Revenue Department Time Stamp account and registered `savepulse.cloud@gmail.com` for head-office branch `00000` on 23 November. The mailbox received ETDA's ready-to-use notice from `csemail@etax.teda.th` on 24 November at 01:30 Bangkok time. Gmail reported DKIM and SPF pass, and the body explicitly authorizes that address for the live e-Tax Invoice by Email service. See the [ETDA confirmation in Gmail](https://mail.google.com/mail/u/?authuser=savepulse.cloud%40gmail.com#all/1a209ac1dd24dc7d). This establishes sender eligibility. SavePulse has yet to verify a document accepted by ETDA, receipt and retention of the stamped files, or live customer fulfillment.
+
+The [Revenue Department Time Stamp standard](https://www.rd.go.th/fileadmin/user_upload/tortor/standard/FP-02-2566_e-Tax_Invoice_by_Time_Stamp_V01.00.0000.pdf) specifies PDF/A-3 and a maximum file size of 2 MB. The approval email specifies one buyer address in To, the production Time Stamp address in CC, and a bracketed subject. A standard invoice issued on 24 November 2026 would use the date segment `[24112569]` and type segment `[INV]` followed by its real document number. The existing synthetic layout sample omits taxpayer IDs and must stay out of the production channel.
+
+The [ETDA UAT instructions](https://www.etda.or.th/getattachment/Our-Service/Digital-Trusted-services-Infrastructure/TEDA/ETAX/Information/CONTACT-US/%E0%B8%95%E0%B8%94%E0%B8%95%E0%B9%88%E0%B8%AD%E0%B9%80%E0%B8%A3%E0%B8%B2/eTax_Email_instruction_to_register_email_atTest_env_v1-0-%281%29.pdf.aspx?lang=th-TH) describe separate enrollment and a separate test CC. The inquiry for current UAT access and file requirements was [sent to ETDA](https://mail.google.com/mail/u/?authuser=savepulse.cloud%40gmail.com#all/1a206d2d28158d61). No reply was found in the SavePulse mailbox on 26 November. No test invoice was sent to ETDA or a customer, and there was no change to paid-checkout or live issuance settings.
+
+The synthetic layout sample initially failed veraPDF 1.30.4 because the file trailer lacked file identifiers. After adding them, it passed the PDF/A-3b validation profile. The file is 49,443 bytes, with identical extracted text and rendered pixels before and after the fix. This verifies the sample's PDF format only. The sample is fictional, omits tax IDs, and has not been accepted or stamped by ETDA.
+
+### Generate an offline invoice from the tax job
+
+Run from the backend checkout with Node.js, Python 3, Chrome or Chromium, and the [veraPDF CLI](https://docs.verapdf.org/install/). Install the Python packages into a local virtual environment. Pass `--chrome /path/to/chromium` or `--verapdf /path/to/verapdf` if either tool needs an explicit path.
+
+```sh
+python3 -m venv /tmp/savepulse-tax-qa-venv
+/tmp/savepulse-tax-qa-venv/bin/python -m pip install 'pikepdf==9.11.0' 'Pillow==11.3.0'
+/tmp/savepulse-tax-qa-venv/bin/python tools/export-tax-invoice-qa.py /tmp/SavePulse-TEST-invoice.pdf
+```
+
+The tool reuses the tax draft builder, job, ledger, and HTML template. It processes a fictional domestic USD 39 paid invoice with an in-memory store, checks that repeating issuance returns the same number, and exports the PDF only after veraPDF accepts the PDF/A-3b profile and the output meets the 2 MB limit. The sample uses fictional identities and an FX fixture. Keep it as local QA evidence. Confirm ETDA's required UAT sender and fixture details before preparing an attachment for their test mailbox.
+
+### Prepare the email for a reviewed invoice
+
+```sh
+/tmp/savepulse-tax-qa-venv/bin/python -m pip install 'PyMuPDF==1.26.5'
+/tmp/savepulse-tax-qa-venv/bin/python -B tools/etax_email.py /tmp/SavePulse-TEST-invoice.pdf /tmp/SavePulse-TEST-invoice.eml
+PYTHONPATH=tools python3 -B -m unittest discover -s tests -p 'etaxEmailTest.py'
+```
+
+Preview uses reserved addresses and preserves the original PDF bytes in one attachment. After ETDA confirms enrollment and fixture details, `--mode uat --from <registered-uat-mailbox> --to <controlled-test-buyer>` prepares a draft addressed to the UAT service. For a reviewed, actual SavePulse invoice, `--mode live --from savepulse.cloud@gmail.com --to <buyer-email>` prepares a draft addressed to the production service. The operator confirms the issue date and buyer against the invoice and uses the authorized mailbox for delivery. This tool accepts new invoices in the SavePulse layout and creates an unsent .eml file. It does not issue documents or enable checkout.
+
+The [Revenue Department guide](https://www.rd.go.th/fileadmin/user_upload/eTax/manual_time_stamp_230167.pdf#page=31) specifies the bracketed subject and single buyer and describes retaining the reply, stamped PDF, and Time Token. Verify the returned timestamp before marking delivery complete. As of 26 November the public production billing catalog reports disabled, and the automatic return and retention of stamped files is still unverified.
+
+### Stripe Live and tax draft check — 2026-11-26
+
+The production Plans API and Stripe Live both display USD 5 / 39 / 59 per month. The USD 39 / 49 / 69 revision is separate. The Stripe dashboard shows the current Render webhook destination enabled for all 13 lifecycle and risk events, including `invoice.paid`. The overview showed zero deliveries this week, so the configured event list does not establish that a signed Live request was accepted. The Thai inclusive 7% VAT object is active in Stripe; the current Render environment binding remains unverified because the console requested GitHub sign-in. The public catalog still reports disabled and the no-card trial is ready.
+
+The private Live tax draft route now derives totals and buyer details from the bound, paid Stripe invoice and uses the BOT buying-transfer rate selected for that tax point. It retains rate evidence in the draft and rejects unsupported domestic VAT context or missing exact-date FX evidence. This is a draft and cannot allocate an invoice number or send an email. The TEST endpoint behavior is preserved. No Stripe resource, Render variable or production checkout setting was changed.
