@@ -2,11 +2,18 @@
 const test=require("node:test"),assert=require("node:assert/strict"),crypto=require("node:crypto"),fs=require("node:fs"),os=require("node:os"),path=require("node:path");
 const {once}=require("node:events");
 const originalFetch=global.fetch,rows=new Map(),dir=fs.mkdtempSync(path.join(os.tmpdir(),"savepulse-queue-http-"));
-let unavailable=false,providerCalls=0,base;
+let unavailable=false,providerCalls=0,botCalls=0,base;
 Object.assign(process.env,{PORT:"0",HOST:"127.0.0.1",DATA_DIR:dir,TRIAL_ENABLED:"false",SUPABASE_URL:"https://queue.invalid",SUPABASE_SERVICE_ROLE_KEY:"fixture",BILLING_V2_ENABLED:"true",BILLING_WEBHOOK_QUEUE_ENABLED:"true",STRIPE_SECRET_KEY:"rk_test_fixture",STRIPE_EXPECTED_ACCOUNT_ID:"acct_fixture",STRIPE_WEBHOOK_SECRET:"whsec_queue_fixture",BILLING_WORKER_KEY:"a".repeat(64),APP_BASE_URL:"https://preview.example"});
 global.fetch=async(raw,options={})=>{
   const url=new URL(raw);
   if(url.hostname==="api.stripe.com"){providerCalls++;throw Error("provider_must_not_run_during_ingress");}
+  if (url.hostname === "gateway.api.bot.or.th") {
+    botCalls++;
+    assert.equal(options.headers.Authorization, "bot-test-credential");
+    assert.equal(url.searchParams.get("start_period"), "2026-11-24");
+    assert.equal(url.searchParams.get("end_period"), "2026-11-24");
+    return Response.json({ result: { data: { data_detail: [{ period: "2026-11-24", currency_id: "USD", buying_transfer: "35.125" }] } } });
+  }
   if(url.hostname!=="queue.invalid")return originalFetch(raw,options);
   if(unavailable)return Response.json({},{status:503});
   if(options.method==="POST"){
@@ -46,4 +53,21 @@ test("external worker requires its dedicated credential, never a member or readi
   assert.equal(response.status,200);
   const data=await response.json();assert.equal(data.emailsSent,0);assert.ok(data.queueHealth);
   assert.ok(!JSON.stringify(data).includes("a".repeat(64)));
+});
+
+test("worker FX probe authenticates, checks the live provider and leaves queue and cache untouched", async () => {
+  process.env.BOT_EXCHANGE_RATE_API_KEY = "bot-test-credential";
+  const route = base + "/api/v1/admin/billing/webhook-worker?taxFxDate=2026-11-24";
+  const before = structuredClone(rows);
+  const denied = await originalFetch(route, { method: "POST" });
+  assert.equal(denied.status, 401);
+  assert.equal(botCalls, 0);
+  const allowed = await originalFetch(route, {
+    method: "POST", headers: { "x-savepulse-worker-token": "a".repeat(64) },
+  });
+  assert.equal(allowed.status, 200);
+  assert.equal(allowed.headers.get("cache-control"), "no-store");
+  assert.deepEqual(await allowed.json(), { ok: true, rateDate: "2026-11-24", thbPerUsd: "35.125" });
+  assert.equal(botCalls, 1);
+  assert.deepEqual(rows, before);
 });

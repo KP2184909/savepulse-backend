@@ -1651,6 +1651,12 @@ async function handleRequest(req, res) {
       if (!/^[a-f0-9]{64}$/.test(provided) || !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided))) {
         sendJson(res, 401, { error: "authentication_required" }); return;
       }
+      if (url.searchParams.has("taxFxDate")) {
+        const getRate = createBotTaxFx({ token: process.env.BOT_EXCHANGE_RATE_API_KEY });
+        const { rateDate, thbPerUsd } = await getRate(url.searchParams.get("taxFxDate"));
+        sendJson(res, 200, { ok: true, rateDate, thbPerUsd });
+        return;
+      }
       if (!billingWebhookInbox) { sendJson(res, 503, { error: "billing_queue_disabled" }); return; }
       // A scheduled request drains one job. Account leases still fence overlap
       // with the in-process worker; ingress never waits for this call.
