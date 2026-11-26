@@ -34,6 +34,8 @@ const { createBillingLifecycle, createStripeApi } = require("./src/billingLifecy
 const { createBillingRiskOperations } = require("./src/billingRiskOperations");
 const { inspectLiveBilling, createLivePreflightReader, REQUIRED_EVENTS } = require("./src/billingLivePreflight");
 const { buildThaiTaxInvoiceDraft, renderThaiTaxInvoiceDraft } = require("./src/thaiTaxInvoiceDraft");
+const { buildVerifiedLiveTaxInvoiceDraft } = require("./src/liveTaxInvoiceDraft");
+const { createBotTaxFx } = require("./src/botTaxFx");
 const { verifyStripeWebhookSignature } = require("./src/stripeSignature");
 const { createBillingWebhookInbox } = require("./src/billingWebhookInbox");
 const trialStore = createTrialStore();
@@ -1613,6 +1615,19 @@ async function handleRequest(req, res) {
       res.setHeader("cache-control", "no-store");
       if (!hasAdminSecret(req)) { sendJson(res, 401, { error: "unauthorized_admin_billing" }); return; }
       const body = await parseBody(req);
+      if (billing.mode === "live") {
+        if (process.env.BILLING_DOMESTIC_VAT_ENABLED !== "true") {
+          sendJson(res, 503, { error: "billing_live_tax_configuration_required" });
+          return;
+        }
+        const draft = await buildVerifiedLiveTaxInvoiceDraft({
+          invoiceId: body.invoiceId,
+          paidInvoice: billing.paidInvoiceForTaxDraft,
+          getBotRate: createBotTaxFx({ token: process.env.BOT_EXCHANGE_RATE_API_KEY, store: trialStore }),
+        });
+        sendJson(res, 200, { draft, html: renderThaiTaxInvoiceDraft(draft) });
+        return;
+      }
       const payment = await billing.paidInvoiceForTaxDraft(body.invoiceId);
       const draft = buildThaiTaxInvoiceDraft({ payment, customer: body.customer, fx: body.fx, treatment: body.treatment });
       sendJson(res, 200, { draft, html: renderThaiTaxInvoiceDraft(draft) }); return;
